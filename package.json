@@ -1,0 +1,44 @@
+{
+  "name": "larvitorder",
+  "version": "0.0.1-alpha",
+  "description": "Generic order system",
+  "main": "index.js",
+  "dependencies": {
+    "larvitdb": "^0.4.4",
+    "larvitdbmigration": "^0.3.3",
+    "winston": "^2.1.1",
+    "winston-daily-rotate-file": "^1.0.1"
+  },
+  "devDependencies": {
+    "eslint": "^1.10.3",
+    "mocha": "^2.4.4",
+    "pre-git": "^3.3.0"
+  },
+  "scripts": {
+    "test": "mocha"
+  },
+  "repository": "https://github.com/larvit/larvitorder.git",
+  "keywords": [
+    "order",
+    "orders",
+    "multi-purpose"
+  ],
+  "author": "lilleman <lilleman@larvit.se>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/larvit/larvitorder/issues"
+  },
+  "homepage": "https://github.com/larvit/larvitorder#readme",
+  "config": {
+    "pre-git": {
+      "pre-commit": [
+        "npm test",
+        "eslint ./"
+      ],
+      "pre-push": [],
+      "post-commit": [],
+      "post-merge": [],
+      "commit-msg": []
+    }
+  }
+}
