@@ -4,8 +4,10 @@
   "description": "Generic order system",
   "main": "index.js",
   "dependencies": {
+    "async": "^1.5.2",
     "larvitdb": "^0.4.4",
     "larvitdbmigration": "^0.3.3",
+    "larvitutils": "^0.4.3",
     "winston": "^2.1.1",
     "winston-daily-rotate-file": "^1.0.1"
   },
