@@ -4,7 +4,7 @@ var db           = require('larvitdb'),
     log          = require('winston'),
     async        = require('async'),
     events       = require('events'),
-    dbmigration  = require('larvitdbmigration')({'tableName': 'blog_db_version', 'migrationScriptsPath': __dirname + '/dbmigration'}),
+    dbmigration  = require('larvitdbmigration')({'tableName': 'orders_db_version', 'migrationScriptsPath': __dirname + '/dbmigration'}),
     eventEmitter = new events.EventEmitter(),
     dbChecked    = false;
 
