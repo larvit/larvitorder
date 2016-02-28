@@ -1,71 +1,129 @@
 'use strict';
 
-var db           = require('larvitdb'),
-    log          = require('winston'),
-    async        = require('async'),
-    utils        = require('larvitutils'),
-    orders       = require('./orders.js'),
-    events       = require('events'),
-    dbmigration  = require('larvitdbmigration')({'tableName': 'orders_db_version', 'migrationScriptsPath': __dirname + '/dbmigration'}),
-    eventEmitter = new events.EventEmitter(),
-    dbChecked    = false;
+var uuid  = require('node-uuid'),
+    log   = require('winston'),
+    db    = require('larvitdb'),
+    async = require('async');
 
-// Handle database migrations
-dbmigration(function(err) {
-	if (err) {
-		log.error('larvitorder: order.js: Database error: ' + err.message);
-		return;
-	}
+class Order {
+  constructor(rows) {
+    this.uuid = uuid.v4();
+    this.created = new Date();
+    this.rows = rows;
 
-	dbChecked = true;
-	eventEmitter.emit('checked');
-});
+    log.info('OrderModel: New Order - Creating Order with uuid: ' + this.uuid);
+    let i = 0;
+    while(this.rows[i] !== undefined) {
+      this.rows[i].set('uuid', uuid.v4());
+      i++;
+    }
+  }
 
-/**
- * Create a new order
- *
- * @param obj data - Free form key-value object. However these fields have special meaning:
- *                   uuid - Must be a valid uuid string or buffer. If not supplied it will be generated
- *                   rows - Must be an array with order rows, each row containing at least "name" and "price"
- *                   createdTime - Must be a date object. If not supplied will be new Date()
- * @param func cb(err, orderObj)
- */
-function create(data, cb) {
-	if ( ! dbChecked) {
-		eventEmitter.on('checked', function() {create(data, cb);});
-		return;
-	}
+  // Gets all order fields.
+  getOrderFields(cb) {
+    var order = this;
+    log.info('OrderModel: getOrderFields() - Getting existing order fields');
+    db.query('SELECT * FROM orders_orderFields', function(err, fields) {
+      let result = new Set();
+      let i = 0;
+      while(fields[i] !== undefined) {
+        result.add(fields[i].name);
+        i++;
+      }
+      cb(err, result);
+    });
+  }
 
-	cb();
+  // Adds order field to the order object.
+  addOrderField(key, value) {
+    this[key] = value;
+  }
+
+  // Creates order fields if not already exists in the "orders_orderFields" table.
+  createOrderField(fieldname, fieldvalue, cb) {
+    var order = this;
+    log.info('OrderModel: createOrderField() - Creating order field: ' + fieldname);
+    db.query('INSERT IGNORE INTO orders_orderFields (name) VALUE(?)', [fieldname], function(err, data) {
+      if (err) {
+        throw err;
+      } else {
+        order.insertOrderFieldValue(fieldname, fieldvalue);
+        cb(data);
+      }
+    });
+  }
+
+  // Inserts order field values to the "orders_orders_fields" table.
+  insertOrderFieldValue(fieldname, fieldvalue) {
+    var order = this;
+    db.query('SELECT * FROM orders_orderFields WHERE name = ?', [fieldname], function(err, result) {
+      log.info('OrderModel: insertOrderFieldValue() - Writing order field value: ' + fieldname + ' => ' + fieldvalue);
+      db.query('INSERT INTO orders_orders_fields (orderUuid, fieldId, fieldValue) VALUE(?, ?, ?)', [order.uuid, result[0].id, fieldvalue], function(err, data) {
+        if (err) {
+          throw err;
+        }
+      });
+    });
+  }
+
+  // Creates the order i the "orders" table.
+  insertOrder(cb) {
+    var order = this;
+
+    log.info('OrderModel: insertOrder() - Writing order: ' + order.uuid);
+    db.query('INSERT INTO orders (uuid, created) VALUE(?, ?)', [order.uuid, order.created], function(err, data) {
+      if (err) {
+        throw err;
+      }
+      cb(data);
+    });
+
+  };
+
+  // Saving the order object to the database.
+  save(cb) {
+    var order = this,
+        tasks = new Array();
+
+    tasks.push(function(cb) {
+      order.insertOrder(function(result) {
+        cb(null, result);
+      });
+    });
+
+    tasks.push(function(cb) {
+      order.getOrderFields(function(err, fields) {
+        var subtasks = new Array();
+        
+        var createSubtask = function(key, value) {
+          subtasks.push(function(cb) {
+            order.createOrderField(key, value, function(result) {
+              cb(null, result);
+            });
+          });
+        };
+
+        for (var key in order) {
+          if (
+            key !== 'uuid' &&
+            key !== 'rows' &&
+            key !== 'created'
+          ) {
+            createSubtask(key, order[key]);
+          }
+        }
+
+        async.series(subtasks, function(err, result) {
+          cb(result);
+        });
+
+      });
+    });
+
+    async.series(tasks, function(err,result) {
+      console.log(result);
+    });
+  }
 }
 
-/**
- * Get an order object
- *
- * @param uuid uuid
- * @return obj or err
- */
-function get(uuid) {
-	var retObj = {'uuid': utils.formatUuid(uuid)},
-	    err;
-
-	if ( ! retObj.uuid) {
-		err = new Error('Invalid order uuid supplied: "' + uuid + '"');
-		log.error('larvitorder: order.js: get() - ' + err.message);
-		return err;
-	}
-
-	retObj.getData = function(cb) {
-		orders.get({'ids': retObj.id}, function(err, data) {
-			if ( ! err)
-				retObj.data = data;
-
-			cb(err, retObj.data);
-		});
-	};
-
-	return retObj;
-}
-
-exports.create = create;
-exports.get    = get;
+exports = module.exports = Order;
