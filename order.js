@@ -66,6 +66,33 @@ class Order {
     });
   }
 
+  // Creates row fields if not already exists in the "orders_rowFields" table.
+  createRowField(fieldname, fieldvalue, cb) {
+    var order = this;
+    log.info('OrderModel: createRowField() - Creating row field: ' + fieldname);
+    db.query('INSERT IGNORE INTO orders_rowFields (name) VALUE(?)', [fieldname], function(err, data) {
+      if (err) {
+        throw err;
+      } else {
+        order.insertRowFieldValue(fieldname, fieldvalue);
+        cb(data);
+      }
+    });
+  }
+
+  // Inserts row field values to the "orders_rows_fields" table.
+  insertRowFieldValue(fieldname, fieldvalue) {
+    var order = this;
+    db.query('SELECT * FROM orders_rowFields WHERE name = ?', [fieldname], function(err, result) {
+      log.info('OrderModel: insertRowFieldValue() - Writing row field value: ' + fieldname + ' => ' + fieldvalue);
+      db.query('INSERT INTO orders_rows_fields (rowUuid, rowFieldUuid, rowIntValue, rowStrValue) VALUE(?, ?, ?)', [order.uuid, result[0].id, null, fieldvalue], function(err, data) {
+        if (err) {
+          throw err;
+        }
+      });
+    });
+  }
+
   // Creates the order i the "orders" table.
   insertOrder(cb) {
     var order = this;
@@ -77,8 +104,7 @@ class Order {
       }
       cb(data);
     });
-
-  };
+  }
 
   // Saving the order object to the database.
   save(cb) {
