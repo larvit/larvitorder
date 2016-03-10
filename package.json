@@ -8,6 +8,7 @@
     "larvitdb": "^0.4.4",
     "larvitdbmigration": "^0.3.3",
     "larvitutils": "^0.4.3",
+    "node-uuid": "^1.4.7",
     "winston": "^2.1.1",
     "winston-daily-rotate-file": "^1.0.1"
   },
