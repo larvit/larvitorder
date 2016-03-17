@@ -40,7 +40,7 @@ class Order {
   }
 
   // Inserts order field values to the "orders_orders_fields" table.
-  insertOrderFieldValue(fieldname, fieldvalue) {
+  insertOrderFieldValue(fieldname, fieldvalue, cb) {
     var order = this;
     db.query('SELECT * FROM orders_orderFields WHERE name = ?', [fieldname], function(err, result) {
       log.info('OrderModel: insertOrderFieldValue() - Writing order field value: ' + fieldname + ' => ' + fieldvalue);
@@ -67,8 +67,6 @@ class Order {
       cb(data);
     });
   }
-
-/* ################################################################################### */
 
 
   // Creates a row i the "orders_rows" table.
