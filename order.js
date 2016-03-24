@@ -1,214 +1,199 @@
 'use strict';
 
-var uuid  = require('node-uuid'),
-    log   = require('winston'),
-    db    = require('larvitdb'),
-    async = require('async');
+const async = require('async'),
+      uuid  = require('node-uuid'),
+      log   = require('winston'),
+      db    = require('larvitdb');
 
 class Order {
-  constructor(rows) {
-    this.uuid = uuid.v4();
-    this.created = new Date();
-    this.rows = rows;
 
-    log.info('OrderModel: New Order - Creating Order with uuid: ' + this.uuid);
-    let i = 0;
-    while(this.rows[i] !== undefined) {
-      this.rows[i].set('uuid', uuid.v4());
-      i ++;
-    }
-  }
+	constructor(rows) {
+		let i = 0;
 
-  // Adds order field to the order object.
-  addOrderField(key, value) {
-    this[key] = value;
-  }
+		this.created = new Date();
+		this.uuid    = uuid.v4();
+		this.rows    = rows;
 
-  // Creates order fields if not already exists in the "orders_orderFields" table.
-  createOrderField(fieldname, fieldvalue, cb) {
-    var order = this;
-    log.info('OrderModel: createOrderField() - Creating order field: ' + fieldname);
-    db.query('INSERT IGNORE INTO orders_orderFields (name) VALUE(?)', [fieldname], function(err) {
-      if (err) {
-        throw err;
-      } else {
-        order.insertOrderFieldValue(fieldname, fieldvalue, function(err, result) {
-          cb(null, result);
-        });
-      }
-    });
-  }
+		log.verbose('larvitorder: New Order - Creating Order with uuid: ' + this.uuid);
+		while (this.rows[i] !== undefined) {
+			this.rows[i].set('uuid', uuid.v4());
+			i ++;
+		}
+	}
 
-  // Inserts order field values to the "orders_orders_fields" table.
-  insertOrderFieldValue(fieldname, fieldvalue, cb) {
-    var order = this;
-    db.query('SELECT * FROM orders_orderFields WHERE name = ?', [fieldname], function(err, result) {
-      log.info('OrderModel: insertOrderFieldValue() - Writing order field value: ' + fieldname + ' => ' + fieldvalue);
-      db.query('INSERT INTO orders_orders_fields (orderUuid, fieldId, fieldValue) VALUE(?, ?, ?)', [order.uuid, result[0].id, fieldvalue], function(err, result) {
-        if (err) {
-          throw err;
-        } else {
-          cb(null, result);
-        }
-      });
-    });
-  }
+	// Adds order field to the order object.
+	addOrderField(key, value) {
+		this[key] = value;
+	}
 
+	// Creates order fields if not already exists in the "orders_orderFields" table.
+	createOrderField(fieldName, fieldValue, cb) {
+		const that = this;
 
-  // Creates the order i the "orders" table.
-  insertOrder(cb) {
-    var order = this;
+		log.debug('larvitorder: createOrderField() - Creating order field: ' + fieldName);
+		db.query('INSERT IGNORE INTO orders_orderFields (name) VALUE(?)', [fieldName], function(err) {
+			if (err) {
+				cb(err);
+				return;
+			}
 
-    log.info('OrderModel: insertOrder() - Writing order: ' + order.uuid);
-    db.query('INSERT INTO orders (uuid, created) VALUE(?, ?)', [order.uuid, order.created], function(err, data) {
-      if (err) {
-        throw err;
-      }
-      cb(data);
-    });
-  }
+			that.insertOrderfieldValue(fieldName, fieldValue, cb);
+		});
+	}
 
+	// Inserts order field values to the "orders_orders_fields" table.
+	insertOrderfieldValue(fieldName, fieldValue, cb) {
+		const that = this;
 
-  // Creates a row i the "orders_rows" table.
-  insertRow(row, cb) {
-    var order = this;
-    row.set('uuid', uuid.v4());
+		db.query('SELECT * FROM orders_orderFields WHERE name = ?', [fieldName], function(err, result) {
+			if (err) {
+				cb(err);
+				return;
+			}
 
-    log.info('OrderModel: insertRow() - Writing row: ' + row.uuid);
-    db.query('INSERT INTO orders_rows (rowUuid, orderUuid) VALUE(?, ?)', [row.get('uuid'), order.uuid], function(err, data) {
-      if (err) {
-        throw err;
-      }
-      cb(data);
-    });
-  }
+			log.debug('larvitorder: insertOrderfieldValue() - Writing order field value: ' + fieldName + ' => ' + fieldValue);
+			db.query('INSERT INTO orders_orders_fields (orderUuid, fieldId, fieldValue) VALUE(?, ?, ?)', [that.uuid, result[0].id, fieldValue], cb);
+		});
+	}
 
+	// Creates the order i the "orders" table.
+	insertOrder(cb) {
+		const that = this;
 
-  // Creates order fields if not already exists in the "orders_orderFields" table.
-  createRowField(fieldname, fieldvalue, cb) {
-    log.info('OrderModel: createRowField() - Creating row field: ' + fieldname);
-    db.query('INSERT IGNORE INTO orders_rowFields (name) VALUE(?)', [fieldname], function(err, data) {
-      if (err) {
-        throw err;
-      } else {
-        cb(data);
-      }
-    });
-  }
+		log.debug('larvitorder: insertOrder() - Writing order: ' + that.uuid);
+		db.query('INSERT IGNORE INTO orders (uuid, created) VALUE(?, ?)', [that.uuid, that.created], cb);
+	}
 
-  // Inserts order field values to the "orders_orders_fields" table.
-  insertRowFieldValue(rowuuid, fieldname, fieldvalue, cb) {
-    var rowIntValue,
-        rowStrValue;
+	// Creates a row i the "orders_rows" table.
+	insertRow(row, cb) {
+		const that = this;
 
-    if (fieldvalue === parseInt(fieldvalue)) {
-      rowIntValue = fieldvalue;
-      rowStrValue = null;
-    } else {
-      rowIntValue = null;
-      rowStrValue = fieldvalue;
-    }
+		if ( ! row.get('uuid'))
+			row.set('uuid', uuid.v4());
 
-    db.query('SELECT * FROM orders_rowFields WHERE name = ?', [fieldname], function(err, field) {
-      log.info('OrderModel: insertRowFieldValue() - Writing row field value: ' + fieldname + ' => ' + fieldvalue);
-      db.query('INSERT INTO orders_rows_fields (rowUuid, rowFieldUuid, rowIntValue, rowStrValue) VALUE(?, ?, ?, ?)', [rowuuid, field[0].id, rowIntValue, rowStrValue], function(err, result) {
-        if (err) {
-          throw err;
-        } else  {
-          cb(null, result);
-        }
-      });
-    });
-  }
+		log.debug('larvitorder: insertRow() - Writing row: ' + row.get('uuid'));
+		db.query('INSERT INTO orders_rows (rowUuid, orderUuid) VALUE(?, ?)', [row.get('uuid'), that.uuid], cb);
+	}
 
+	// Creates order fields if not already exists in the "orders_orderFields" table.
+	createRowField(fieldName, fieldValue, cb) {
+		log.debug('larvitorder: createRowField() - Creating row field: ' + fieldName);
+		db.query('INSERT IGNORE INTO orders_rowFields (name) VALUE(?)', [fieldName], cb);
+	}
 
-  // Saving the order object to the database.
-  save(cb) {
-    var order = this,
-        tasks = new Array(),
-        key;
+	/**
+	 * Inserts order field values to the "orders_orders_fields" table.
+	 *
+	 * @param str rowUuid
+	 * @param str fieldName
+	 * @param str or int fieldValue
+	 * @param func cb(err, res) - res is from the db query
+	 */
+	insertRowfieldValue(rowUuid, fieldName, fieldValue, cb) {
+		let rowIntValue,
+		    rowStrValue;
 
-    // Insert order
-    tasks.push(function(cb) {
-      order.insertOrder(function(result) {
-        cb(null, result);
-      });
-    });
+		if (fieldValue === parseInt(fieldValue)) {
+			rowIntValue = fieldValue;
+			rowStrValue = null;
+		} else {
+			rowIntValue = null;
+			rowStrValue = fieldValue;
+		}
 
-    // Insert order fields and fieldvalues
-    tasks.push(function(cb) {
-        var subtasks = new Array(),
-            createSubtask;
-        
-        createSubtask = function(key, value) {
-          subtasks.push(function(cb) {
-            order.createOrderField(key, value, function(result) {
-              cb(null, result);
-            });
-          });
-        };
+		db.query('SELECT * FROM orders_rowFields WHERE name = ?', [fieldName], function(err, field) {
+			const dbFields = [rowUuid, field[0].id, rowIntValue, rowStrValue],
+			      sql      = 'INSERT INTO orders_rows_fields (rowUuid, rowFieldUuid, rowIntValue, rowStrValue) VALUE(?, ?, ?, ?)',
 
-        for (key in order) {
-          if (
-            key !== 'uuid' &&
-            key !== 'rows' &&
-            key !== 'created'
-          ) {
-            createSubtask(key, order[key]);
-          }
-        }
+			log.debug('larvitorder: insertRowfieldValue() - Writing row field value: ' + fieldName + ' => ' + fieldValue);
+			db.query(sql, dbFields, cb);
+		});
+	}
 
-        async.series(subtasks, function(err, result) {
-          cb(null, result);
-        });
-    });
+	// Saving the order object to the database.
+	save(cb) {
+		const tasks = [],
+		      that  = this;
 
-    // Insert rows 
-    tasks.push(function(cb) {
-      order.insertRow(order.rows[0], function(result) {
-        cb(null, result);
-      });
-    });
+		// Insert order
+		tasks.push(that.insertOrder);
 
-    // Insert order fields and fieldvalues
-    tasks.push(function(cb) {
-        var subtasks = new Array(),
-            createFields,
-            insertFieldValues;
-        
-        createFields = function(fieldname, fieldvalue) {
-          subtasks.push(function(cb) {
-            order.createRowField(fieldname, fieldvalue, function(result) {
-              cb(null, result);
-            });
-          });
-        };
+		// Replace order fields and fieldValues
+		tasks.push(function(cb) {
+			const subtasks = [];
 
-        insertFieldValues = function(rowuuid, fieldname, fieldvalue) {
-          subtasks.push(function(cb) {
-            order.insertRowFieldValue(rowuuid, fieldname, fieldvalue, function(err, result) {
-              cb(null, result);
-            });
-          });
-        };
+			let createSubtask;
 
-        order.rows.forEach(function (row) {
-          row.forEach(function(fieldvalue, fieldname) {
-            createFields(fieldname, fieldvalue);
-            insertFieldValues(row.get('uuid'), fieldname, fieldvalue);
-          });
-        });
+			createSubtask = function(key, value) {
+				subtasks.push(function(cb) {
+					order.createOrderField(key, value, cb);
+				});
+			};
 
-        async.series(subtasks, function(err, result) {
-          cb(null, result);
-        });
-    });
+			for (let key in that.fields) {
+				let keyVal = that.fields[key];
 
-    async.series(tasks, function(err, result) {
-      cb(null, result);
-    });
+				if (
+					   key !== 'uuid'
+					&& key !== 'rows'
+					&& key !== 'created'
+					&& that.hasOwnProperty(key)
+					) {
+					createSubtask(key, that[key]);
+			}
+		}
 
-  }
+		async.series(subtasks, function(err, result) {
+			cb(null, result);
+		});
+	});
+
+	// Insert rows
+	tasks.push(function(cb) {
+		that.insertRow(that.rows[0], function(result) {
+			cb(null, result);
+		});
+	});
+
+		// Insert order fields and fieldValues
+		tasks.push(function(cb) {
+			var subtasks = new Array(),
+			createFields,
+			insertfieldValues;
+
+			createFields = function(fieldName, fieldValue) {
+				subtasks.push(function(cb) {
+					that.createRowField(fieldName, fieldValue, function(result) {
+						cb(null, result);
+					});
+				});
+			};
+
+			insertfieldValues = function(rowUuid, fieldName, fieldValue) {
+				subtasks.push(function(cb) {
+					that.insertRowfieldValue(rowUuid, fieldName, fieldValue, function(err, result) {
+						cb(null, result);
+					});
+				});
+			};
+
+			that.rows.forEach(function (row) {
+				row.forEach(function(fieldValue, fieldName) {
+					createFields(fieldName, fieldValue);
+					insertfieldValues(row.get('uuid'), fieldName, fieldValue);
+				});
+			});
+
+			async.series(subtasks, function(err, result) {
+				cb(null, result);
+			});
+		});
+
+		async.series(tasks, function(err, result) {
+			cb(null, result);
+		});
+
+	}
 }
 
 exports = module.exports = Order;
