@@ -1,8 +1,6 @@
 'use strict';
 
-var db           = require('larvitdb'),
-    log          = require('winston'),
-    async        = require('async'),
+var log          = require('winston'),
     events       = require('events'),
     dbmigration  = require('larvitdbmigration')({'tableName': 'orders_db_version', 'migrationScriptsPath': __dirname + '/dbmigration'}),
     eventEmitter = new events.EventEmitter(),

@@ -103,7 +103,7 @@ class Order {
 
 		db.query('SELECT * FROM orders_rowFields WHERE name = ?', [fieldName], function(err, field) {
 			const dbFields = [rowUuid, field[0].id, rowIntValue, rowStrValue],
-			      sql      = 'INSERT INTO orders_rows_fields (rowUuid, rowFieldUuid, rowIntValue, rowStrValue) VALUE(?, ?, ?, ?)',
+			      sql      = 'INSERT INTO orders_rows_fields (rowUuid, rowFieldUuid, rowIntValue, rowStrValue) VALUE(?, ?, ?, ?)';
 
 			log.debug('larvitorder: insertRowfieldValue() - Writing row field value: ' + fieldName + ' => ' + fieldValue);
 			db.query(sql, dbFields, cb);
@@ -131,8 +131,6 @@ class Order {
 			};
 
 			for (let key in that.fields) {
-				let keyVal = that.fields[key];
-
 				if (
 					   key !== 'uuid'
 					&& key !== 'rows'
