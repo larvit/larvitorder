@@ -16,7 +16,7 @@ class Order {
 
 		log.verbose('larvitorder: New Order - Creating Order with uuid: ' + this.uuid);
 		while (this.rows[i] !== undefined) {
-			this.rows[i].set('uuid', uuid.v4());
+			this.rows[i].uuid = uuid.v4();
 			i ++;
 		}
 	}
@@ -68,11 +68,11 @@ class Order {
 	insertRow(row, cb) {
 		const that = this;
 
-		if ( ! row.get('uuid'))
-			row.set('uuid', uuid.v4());
+		if ( ! row.uuid)
+			row.uuid = uuid.v4();
 
-		log.debug('larvitorder: insertRow() - Writing row: ' + row.get('uuid'));
-		db.query('INSERT INTO orders_rows (rowUuid, orderUuid) VALUE(?, ?)', [row.get('uuid'), that.uuid], cb);
+		log.debug('larvitorder: insertRow() - Writing row: ' + row.uuid);
+		db.query('INSERT INTO orders_rows (rowUuid, orderUuid) VALUE(?, ?)', [row.uuid, that.uuid], cb);
 	}
 
 	// Creates order fields if not already exists in the "orders_orderFields" table.
@@ -115,8 +115,12 @@ class Order {
 		const tasks = [],
 		      that  = this;
 
+		let i	= 0;
+
 		// Insert order
-		tasks.push(that.insertOrder);
+		tasks.push(function(cb) {
+			that.insertOrder(cb);
+		});
 
 		// Replace order fields and fieldValues
 		tasks.push(function(cb) {
@@ -126,32 +130,25 @@ class Order {
 
 			createSubtask = function(key, value) {
 				subtasks.push(function(cb) {
-					order.createOrderField(key, value, cb);
+					that.createOrderField(key, value, cb);
 				});
 			};
 
 			for (let key in that.fields) {
-				if (
-					   key !== 'uuid'
-					&& key !== 'rows'
-					&& key !== 'created'
-					&& that.hasOwnProperty(key)
-					) {
-					createSubtask(key, that[key]);
+				createSubtask(key, that.fields[key]);
 			}
-		}
 
-		async.series(subtasks, function(err, result) {
-			cb(null, result);
+			async.series(subtasks, function(err, result) {
+				cb(null, result);
+			});
 		});
-	});
 
-	// Insert rows
-	tasks.push(function(cb) {
-		that.insertRow(that.rows[0], function(result) {
-			cb(null, result);
+		// Insert rows
+		tasks.push(function(cb) {
+			that.insertRow(that.rows[0], function(result) {
+				cb(null, result);
+			});
 		});
-	});
 
 		// Insert order fields and fieldValues
 		tasks.push(function(cb) {
@@ -175,12 +172,15 @@ class Order {
 				});
 			};
 
-			that.rows.forEach(function (row) {
-				row.forEach(function(fieldValue, fieldName) {
-					createFields(fieldName, fieldValue);
-					insertfieldValues(row.get('uuid'), fieldName, fieldValue);
-				});
-			});
+			while (that.rows.length > i) {
+				for (let key in that.rows[i]) {
+					if (key !== 'uuid') {
+						createFields(key, that.rows[i][key]);
+						insertfieldValues(that.rows[i].uuid, key, that.rows[i][key]);
+					}
+				}
+				i ++;
+			}
 
 			async.series(subtasks, function(err, result) {
 				cb(null, result);
