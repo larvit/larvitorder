@@ -5,7 +5,7 @@
   "main": "index.js",
   "dependencies": {
     "async": "^1.5.2",
-    "larvitdb": "^0.4.4",
+    "larvitdb": "^1.0.0",
     "larvitdbmigration": "^1.0.1",
     "larvitutils": "^0.4.3",
     "node-uuid": "^1.4.7",
