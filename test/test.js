@@ -93,6 +93,19 @@ describe('Order', function() {
 		done();
 	});
 
+	it('should instantiate a new plain order object, with custom uuid', function(done) {
+		const order = new orderLib.order('2d293548-067f-4a88-b23f-cc0e58801512');
+
+		assert.deepEqual(toString.call(order), '[object Object]');
+		assert.deepEqual(uuidValidate(order.uuid, 4), true);
+		assert.deepEqual(order.uuid, '2d293548-067f-4a88-b23f-cc0e58801512');
+		assert.deepEqual(toString.call(order.created), '[object Date]');
+		assert.deepEqual(order.rows instanceof Array, true);
+		assert.deepEqual(order.rows.length, 0);
+
+		done();
+	});
+
 	after(function(done) {
 		db.removeAllTables(done);
 	});

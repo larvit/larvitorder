@@ -29,7 +29,6 @@ class Order {
 
 				cb(null, order);
 			});
-
 		} else {
 			this.created = new Date();
 			this.fields  = options.fields;
