@@ -94,44 +94,38 @@ describe('Order', function() {
 	it('should instantiate a new plain order object', function(done) {
 		const order = new orderLib.Order();
 
-		order.get(function(err, orderData) {
-			assert( ! err, 'err should be negative');
-			assert.deepEqual(toString.call(orderData), '[object Object]');
-			assert.deepEqual(uuidValidate(orderData.uuid, 4), true);
-			assert.deepEqual(toString.call(orderData.created), '[object Date]');
-			assert.deepEqual(orderData.rows instanceof Array, true);
-			assert.deepEqual(orderData.rows.length, 0);
+		assert.deepEqual(toString.call(order), '[object Object]');
+		assert.deepEqual(uuidValidate(order.uuid, 4), true);
+		assert.deepEqual(toString.call(order.created), '[object Date]');
+		assert.deepEqual(order.rows instanceof Array, true);
+		assert.deepEqual(order.rows.length, 0);
 
-			done();
-		});
+		done();
 	});
 
 	it('should instantiate a new plain order object, with object as option', function(done) {
 		const order = new orderLib.Order({});
 
-		order.get(function(err, orderData) {
-			assert( ! err, 'err should be negative');
-			assert.deepEqual(toString.call(orderData), '[object Object]');
-			assert.deepEqual(uuidValidate(orderData.uuid, 4), true);
-			assert.deepEqual(toString.call(orderData.created), '[object Date]');
-			assert.deepEqual(orderData.rows instanceof Array, true);
-			assert.deepEqual(orderData.rows.length, 0);
+		assert.deepEqual(toString.call(order), '[object Object]');
+		assert.deepEqual(uuidValidate(order.uuid, 4), true);
+		assert.deepEqual(toString.call(order.created), '[object Date]');
+		assert.deepEqual(order.rows instanceof Array, true);
+		assert.deepEqual(order.rows.length, 0);
 
-			done();
-		});
+		done();
 	});
 
 	it('should instantiate a new plain order object, with custom uuid', function(done) {
 		const order = new orderLib.Order('2d293548-067f-4a88-b23f-cc0e58801512');
 
-		order.get(function(err, orderData) {
+		order.loadFromDb(function(err) {
 			assert( ! err, 'err should be negative');
-			assert.deepEqual(toString.call(orderData), '[object Object]');
-			assert.deepEqual(uuidValidate(orderData.uuid, 4), true);
-			assert.deepEqual(orderData.uuid, '2d293548-067f-4a88-b23f-cc0e58801512');
-			assert.deepEqual(toString.call(orderData.created), '[object Date]');
-			assert.deepEqual(orderData.rows instanceof Array, true);
-			assert.deepEqual(orderData.rows.length, 0);
+			assert.deepEqual(toString.call(order), '[object Object]');
+			assert.deepEqual(uuidValidate(order.uuid, 4), true);
+			assert.deepEqual(order.uuid, '2d293548-067f-4a88-b23f-cc0e58801512');
+			assert.deepEqual(toString.call(order.created), '[object Date]');
+			assert.deepEqual(order.rows instanceof Array, true);
+			assert.deepEqual(order.rows.length, 0);
 
 			done();
 		});
@@ -143,15 +137,10 @@ describe('Order', function() {
 		function createOrder(cb) {
 			const order = new orderLib.Order();
 
-			order.get(function(err, orderData) {
-				assert( ! err, 'err should be negative');
-				orderUuid = orderData.uuid;
-			});
+			orderUuid = order.uuid;
 
-			order.set({
-				'fields': {'firstname': 'Migal', 'lastname': ['Göransson', 'Kollektiv']},
-				'rows': [{'price': 399, 'name': 'plutt'}, {'price': 34, 'tags': ['foo', 'bar']}]
-			});
+			order.fields = {'fields': {'firstname': 'Migal', 'lastname': ['Göransson', 'Kollektiv']}};
+			order.rows = [{'price': 399, 'name': 'plutt'}, {'price': 34, 'tags': ['foo', 'bar']}];
 
 			order.save(cb);
 		}
@@ -159,14 +148,14 @@ describe('Order', function() {
 		function checkOrder(cb) {
 			const order = new orderLib.Order(orderUuid);
 
-			order.get(function(err, orderData) {
+			order.loadFromDb(function(err) {
 				assert( ! err, 'err should be negative');
 
-				assert.deepEqual(orderData.fields.firstname[0], 'Migal');
-				assert.deepEqual(orderData.rows[0].price[0], 399);
-				assert.deepEqual(orderData.uuid, orderUuid);
-				assert.deepEqual(orderData.fields.lastname[0], 'Göransson');
-				assert.deepEqual(orderData.fields.lastname[1], 'Kollektiv');
+				assert.deepEqual(order.fields.firstname[0], 'Migal');
+				assert.deepEqual(order.rows[0].price[0], 399);
+				assert.deepEqual(order.uuid, orderUuid);
+				assert.deepEqual(order.fields.lastname[0], 'Göransson');
+				assert.deepEqual(order.fields.lastname[1], 'Kollektiv');
 
 				cb();
 			});
