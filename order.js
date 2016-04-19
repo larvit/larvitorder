@@ -5,7 +5,6 @@ const uuidLib = require('node-uuid'),
       log     = require('winston'),
       db      = require('larvitdb');
 
-
 String.prototype.replaceAll = function(search, replacement) {
 	let target = this;
 	return target.replace(new RegExp(search, 'g'), replacement);
@@ -13,42 +12,36 @@ String.prototype.replaceAll = function(search, replacement) {
 
 class Order {
 
-	constructor(options, cb) {
+	constructor(options) {
 		if (options === undefined) {
 			options = {};
 		}
 
+		// If options is a string, assume it is an uuid
 		if (typeof options === 'string') {
 			this.uuid = options;
-
-			this.getOrder(function(err, order) {
-				if (err) {
-					cb(err);
-					return;
-				}
-
-				cb(null, order);
-			});
+			options   = {};
 		} else {
-			this.created = new Date();
-			this.fields  = options.fields;
-			this.uuid    = uuidLib.v4();
-			this.rows    = options.rows;
+			this.uuid = uuidLib.v4();
+		}
 
-			if (this.rows === undefined) {
-				this.rows = [];
-			}
+		this.created = new Date();
+		this.fields  = options.fields;
+		this.rows    = options.rows;
 
-			log.verbose('larvitorder: New Order - Creating Order with uuid: ' + this.uuid);
-			for (let i = 0; this.rows[i] !== undefined; i ++) {
-				if (this.rows[i].uuid === undefined) {
-					this.rows[i].uuid = uuidLib.v4();
-				}
+		if (this.rows === undefined) {
+			this.rows = [];
+		}
+
+		log.verbose('larvitorder: New Order - Creating Order with uuid: ' + this.uuid);
+		for (let i = 0; this.rows[i] !== undefined; i ++) {
+			if (this.rows[i].uuid === undefined) {
+				this.rows[i].uuid = uuidLib.v4();
 			}
 		}
 	}
 
-	getOrder(cb) {
+	get(cb) {
 		const tasks = [],
 		      that 	= this;
 
@@ -57,7 +50,7 @@ class Order {
 		// Get basic order data
 		tasks.push(function(cb) {
 			log.debug('larvitorder: getOrder() - Getting order: ' + that.uuid);
-			db.query('SELECT * FROM orders WHERE HEX(uuid) = ?', [that.uuid.replaceAll('-', '')], function(err, data) {
+			db.query('SELECT * FROM orders WHERE uuid = ?', [that.uuid], function(err, data) {
 				if (err) {
 					cb(err);
 					return;

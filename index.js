@@ -1,4 +1,4 @@
 'use strict';
 
-exports.order  = require('./order.js');
-exports.orders = require('./orders.js');
+exports.Order  = require('./order.js');
+exports.Orders = require('./orders.js');
