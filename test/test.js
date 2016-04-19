@@ -1,6 +1,6 @@
 'use strict';
 
-const uuidvalidate  = require('uuid-validate'),
+const uuidValidate  = require('uuid-validate'),
       larvitorder   = require('../index.js'),
       assert        = require('assert'),
       log           = require('winston'),
@@ -75,7 +75,7 @@ describe('Order', function() {
 		let options = {};
 		order	= new larvitorder.order(options);
 		assert.deepEqual(toString.call(order), '[object Object]');
-		assert.deepEqual(uuidvalidate(order.uuid, 4), true);
+		assert.deepEqual(uuidValidate(order.uuid, 4), true);
 		assert.deepEqual(toString.call(order.created), '[object Date]');
 		done();
 	});
