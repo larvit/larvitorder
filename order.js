@@ -1,30 +1,53 @@
 'use strict';
 
-const async = require('async'),
-      uuid  = require('node-uuid'),
-      log   = require('winston'),
+const async	= require('async'),
+      uuid	= require('node-uuid'),
+      log 	= require('winston'),
       db    = require('larvitdb');
 
 class Order {
 
-	constructor(rows) {
-		let i = 0;
+	constructor(options) {
 
-		this.created = new Date();
-		this.uuid    = uuid.v4();
-		this.rows    = rows;
+		if (typeof(options) === 'string') {
+			this.uuid = options;
 
-		log.verbose('larvitorder: New Order - Creating Order with uuid: ' + this.uuid);
-		while (this.rows[i] !== undefined) {
-			this.rows[i].uuid = uuid.v4();
-			i ++;
+			this.getOrder(function(err, result) {
+				cb(null, result);
+			});
+
+		} else {
+			let i = 0;
+
+			this.created	= new Date();
+			this.uuid			= uuid.v4();
+			this.rows			= options.rows;
+			this.fields		= options.fields;
+
+			log.verbose('larvitorder: New Order - Creating Order with uuid: ' + this.uuid);
+			while (this.rows[i] !== undefined) {
+				this.rows[i].uuid = uuid.v4();
+				i ++;
+			}
 		}
 	}
 
-	// Adds order field to the order object.
-	addOrderField(key, value) {
-		this[key] = value;
+	getOrder(cb) {
+		const that = this;
+
+		log.debug('larvitorder: getOrder() - Getting order: ' + that.uuid);
+		db.query('SELECT * FROM orders WHERE uuid = ?', [uuid.replaceAll('-', '')], function(err, order) {
+			if (err) {
+				cb(err);
+				return;
+			}
+
+			cb(null, order);
+		});
+
+
 	}
+
 
 	// Creates order fields if not already exists in the "orders_orderFields" table.
 	createOrderField(fieldName, fieldValue, cb) {
