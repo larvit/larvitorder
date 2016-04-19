@@ -14,6 +14,10 @@ String.prototype.replaceAll = function(search, replacement) {
 class Order {
 
 	constructor(options, cb) {
+		if (options === undefined) {
+			options = {};
+		}
+
 		if (typeof options === 'string') {
 			this.uuid = options;
 

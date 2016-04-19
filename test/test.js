@@ -1,7 +1,7 @@
 'use strict';
 
 const uuidValidate  = require('uuid-validate'),
-      larvitorder   = require('../index.js'),
+      orderLib   = require('../index.js'),
       assert        = require('assert'),
       log           = require('winston'),
       db            = require('larvitdb'),
@@ -50,8 +50,6 @@ before(function(done) {
 });
 
 describe('Order', function() {
-	let order;
-
 	before(function(done) {
 		// Check for empty db
 		db.query('SHOW TABLES', function(err, rows) {
@@ -71,17 +69,31 @@ describe('Order', function() {
 		});
 	});
 
-	it('should instantiate a new order object', function(done) {
-		let options = {};
-		order	= new larvitorder.order(options);
+	it('should instantiate a new plain order object', function(done) {
+		const order = new orderLib.order();
+
 		assert.deepEqual(toString.call(order), '[object Object]');
 		assert.deepEqual(uuidValidate(order.uuid, 4), true);
 		assert.deepEqual(toString.call(order.created), '[object Date]');
+		assert.deepEqual(order.rows instanceof Array, true);
+		assert.deepEqual(order.rows.length, 0);
+
+		done();
+	});
+
+	it('should instantiate a new plain order object, with object as option', function(done) {
+		const order = new orderLib.order({});
+
+		assert.deepEqual(toString.call(order), '[object Object]');
+		assert.deepEqual(uuidValidate(order.uuid, 4), true);
+		assert.deepEqual(toString.call(order.created), '[object Date]');
+		assert.deepEqual(order.rows instanceof Array, true);
+		assert.deepEqual(order.rows.length, 0);
+
 		done();
 	});
 
 	after(function(done) {
 		db.removeAllTables(done);
 	});
-
 });
