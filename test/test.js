@@ -1,15 +1,14 @@
 'use strict';
 
-const larvitorder		= require('../index.js'),
-			uuidvalidate	= require('uuid-validate'),
-			assert				= require('assert'),
-			log     			= require('winston'),
-			db      			= require('larvitdb'),
-			fs      			= require('fs');
+const uuidvalidate  = require('uuid-validate'),
+      larvitorder   = require('../index.js'),
+      assert        = require('assert'),
+      log           = require('winston'),
+      db            = require('larvitdb'),
+      fs            = require('fs');
 
 // Set up winston
 log.remove(log.transports.Console);
-
 
 before(function(done) {
 	let confFile;
@@ -50,10 +49,7 @@ before(function(done) {
 	});
 });
 
-
-
 describe('Order', function() {
-
 	let order;
 
 	before(function(done) {
@@ -79,15 +75,7 @@ describe('Order', function() {
 		let options = {};
 		order	= new larvitorder.order(options);
 		assert.deepEqual(toString.call(order), '[object Object]');
-		done();
-	});
-
-	it('should have order object with a valid version4 uuid', function(done) {
 		assert.deepEqual(uuidvalidate(order.uuid, 4), true);
-		done();
-	});
-
-	it('should have order object with created date', function(done) {
 		assert.deepEqual(toString.call(order.created), '[object Date]');
 		done();
 	});

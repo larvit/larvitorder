@@ -1,9 +1,9 @@
 'use strict';
 
-const uuidLib	= require('node-uuid'),
-      async		= require('async'),
-      log 		= require('winston'),
-      db    	= require('larvitdb');
+const uuidLib = require('node-uuid'),
+      async   = require('async'),
+      log     = require('winston'),
+      db      = require('larvitdb');
 
 
 String.prototype.replaceAll = function(search, replacement) {
@@ -14,7 +14,7 @@ String.prototype.replaceAll = function(search, replacement) {
 class Order {
 
 	constructor(options, cb) {
-		if (typeof(options) === 'string') {
+		if (typeof options === 'string') {
 			this.uuid = options;
 
 			this.getOrder(function(err, order) {
@@ -27,17 +27,20 @@ class Order {
 			});
 
 		} else {
-			let i = 0;
+			this.created = new Date();
+			this.fields  = options.fields;
+			this.uuid    = uuidLib.v4();
+			this.rows    = options.rows;
 
-			this.created	= new Date();
-			this.uuid			= uuidLib.v4();
-			this.rows			= options.rows;
-			this.fields		= options.fields;
+			if (this.rows === undefined) {
+				this.rows = [];
+			}
 
 			log.verbose('larvitorder: New Order - Creating Order with uuid: ' + this.uuid);
-			while (this.rows[i] !== undefined) {
-				this.rows[i].uuid = uuidLib.v4();
-				i ++;
+			for (let i = 0; this.rows[i] !== undefined; i ++) {
+				if (this.rows[i].uuid === undefined) {
+					this.rows[i].uuid = uuidLib.v4();
+				}
 			}
 		}
 	}
@@ -48,9 +51,8 @@ class Order {
 
 		let order = {};
 
+		// Get basic order data
 		tasks.push(function(cb) {
-			const order = {};
-
 			log.debug('larvitorder: getOrder() - Getting order: ' + that.uuid);
 			db.query('SELECT * FROM orders WHERE HEX(uuid) = ?', [that.uuid.replaceAll('-', '')], function(err, data) {
 				if (err) {
@@ -58,33 +60,33 @@ class Order {
 					return;
 				}
 
-				order.uuid = uuidLib.unparse(data[0].uuid);
+				order.uuid    = uuidLib.unparse(data[0].uuid);
 				order.created = data[0].created;
-				cb(null, order);
+				cb();
 			});
 		});
 
+		// Get fields
 		tasks.push(function(cb) {
 			that.getOrderFields(function(err, fields) {
-				cb(null, fields);
+				order.fields = fields;
+				cb();
 			});
 		});
 
+		// Get rows
 		tasks.push(function(cb) {
 			that.getOrderRows(function(err, rows) {
-				cb(null, rows)
+				order.rows = rows;
+				cb();
 			});
 		});
 
-		async.series(tasks, function(err, result) {
+		async.series(tasks, function(err) {
 			if (err) {
 				cb(err);
 				return;
 			}
-
-			order = result[0];
-			order.fields = result[1];
-			order.rows = result[2];
 
 			cb(null, order);
 		});
@@ -92,45 +94,15 @@ class Order {
 
 
 	getOrderFields(cb) {
-		const fields 	= {},
-		      that 		= this;
+		const fields = {},
+		      that   = this;
 
 		let sql = '';
-		sql += 'SELECT orders_orderFields.name as name, orders_orders_fields.fieldValue as value';
-		sql += ' FROM orders_orders_fields';
-		sql += ' INNER JOIN orders_orderFields';
-		sql += ' ON orders_orders_fields.fieldId=orders_orderFields.id';
-		sql += ' WHERE HEX(orders_orders_fields.orderUuid) = ?';
-
-		db.query(sql, [that.uuid.replaceAll('-', '')], function(err, data) {
-			if (err) {
-				cb(err);
-				return;
-			}
-
-			for(let i = 0; data.length > i; i ++) {
-				fields[data[i].name] = data[i].value;
-			}
-
-			cb(null, fields);
-		});
-	}
-
-	getOrderRows(cb) {
-		const sorter 	= [],
-					rows 		= [],
-					that 		= this;
-
-		let sql    = '';
-
-		sql += 'SELECT orders_rows.rowUuid, orders_rows_fields.rowStrValue, orders_rows_fields.rowIntValue, orders_rowFields.name';
-		sql += ' FROM orders_rows';
-		sql += ' INNER JOIN orders_rows_fields';
-		sql += ' ON orders_rows_fields.rowUuid=orders_rows.rowUuid';
-		sql += ' INNER JOIN orders_rowFields';
-		sql += ' ON orders_rowFields.id=orders_rows_fields.rowFieldUuid';
-		sql += ' WHERE HEX(orders_rows.orderUuid) = ?';
-
+		sql += 'SELECT orders_orderFields.name AS name, orders_orders_fields.fieldValue AS value\n';
+		sql += 'FROM orders_orders_fields\n';
+		sql += '	INNER JOIN orders_orderFields\n';
+		sql += '		ON orders_orders_fields.fieldId = orders_orderFields.id\n';
+		sql += 'WHERE HEX(orders_orders_fields.orderUuid) = ?';
 
 		db.query(sql, [that.uuid.replaceAll('-', '')], function(err, data) {
 			if (err) {
@@ -139,11 +111,39 @@ class Order {
 			}
 
 			for (let i = 0; data.length > i; i ++) {
+				fields[data[i].name] = data[i].value;
+			}
 
+			cb(null, fields);
+		});
+	}
+
+	getOrderRows(cb) {
+		const sorter = [],
+					rows   = [],
+					that   = this;
+
+		let sql = '';
+
+		sql += 'SELECT orders_rows.rowUuid, orders_rows_fields.rowStrValue, orders_rows_fields.rowIntValue, orders_rowFields.name\n';
+		sql += 'FROM orders_rows\n';
+		sql += '	INNER JOIN orders_rows_fields\n';
+		sql += '		ON orders_rows_fields.rowUuid = orders_rows.rowUuid\n';
+		sql += '	INNER JOIN orders_rowFields\n';
+		sql += '		ON orders_rowFields.id = orders_rows_fields.rowFieldUuid\n';
+		sql += 'WHERE HEX(orders_rows.orderUuid) = ?';
+
+		db.query(sql, [that.uuid.replaceAll('-', '')], function(err, data) {
+			if (err) {
+				cb(err);
+				return;
+			}
+
+			for (let i = 0; data.length > i; i ++) {
 				if (sorter[uuidLib.unparse(data[i].rowUuid)] === undefined)
-				 sorter[uuidLib.unparse(data[i].rowUuid)] = {
-					 rowUuid: uuidLib.unparse(data[i].rowUuid)
-				 };
+					sorter[uuidLib.unparse(data[i].rowUuid)] = {
+						rowUuid: uuidLib.unparse(data[i].rowUuid)
+					};
 
 				sorter[uuidLib.unparse(data[i].rowUuid)][data[i].name] = data[i].rowStrValue;
 			}
@@ -155,8 +155,6 @@ class Order {
 			cb(null, rows);
 		});
 	}
-
-
 
 	// Creates order fields if not already exists in the "orders_orderFields" table.
 	createOrderField(fieldName, fieldValue, cb) {
@@ -200,8 +198,9 @@ class Order {
 	insertRow(row, cb) {
 		const that = this;
 
-		if ( ! row.uuid)
+		if ( ! row.uuid) {
 			row.uuid = uuidLib.v4();
+		}
 
 		log.debug('larvitorder: insertRow() - Writing row: ' + row.uuid);
 		db.query('INSERT INTO orders_rows (rowUuid, orderUuid) VALUE(?, ?)', [row.uuid, that.uuid], cb);
@@ -247,8 +246,6 @@ class Order {
 		const tasks = [],
 		      that  = this;
 
-		let i	= 0;
-
 		// Insert order
 		tasks.push(function(cb) {
 			that.insertOrder(cb);
@@ -256,12 +253,12 @@ class Order {
 
 		// Replace order fields and fieldValues
 		tasks.push(function(cb) {
-			const subtasks = [];
+			const subTasks = [];
 
 			let createSubtask;
 
 			createSubtask = function(key, value) {
-				subtasks.push(function(cb) {
+				subTasks.push(function(cb) {
 					that.createOrderField(key, value, cb);
 				});
 			};
@@ -270,7 +267,7 @@ class Order {
 				createSubtask(key, that.fields[key]);
 			}
 
-			async.series(subtasks, function(err, result) {
+			async.series(subTasks, function(err, result) {
 				cb(null, result);
 			});
 		});
@@ -284,37 +281,34 @@ class Order {
 
 		// Insert order fields and fieldValues
 		tasks.push(function(cb) {
-			var subtasks = new Array(),
-			createFields,
-			insertfieldValues;
+			const subTasks = [];
 
-			createFields = function(fieldName, fieldValue) {
-				subtasks.push(function(cb) {
+			function createFields(fieldName, fieldValue) {
+				subTasks.push(function(cb) {
 					that.createRowField(fieldName, fieldValue, function(result) {
 						cb(null, result);
 					});
 				});
 			};
 
-			insertfieldValues = function(rowUuid, fieldName, fieldValue) {
-				subtasks.push(function(cb) {
+			function insertfieldValues(rowUuid, fieldName, fieldValue) {
+				subTasks.push(function(cb) {
 					that.insertRowfieldValue(rowUuid, fieldName, fieldValue, function(err, result) {
 						cb(null, result);
 					});
 				});
 			};
 
-			while (that.rows.length > i) {
+			for (let i = 0; that.rows[i] !== undefined; i ++) {
 				for (let key in that.rows[i]) {
 					if (key !== 'uuid') {
 						createFields(key, that.rows[i][key]);
 						insertfieldValues(that.rows[i].uuid, key, that.rows[i][key]);
 					}
 				}
-				i ++;
 			}
 
-			async.series(subtasks, function(err, result) {
+			async.series(subTasks, function(err, result) {
 				cb(null, result);
 			});
 		});
