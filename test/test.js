@@ -1,7 +1,7 @@
 'use strict';
 
 const uuidValidate  = require('uuid-validate'),
-      orderLib   = require('../index.js'),
+      orderLib      = require('../index.js'),
       assert        = require('assert'),
       log           = require('winston'),
       db            = require('larvitdb'),
