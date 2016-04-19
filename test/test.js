@@ -33,7 +33,7 @@ order.save(function(err))
 // Set up winston
 log.remove(log.transports.Console);
 /** /log.add(log.transports.Console, {
-	'level': 'info',
+	'level': 'silly',
 	'colorize': true,
 	'timestamp': true,
 	'json': false
@@ -80,7 +80,7 @@ before(function(done) {
 
 describe('Order', function() {
 	before(function(done) {
-		this.timeout(5000);
+		this.timeout(10000);
 
 		// Check for empty db
 		db.query('SHOW TABLES', function(err, rows) {
@@ -142,7 +142,7 @@ describe('Order', function() {
 		});
 	});
 
-	/*it('should save an order and check result', function(done) {
+	it('should save an order and check result', function(done) {
 		let orderUuid;
 
 		function createOrder(cb) {
@@ -150,8 +150,8 @@ describe('Order', function() {
 
 			orderUuid = order.uuid;
 
-			order.fields = {'fields': {'firstname': 'Migal', 'lastname': ['Göransson', 'Kollektiv']}};
-			order.rows = [{'price': 399, 'name': 'plutt'}, {'price': 34, 'tags': ['foo', 'bar']}];
+			order.fields = {'firstname': 'Migal', 'lastname': ['Göransson', 'Kollektiv']};
+			order.rows   = [{'price': 399, 'name': 'plutt'}, {'price': 34, 'tags': ['foo', 'bar']}];
 
 			order.save(cb);
 		}
@@ -161,10 +161,9 @@ describe('Order', function() {
 
 			order.loadFromDb(function(err) {
 				assert( ! err, 'err should be negative');
-
+				assert.deepEqual(order.uuid, orderUuid);
 				assert.deepEqual(order.fields.firstname[0], 'Migal');
 				assert.deepEqual(order.rows[0].price[0], 399);
-				assert.deepEqual(order.uuid, orderUuid);
 				assert.deepEqual(order.fields.lastname[0], 'Göransson');
 				assert.deepEqual(order.fields.lastname[1], 'Kollektiv');
 
@@ -176,7 +175,7 @@ describe('Order', function() {
 			assert( ! err, 'err should be negative');
 			done();
 		});
-	});*/
+	});
 });
 
 /*describe('Orders', function() {

@@ -155,7 +155,7 @@ class Order {
 		const that = this;
 
 		log.debug('larvitorder: createOrderField() - Creating order field: ' + fieldName);
-		db.query('INSERT IGNORE INTO orders_orderFields (name) VALUE(?)', [fieldName], function(err) {
+		db.query('INSERT IGNORE INTO orders_orderFields (name) VALUES(?)', [fieldName], function(err) {
 			if (err) {
 				cb(err);
 				return;
@@ -170,40 +170,44 @@ class Order {
 		const that = this;
 
 		db.query('SELECT * FROM orders_orderFields WHERE name = ?', [fieldName], function(err, result) {
+			const sql = 'INSERT INTO orders_orders_fields (orderUuid, fieldId, fieldValue) VALUES(?, ?, ?)';
+
 			if (err) {
 				cb(err);
 				return;
 			}
 
 			log.debug('larvitorder: insertOrderfieldValue() - Writing order field value: ' + fieldName + ' => ' + fieldValue);
-			db.query('INSERT INTO orders_orders_fields (orderUuid, fieldId, fieldValue) VALUE(?, ?, ?)', [that.uuid, result[0].id, fieldValue], cb);
+			db.query(sql, [new Buffer(uuidLib.parse(that.uuid)), result[0].id, fieldValue], cb);
 		});
 	}
 
 	// Creates the order i the "orders" table.
 	insertOrder(cb) {
-		const that = this;
+		const that = this,
+		      sql  = 'INSERT IGNORE INTO orders (uuid, created) VALUES(?, ?)';
 
 		log.debug('larvitorder: insertOrder() - Writing order: ' + that.uuid);
-		db.query('INSERT IGNORE INTO orders (uuid, created) VALUE(?, ?)', [that.uuid, that.created], cb);
+		db.query(sql, [new Buffer(uuidLib.parse(that.uuid)), that.created], cb);
 	}
 
 	// Creates a row i the "orders_rows" table.
 	insertRow(row, cb) {
-		const that = this;
+		const that = this,
+		      sql  = 'INSERT INTO orders_rows (rowUuid, orderUuid) VALUES(?, ?)';
 
 		if ( ! row.uuid) {
 			row.uuid = uuidLib.v4();
 		}
 
 		log.debug('larvitorder: insertRow() - Writing row: ' + row.uuid);
-		db.query('INSERT INTO orders_rows (rowUuid, orderUuid) VALUE(?, ?)', [row.uuid, that.uuid], cb);
+		db.query(sql, [new Buffer(uuidLib.parse(row.uuid)), new Buffer(uuidLib.parse(that.uuid))], cb);
 	}
 
 	// Creates order fields if not already exists in the "orders_orderFields" table.
 	createRowField(fieldName, fieldValue, cb) {
 		log.debug('larvitorder: createRowField() - Creating row field: ' + fieldName);
-		db.query('INSERT IGNORE INTO orders_rowFields (name) VALUE(?)', [fieldName], cb);
+		db.query('INSERT IGNORE INTO orders_rowFields (name) VALUES(?)', [fieldName], cb);
 	}
 
 	/**
@@ -226,9 +230,9 @@ class Order {
 			rowStrValue = fieldValue;
 		}
 
-		db.query('SELECT * FROM orders_rowFields WHERE name = ?', [fieldName], function(err, field) {
-			const dbFields = [rowUuid, field[0].id, rowIntValue, rowStrValue],
-			      sql      = 'INSERT INTO orders_rows_fields (rowUuid, rowFieldUuid, rowIntValue, rowStrValue) VALUE(?, ?, ?, ?)';
+		db.query('SELECT id FROM orders_rowFields WHERE name = ?', [fieldName], function(err, field) {
+			const dbFields = [new Buffer(uuidLib.parse(rowUuid)), field[0].id, rowIntValue, rowStrValue],
+			      sql      = 'INSERT INTO orders_rows_fields (rowUuid, rowFieldUuid, rowIntValue, rowStrValue) VALUES(?, ?, ?, ?)';
 
 			log.debug('larvitorder: insertRowfieldValue() - Writing row field value: ' + fieldName + ' => ' + fieldValue);
 			db.query(sql, dbFields, cb);
@@ -240,6 +244,15 @@ class Order {
 		const tasks = [],
 		      that  = this;
 
+		// Make sure all rows got an uuid
+		for (let i = 0; that.rows[i] !== undefined; i ++) {
+			let row = that.rows[i];
+
+			if (row.uuid === undefined) {
+				row.uuid = uuidLib.v4();
+			}
+		}
+
 		// Insert order
 		tasks.push(function(cb) {
 			that.insertOrder(cb);
@@ -249,15 +262,20 @@ class Order {
 		tasks.push(function(cb) {
 			const subTasks = [];
 
-			let createSubtask;
+			function createSubtask(key, value) {
+				if ( ! (value instanceof Array)) {
+					value = [value];
+				}
 
-			createSubtask = function(key, value) {
-				subTasks.push(function(cb) {
-					that.createOrderField(key, value, cb);
-				});
+				for (let i = 0; value[i] !== undefined; i ++) {
+					subTasks.push(function(cb) {
+						that.createOrderField(key, value[i], cb);
+					});
+				}
 			};
 
 			for (let key in that.fields) {
+				log.silly('larvitorder: save() - Creating subtask for key: ' + key + ' with value(s): ' + JSON.stringify(that.fields[key]));
 				createSubtask(key, that.fields[key]);
 			}
 
@@ -268,9 +286,15 @@ class Order {
 
 		// Insert rows
 		tasks.push(function(cb) {
-			that.insertRow(that.rows[0], function(result) {
-				cb(null, result);
-			});
+			const subTasks = [];
+
+			for (let i = 0; that.rows[i] !== undefined; i ++) {
+				subTasks.push(function(cb) {
+					that.insertRow(that.rows[i], cb);
+				});
+			}
+
+			async.parallel(subTasks, cb);
 		});
 
 		// Insert order fields and fieldValues
@@ -279,38 +303,37 @@ class Order {
 
 			function createFields(fieldName, fieldValue) {
 				subTasks.push(function(cb) {
-					that.createRowField(fieldName, fieldValue, function(result) {
-						cb(null, result);
-					});
+					that.createRowField(fieldName, fieldValue, cb);
 				});
 			};
 
 			function insertfieldValues(rowUuid, fieldName, fieldValue) {
-				subTasks.push(function(cb) {
-					that.insertRowfieldValue(rowUuid, fieldName, fieldValue, function(err, result) {
-						cb(null, result);
+				if ( ! (fieldValue instanceof Array)) {
+					fieldValue = [fieldValue];
+				}
+
+				for (let i = 0; fieldValue[i] !== undefined; i ++) {
+					subTasks.push(function(cb) {
+						that.insertRowfieldValue(rowUuid, fieldName, fieldValue[i], cb);
 					});
-				});
+				}
 			};
 
 			for (let i = 0; that.rows[i] !== undefined; i ++) {
-				for (let key in that.rows[i]) {
+				let row = that.rows[i];
+
+				for (let key in row) {
 					if (key !== 'uuid') {
-						createFields(key, that.rows[i][key]);
-						insertfieldValues(that.rows[i].uuid, key, that.rows[i][key]);
+						createFields(key, row[key]);
+						insertfieldValues(row.uuid, key, row[key]);
 					}
 				}
 			}
 
-			async.series(subTasks, function(err, result) {
-				cb(null, result);
-			});
+			async.series(subTasks, cb);
 		});
 
-		async.series(tasks, function(err, result) {
-			cb(null, result);
-		});
-
+		async.series(tasks, cb);
 	}
 }
 
