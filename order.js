@@ -9,7 +9,7 @@ class Order {
 
 	constructor(options) {
 
-		if (typeof(options) === 'string') {
+		if (typeof (options) === 'string') {
 			this.uuid = options;
 
 			this.getOrder(function(err, result) {
