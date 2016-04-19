@@ -17,6 +17,8 @@ class Order {
 			options = {};
 		}
 
+		this.orderData = {};
+
 		// If options is a string, assume it is an uuid
 		if (typeof options === 'string') {
 			this.uuid = options;
@@ -24,6 +26,8 @@ class Order {
 		} else {
 			this.uuid = uuidLib.v4();
 		}
+
+		log.verbose('larvitorder: New Order - Creating Order with uuid: ' + this.uuid);
 
 		this.created = new Date();
 		this.fields  = options.fields;
@@ -33,7 +37,6 @@ class Order {
 			this.rows = [];
 		}
 
-		log.verbose('larvitorder: New Order - Creating Order with uuid: ' + this.uuid);
 		for (let i = 0; this.rows[i] !== undefined; i ++) {
 			if (this.rows[i].uuid === undefined) {
 				this.rows[i].uuid = uuidLib.v4();
@@ -41,23 +44,23 @@ class Order {
 		}
 	}
 
-	get(cb) {
+	loadFromDb(cb) {
 		const tasks = [],
 		      that 	= this;
-
-		let order = {};
 
 		// Get basic order data
 		tasks.push(function(cb) {
 			log.debug('larvitorder: getOrder() - Getting order: ' + that.uuid);
-			db.query('SELECT * FROM orders WHERE uuid = ?', [that.uuid], function(err, data) {
+			db.query('SELECT * FROM orders WHERE uuid = ?', [new Buffer(uuidLib.parse(that.uuid))], function(err, rows) {
 				if (err) {
 					cb(err);
 					return;
 				}
 
-				order.uuid    = uuidLib.unparse(data[0].uuid);
-				order.created = data[0].created;
+				if (rows.length) {
+					that.uuid    = uuidLib.unparse(rows[0].uuid);
+					that.created = rows[0].created;
+				}
 				cb();
 			});
 		});
@@ -65,7 +68,7 @@ class Order {
 		// Get fields
 		tasks.push(function(cb) {
 			that.getOrderFields(function(err, fields) {
-				order.fields = fields;
+				that.fields = fields;
 				cb();
 			});
 		});
@@ -73,21 +76,13 @@ class Order {
 		// Get rows
 		tasks.push(function(cb) {
 			that.getOrderRows(function(err, rows) {
-				order.rows = rows;
+				that.rows = rows;
 				cb();
 			});
 		});
 
-		async.series(tasks, function(err) {
-			if (err) {
-				cb(err);
-				return;
-			}
-
-			cb(null, order);
-		});
+		async.series(tasks, cb);
 	}
-
 
 	getOrderFields(cb) {
 		const fields = {},
@@ -98,9 +93,9 @@ class Order {
 		sql += 'FROM orders_orders_fields\n';
 		sql += '	INNER JOIN orders_orderFields\n';
 		sql += '		ON orders_orders_fields.fieldId = orders_orderFields.id\n';
-		sql += 'WHERE HEX(orders_orders_fields.orderUuid) = ?';
+		sql += 'WHERE orders_orders_fields.orderUuid = ?';
 
-		db.query(sql, [that.uuid.replaceAll('-', '')], function(err, data) {
+		db.query(sql, [new Buffer(uuidLib.parse(that.uuid))], function(err, data) {
 			if (err) {
 				cb(err);
 				return;
@@ -116,8 +111,8 @@ class Order {
 
 	getOrderRows(cb) {
 		const sorter = [],
-					rows   = [],
-					that   = this;
+		      rows   = [],
+		      that   = this;
 
 		let sql = '';
 
@@ -127,21 +122,24 @@ class Order {
 		sql += '		ON orders_rows_fields.rowUuid = orders_rows.rowUuid\n';
 		sql += '	INNER JOIN orders_rowFields\n';
 		sql += '		ON orders_rowFields.id = orders_rows_fields.rowFieldUuid\n';
-		sql += 'WHERE HEX(orders_rows.orderUuid) = ?';
+		sql += 'WHERE orders_rows.orderUuid = ?';
 
-		db.query(sql, [that.uuid.replaceAll('-', '')], function(err, data) {
+		db.query(sql, [new Buffer(uuidLib.parse(that.uuid))], function(err, data) {
 			if (err) {
 				cb(err);
 				return;
 			}
 
 			for (let i = 0; data.length > i; i ++) {
-				if (sorter[uuidLib.unparse(data[i].rowUuid)] === undefined)
-					sorter[uuidLib.unparse(data[i].rowUuid)] = {
-						rowUuid: uuidLib.unparse(data[i].rowUuid)
-					};
+				data[i].rowUuid = uuidLib.unparse(data[i].rowUuid);
 
-				sorter[uuidLib.unparse(data[i].rowUuid)][data[i].name] = data[i].rowStrValue;
+				if (sorter[data[i].rowUuid] === undefined) {
+					sorter[data[i].rowUuid] = {
+						'rowUuid': data[i].rowUuid
+					};
+				}
+
+				sorter[data[i].rowUuid][data[i].name] = data[i].rowStrValue;
 			}
 
 			for (let key in sorter) {

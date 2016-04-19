@@ -1,6 +1,7 @@
 'use strict';
 
 const uuidValidate  = require('uuid-validate'),
+      dbMigration   = require('larvitdbmigration')({'migrationScriptsPath': __dirname + '/../dbmigration'}),
       orderLib      = require('../index.js'),
       assert        = require('assert'),
       async         = require('async'),
@@ -31,6 +32,12 @@ order.save(function(err))
 
 // Set up winston
 log.remove(log.transports.Console);
+/** /log.add(log.transports.Console, {
+	'level': 'info',
+	'colorize': true,
+	'timestamp': true,
+	'json': false
+});/**/
 
 before(function(done) {
 	let confFile;
@@ -73,6 +80,8 @@ before(function(done) {
 
 describe('Order', function() {
 	before(function(done) {
+		this.timeout(5000);
+
 		// Check for empty db
 		db.query('SHOW TABLES', function(err, rows) {
 			if (err) {
@@ -82,12 +91,14 @@ describe('Order', function() {
 			}
 
 			if (rows.length) {
-				assert.deepEqual(rows.length, 0);
 				log.error('Database is not empty. To make a test, you must supply an empty database!');
 				process.exit(1);
 			}
 
-			done();
+			dbMigration(function(err) {
+				assert( ! err, 'err should be negative');
+				done();
+			});
 		});
 	});
 
@@ -131,7 +142,7 @@ describe('Order', function() {
 		});
 	});
 
-	it('should save an order and check result', function(done) {
+	/*it('should save an order and check result', function(done) {
 		let orderUuid;
 
 		function createOrder(cb) {
@@ -165,10 +176,10 @@ describe('Order', function() {
 			assert( ! err, 'err should be negative');
 			done();
 		});
-	});
+	});*/
 });
 
-describe('Orders', function() {
+/*describe('Orders', function() {
 
 	// Since we've created one order above, it should turn up here
 	it('should get a list of orders', function(done) {
@@ -188,7 +199,7 @@ describe('Orders', function() {
 		});
 
 	});
-});
+});*/
 
 after(function(done) {
 	db.removeAllTables(done);
