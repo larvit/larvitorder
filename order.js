@@ -1,52 +1,161 @@
 'use strict';
 
-const async	= require('async'),
-      uuid	= require('node-uuid'),
-      log 	= require('winston'),
-      db    = require('larvitdb');
+const uuidLib	= require('node-uuid'),
+      async		= require('async'),
+      log 		= require('winston'),
+      db    	= require('larvitdb');
+
+
+String.prototype.replaceAll = function(search, replacement) {
+	let target = this;
+	return target.replace(new RegExp(search, 'g'), replacement);
+};
 
 class Order {
 
-	constructor(options) {
-
-		if (typeof (options) === 'string') {
+	constructor(options, cb) {
+		if (typeof(options) === 'string') {
 			this.uuid = options;
 
-			this.getOrder(function(err, result) {
-				cb(null, result);
+			this.getOrder(function(err, order) {
+				if (err) {
+					cb(err);
+					return;
+				}
+
+				cb(null, order);
 			});
 
 		} else {
 			let i = 0;
 
 			this.created	= new Date();
-			this.uuid			= uuid.v4();
+			this.uuid			= uuidLib.v4();
 			this.rows			= options.rows;
 			this.fields		= options.fields;
 
 			log.verbose('larvitorder: New Order - Creating Order with uuid: ' + this.uuid);
 			while (this.rows[i] !== undefined) {
-				this.rows[i].uuid = uuid.v4();
+				this.rows[i].uuid = uuidLib.v4();
 				i ++;
 			}
 		}
 	}
 
 	getOrder(cb) {
-		const that = this;
+		const tasks = [],
+		      that 	= this;
 
-		log.debug('larvitorder: getOrder() - Getting order: ' + that.uuid);
-		db.query('SELECT * FROM orders WHERE uuid = ?', [uuid.replaceAll('-', '')], function(err, order) {
+		let order = {};
+
+		tasks.push(function(cb) {
+			const order = {};
+
+			log.debug('larvitorder: getOrder() - Getting order: ' + that.uuid);
+			db.query('SELECT * FROM orders WHERE HEX(uuid) = ?', [that.uuid.replaceAll('-', '')], function(err, data) {
+				if (err) {
+					cb(err);
+					return;
+				}
+
+				order.uuid = uuidLib.unparse(data[0].uuid);
+				order.created = data[0].created;
+				cb(null, order);
+			});
+		});
+
+		tasks.push(function(cb) {
+			that.getOrderFields(function(err, fields) {
+				cb(null, fields);
+			});
+		});
+
+		tasks.push(function(cb) {
+			that.getOrderRows(function(err, rows) {
+				cb(null, rows)
+			});
+		});
+
+		async.series(tasks, function(err, result) {
 			if (err) {
 				cb(err);
 				return;
 			}
 
+			order = result[0];
+			order.fields = result[1];
+			order.rows = result[2];
+
 			cb(null, order);
 		});
-
-
 	}
+
+
+	getOrderFields(cb) {
+		const fields 	= {},
+		      that 		= this;
+
+		let sql = '';
+		sql += 'SELECT orders_orderFields.name as name, orders_orders_fields.fieldValue as value';
+		sql += ' FROM orders_orders_fields';
+		sql += ' INNER JOIN orders_orderFields';
+		sql += ' ON orders_orders_fields.fieldId=orders_orderFields.id';
+		sql += ' WHERE HEX(orders_orders_fields.orderUuid) = ?';
+
+		db.query(sql, [that.uuid.replaceAll('-', '')], function(err, data) {
+			if (err) {
+				cb(err);
+				return;
+			}
+
+			for(let i = 0; data.length > i; i ++) {
+				fields[data[i].name] = data[i].value;
+			}
+
+			cb(null, fields);
+		});
+	}
+
+	getOrderRows(cb) {
+		const sorter 	= [],
+					rows 		= [],
+					that 		= this;
+
+		let sql    = '';
+
+		sql += 'SELECT orders_rows.rowUuid, orders_rows_fields.rowStrValue, orders_rows_fields.rowIntValue, orders_rowFields.name';
+		sql += ' FROM orders_rows';
+		sql += ' INNER JOIN orders_rows_fields';
+		sql += ' ON orders_rows_fields.rowUuid=orders_rows.rowUuid';
+		sql += ' INNER JOIN orders_rowFields';
+		sql += ' ON orders_rowFields.id=orders_rows_fields.rowFieldUuid';
+		sql += ' WHERE HEX(orders_rows.orderUuid) = ?';
+
+
+		db.query(sql, [that.uuid.replaceAll('-', '')], function(err, data) {
+			if (err) {
+				cb(err);
+				return;
+			}
+
+			for (let i = 0; data.length > i; i ++) {
+
+				if (sorter[uuidLib.unparse(data[i].rowUuid)] === undefined)
+				 sorter[uuidLib.unparse(data[i].rowUuid)] = {
+					 rowUuid: uuidLib.unparse(data[i].rowUuid)
+				 };
+
+				sorter[uuidLib.unparse(data[i].rowUuid)][data[i].name] = data[i].rowStrValue;
+			}
+
+			for (let key in sorter) {
+				rows.push(sorter[key]);
+			}
+
+			cb(null, rows);
+		});
+	}
+
 
 
 	// Creates order fields if not already exists in the "orders_orderFields" table.
@@ -92,7 +201,7 @@ class Order {
 		const that = this;
 
 		if ( ! row.uuid)
-			row.uuid = uuid.v4();
+			row.uuid = uuidLib.v4();
 
 		log.debug('larvitorder: insertRow() - Writing row: ' + row.uuid);
 		db.query('INSERT INTO orders_rows (rowUuid, orderUuid) VALUE(?, ?)', [row.uuid, that.uuid], cb);
