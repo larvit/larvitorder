@@ -12,7 +12,7 @@ const uuidValidate  = require('uuid-validate'),
 
 // Set up winston
 log.remove(log.transports.Console);
-/**/log.add(log.transports.Console, {
+/** /log.add(log.transports.Console, {
 	'level': 'verbose',
 	'colorize': true,
 	'timestamp': true,
@@ -248,7 +248,7 @@ describe('Order', function() {
 	});
 });
 
-/*describe('Orders', function() {
+describe('Orders', function() {
 
 	// Since we've created one order above, it should turn up here
 	it('should get a list of orders', function(done) {
@@ -268,7 +268,7 @@ describe('Order', function() {
 		});
 
 	});
-});*/
+});
 
 after(function(done) {
 	db.removeAllTables(done);
