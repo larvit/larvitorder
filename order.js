@@ -5,11 +5,6 @@ const uuidLib = require('node-uuid'),
       log     = require('winston'),
       db      = require('larvitdb');
 
-String.prototype.replaceAll = function(search, replacement) {
-	let target = this;
-	return target.replace(new RegExp(search, 'g'), replacement);
-};
-
 class Order {
 
 	constructor(options) {
