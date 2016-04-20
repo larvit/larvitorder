@@ -266,8 +266,49 @@ describe('Orders', function() {
 
 			done();
 		});
-
 	});
+
+	it('should add a few more orders', function(done) {
+		const tasks = [];
+
+		tasks.push(function(cb) {
+			const order = new orderLib.Order();
+
+			order.fields = {'firstname': 'Anna', 'lastname': ['Dahl']};
+			order.rows   = [{'price': 200, 'name': 'plutt'}, {'price': 50, 'name': 'fjomp'}];
+
+			order.save(cb);
+		});
+
+		tasks.push(function(cb) {
+			const order = new orderLib.Order();
+
+			order.fields = {'firstname': 'Anna', 'lastname': ['Dahl'], 'active': 'true'};
+			order.rows   = [{'price': 150, 'name': 'stenar'}, {'price': 50, 'name': 'svamp'}];
+
+			order.save(cb);
+		});
+
+		async.parallel(tasks, done);
+	});
+
+	it('should now get 3 orders', function(done) {
+		const orders = new orderLib.Orders();
+
+		orders.get(function(err, orderList) {
+			assert( ! err, 'err should be negative');
+			assert.deepEqual(orderList instanceof Array, true);
+			assert.deepEqual(orderList.length, 3);
+
+			for (let i = 0; orderList[i] !== undefined; i ++) {
+				assert.deepEqual(uuidValidate(orderList[i].uuid, 4), true);
+				assert.deepEqual(toString.call(orderList[i].created), '[object Date]');
+			}
+
+			done();
+		});
+	});
+
 });
 
 after(function(done) {
