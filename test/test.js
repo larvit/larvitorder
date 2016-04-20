@@ -2,38 +2,18 @@
 
 const uuidValidate  = require('uuid-validate'),
       dbMigration   = require('larvitdbmigration')({'migrationScriptsPath': __dirname + '/../dbmigration'}),
-      orderLib      = require('../index.js'),
+      orderLib      = require(__dirname + '/../index.js'),
+      uuidLib       = require('node-uuid'),
       assert        = require('assert'),
       async         = require('async'),
       log           = require('winston'),
       db            = require('larvitdb'),
       fs            = require('fs');
 
-/**
- * To implement
-
-const order = new orderLib.Order();
-
-// All values can be arrays of values
-order.get(function(err, orderData));
-order.getRows(function(err, orderRows));
-order.getFields(function(err, orderFields));
-
-order.set(orderData {'uuid': 'sdfa', 'fields': {key:value}, 'rows': [{key:value},{key:value}...]}, function(err));
-order.setRows([{key:value},{key:value}...]);
-order.setRow('uuid', {key:value});
-order.setFields({key:value});
-order.setField(key, value, replace (boolean));
-
-order.setField('firstname', ['Kollektiv', 'Migal']);
-
-order.save(function(err))
-*/
-
 // Set up winston
 log.remove(log.transports.Console);
 /** /log.add(log.transports.Console, {
-	'level': 'silly',
+	'level': 'verbose',
 	'colorize': true,
 	'timestamp': true,
 	'json': false
@@ -79,6 +59,8 @@ before(function(done) {
 });
 
 describe('Order', function() {
+	let orderUuid;
+
 	before(function(done) {
 		this.timeout(10000);
 
@@ -142,9 +124,7 @@ describe('Order', function() {
 		});
 	});
 
-	it('should save an order and check result', function(done) {
-		let orderUuid;
-
+	it('should save an order', function(done) {
 		function createOrder(cb) {
 			const order = new orderLib.Order();
 
@@ -157,18 +137,93 @@ describe('Order', function() {
 		}
 
 		function checkOrder(cb) {
-			const order = new orderLib.Order(orderUuid);
+			const tasks = [];
 
-			order.loadFromDb(function(err) {
-				assert( ! err, 'err should be negative');
-				assert.deepEqual(order.uuid, orderUuid);
-				assert.deepEqual(order.fields.firstname[0], 'Migal');
-				assert.deepEqual(order.rows[0].price[0], 399);
-				assert.deepEqual(order.fields.lastname[0], 'Göransson');
-				assert.deepEqual(order.fields.lastname[1], 'Kollektiv');
+			tasks.push(function(cb) {
+				db.query('SELECT * FROM orders_orderFields', function(err, rows) {
+					assert( ! err, 'err should be negative');
 
-				cb();
+					assert.deepEqual(rows.length, 2);
+					assert.deepEqual(rows[0].id, 1);
+					assert.deepEqual(rows[1].id, 2);
+					assert.deepEqual(rows[0].name, 'firstname');
+					assert.deepEqual(rows[1].name, 'lastname');
+
+					cb(err);
+				});
 			});
+
+			tasks.push(function(cb) {
+				db.query('SELECT * FROM orders_orders_fields', function(err, rows) {
+					assert( ! err, 'err should be negative');
+
+					assert.deepEqual(rows.length, 3);
+					assert.deepEqual(uuidLib.unparse(rows[0].orderUuid), orderUuid);
+					assert.deepEqual(uuidLib.unparse(rows[1].orderUuid), orderUuid);
+					assert.deepEqual(uuidLib.unparse(rows[2].orderUuid), orderUuid);
+					assert.deepEqual(rows[0].fieldId, 1);
+					assert.deepEqual(rows[1].fieldId, 2);
+					assert.deepEqual(rows[2].fieldId, 2);
+					assert.deepEqual(rows[0].fieldValue, 'Migal');
+					assert.deepEqual(rows[1].fieldValue, 'Göransson');
+					assert.deepEqual(rows[2].fieldValue, 'Kollektiv');
+
+					cb(err);
+				});
+			});
+
+			tasks.push(function(cb) {
+				db.query('SELECT * FROM orders_rowFields ORDER BY id', function(err, rows) {
+					assert( ! err, 'err should be negative');
+
+					assert.deepEqual(rows.length, 3);
+					assert.deepEqual(rows[0].id, 1);
+					assert.deepEqual(rows[1].id, 2);
+					assert.deepEqual(rows[2].id, 4); // 4 because the auto_increment increases even when nothing is inserted when INSERT IGNORE INTO. Stupid... but thats life
+					assert.deepEqual(rows[0].name, 'price');
+					assert.deepEqual(rows[1].name, 'name');
+					assert.deepEqual(rows[2].name, 'tags');
+
+					cb(err);
+				});
+			});
+
+			tasks.push(function(cb) {
+				db.query('SELECT * FROM orders_rows', function(err, rows) {
+					assert( ! err, 'err should be negative');
+
+					assert.deepEqual(rows.length, 2);
+
+					cb(err);
+				});
+			});
+
+			tasks.push(function(cb) {
+				db.query('SELECT * FROM orders_rows_fields', function(err, rows) {
+					assert( ! err, 'err should be negative');
+
+					assert.deepEqual(rows.length, 5);
+					assert.deepEqual(rows[0].rowFieldId, 1);
+					assert.deepEqual(rows[1].rowFieldId, 2);
+					assert.deepEqual(rows[2].rowFieldId, 1);
+					assert.deepEqual(rows[3].rowFieldId, 4);
+					assert.deepEqual(rows[4].rowFieldId, 4);
+					assert.deepEqual(rows[0].rowIntValue, 399);
+					assert.deepEqual(rows[1].rowIntValue, null);
+					assert.deepEqual(rows[2].rowIntValue, 34);
+					assert.deepEqual(rows[3].rowIntValue, null);
+					assert.deepEqual(rows[4].rowIntValue, null);
+					assert.deepEqual(rows[0].rowStrValue, null);
+					assert.deepEqual(rows[1].rowStrValue, 'plutt');
+					assert.deepEqual(rows[2].rowStrValue, null);
+					assert.deepEqual(rows[3].rowStrValue, 'foo');
+					assert.deepEqual(rows[4].rowStrValue, 'bar');
+
+					cb(err);
+				});
+			});
+
+			async.parallel(tasks, cb);
 		}
 
 		async.series([createOrder, checkOrder], function(err) {
@@ -176,9 +231,24 @@ describe('Order', function() {
 			done();
 		});
 	});
+
+	it('should load saved order from db', function(done) {
+		const order = new orderLib.Order(orderUuid);
+
+		order.loadFromDb(function(err) {
+			assert( ! err, 'err should be negative');
+			assert.deepEqual(order.uuid, orderUuid);
+			assert.deepEqual(order.fields.firstname[0], 'Migal');
+			assert.deepEqual(order.rows[0].price[0], 399);
+			assert.deepEqual(order.fields.lastname[0], 'Göransson');
+			assert.deepEqual(order.fields.lastname[1], 'Kollektiv');
+
+			done();
+		});
+	});
 });
 
-/*describe('Orders', function() {
+describe('Orders', function() {
 
 	// Since we've created one order above, it should turn up here
 	it('should get a list of orders', function(done) {
@@ -196,9 +266,50 @@ describe('Order', function() {
 
 			done();
 		});
-
 	});
-});*/
+
+	it('should add a few more orders', function(done) {
+		const tasks = [];
+
+		tasks.push(function(cb) {
+			const order = new orderLib.Order();
+
+			order.fields = {'firstname': 'Anna', 'lastname': ['Dahl']};
+			order.rows   = [{'price': 200, 'name': 'plutt'}, {'price': 50, 'name': 'fjomp'}];
+
+			order.save(cb);
+		});
+
+		tasks.push(function(cb) {
+			const order = new orderLib.Order();
+
+			order.fields = {'firstname': 'Anna', 'lastname': ['Dahl'], 'active': 'true'};
+			order.rows   = [{'price': 150, 'name': 'stenar'}, {'price': 50, 'name': 'svamp'}];
+
+			order.save(cb);
+		});
+
+		async.parallel(tasks, done);
+	});
+
+	it('should now get 3 orders', function(done) {
+		const orders = new orderLib.Orders();
+
+		orders.get(function(err, orderList) {
+			assert( ! err, 'err should be negative');
+			assert.deepEqual(orderList instanceof Array, true);
+			assert.deepEqual(orderList.length, 3);
+
+			for (let i = 0; orderList[i] !== undefined; i ++) {
+				assert.deepEqual(uuidValidate(orderList[i].uuid, 4), true);
+				assert.deepEqual(toString.call(orderList[i].created), '[object Date]');
+			}
+
+			done();
+		});
+	});
+
+});
 
 after(function(done) {
 	db.removeAllTables(done);
