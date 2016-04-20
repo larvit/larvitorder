@@ -17,8 +17,6 @@ class Order {
 			options = {};
 		}
 
-		this.orderData = {};
-
 		// If options is a string, assume it is an uuid
 		if (typeof options === 'string') {
 			this.uuid = options;
@@ -121,7 +119,7 @@ class Order {
 		sql += '	INNER JOIN orders_rows_fields\n';
 		sql += '		ON orders_rows_fields.rowUuid = orders_rows.rowUuid\n';
 		sql += '	INNER JOIN orders_rowFields\n';
-		sql += '		ON orders_rowFields.id = orders_rows_fields.rowFieldUuid\n';
+		sql += '		ON orders_rowFields.id = orders_rows_fields.rowFieldId\n';
 		sql += 'WHERE orders_rows.orderUuid = ?';
 
 		db.query(sql, [new Buffer(uuidLib.parse(that.uuid))], function(err, data) {
@@ -232,7 +230,7 @@ class Order {
 
 		db.query('SELECT id FROM orders_rowFields WHERE name = ?', [fieldName], function(err, field) {
 			const dbFields = [new Buffer(uuidLib.parse(rowUuid)), field[0].id, rowIntValue, rowStrValue],
-			      sql      = 'INSERT INTO orders_rows_fields (rowUuid, rowFieldUuid, rowIntValue, rowStrValue) VALUES(?, ?, ?, ?)';
+			      sql      = 'INSERT INTO orders_rows_fields (rowUuid, rowFieldId, rowIntValue, rowStrValue) VALUES(?, ?, ?, ?)';
 
 			log.debug('larvitorder: insertRowfieldValue() - Writing row field value: ' + fieldName + ' => ' + fieldValue);
 			db.query(sql, dbFields, cb);

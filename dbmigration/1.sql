@@ -41,11 +41,11 @@ CREATE TABLE IF NOT EXISTS `orders_rows` (
 
 CREATE TABLE IF NOT EXISTS `orders_rows_fields` (
   `rowUuid` binary(16) NOT NULL,
-  `rowFieldUuid` int(10) unsigned NOT NULL,
+  `rowFieldId` int(10) unsigned NOT NULL,
   `rowIntValue` int(11) DEFAULT NULL,
   `rowStrValue` text COLLATE utf8mb4_unicode_ci,
   KEY `rowUuid` (`rowUuid`),
-  KEY `rowFieldUuid` (`rowFieldUuid`),
+  KEY `rowFieldId` (`rowFieldId`),
   CONSTRAINT `orders_rows_fields_ibfk_1` FOREIGN KEY (`rowUuid`) REFERENCES `orders_rows` (`rowUuid`),
-  CONSTRAINT `orders_rows_fields_ibfk_2` FOREIGN KEY (`rowFieldUuid`) REFERENCES `orders_rowFields` (`id`)
+  CONSTRAINT `orders_rows_fields_ibfk_2` FOREIGN KEY (`rowFieldId`) REFERENCES `orders_rowFields` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
