@@ -83,7 +83,7 @@ class Order {
 	}
 
 	getOrderFields(cb) {
-		const fields = [],
+		const fields = {},
 		      that   = this;
 
 		let sql = '';
@@ -101,10 +101,13 @@ class Order {
 
 			for (let i = 0; data.length > i; i ++) {
 				let field = {};
-				field[data[i].name] = data[i].value;
-				fields.push(field);
-			}
 
+				if (fields[data[i].name] !== undefined) {
+					fields[data[i].name].push(data[i].value);
+				} else {
+					fields[data[i].name] = [data[i].value];
+				}
+			}
 			cb(null, fields);
 		});
 	}
