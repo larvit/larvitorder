@@ -85,7 +85,7 @@ class Order {
 	}
 
 	getOrderFields(cb) {
-		const fields = {},
+		const fields = [],
 		      that   = this;
 
 		let sql = '';
@@ -102,7 +102,9 @@ class Order {
 			}
 
 			for (let i = 0; data.length > i; i ++) {
-				fields[data[i].name] = data[i].value;
+				let field = {};
+				field[data[i].name] = data[i].value;
+				fields.push(field);
 			}
 
 			cb(null, fields);
@@ -131,6 +133,7 @@ class Order {
 			}
 
 			for (let i = 0; data.length > i; i ++) {
+
 				data[i].rowUuid = uuidLib.unparse(data[i].rowUuid);
 
 				if (sorter[data[i].rowUuid] === undefined) {
@@ -139,7 +142,11 @@ class Order {
 					};
 				}
 
-				sorter[data[i].rowUuid][data[i].name] = data[i].rowStrValue;
+				if (sorter[data[i].rowUuid][data[i].name] !== undefined) {
+					sorter[data[i].rowUuid][data[i].name].push(data[i].rowStrValue);
+				} else {
+					sorter[data[i].rowUuid][data[i].name] = [data[i].rowStrValue];
+				}
 			}
 
 			for (let key in sorter) {
