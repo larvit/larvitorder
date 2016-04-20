@@ -446,7 +446,11 @@ describe('Orders', function() {
 			for (let i = 0; orderList[i] !== undefined; i ++) {
 				let order = orderList[i];
 
-				assert.deepEqual(typeof order.fields.firstname, 'string');
+				assert.deepEqual(order.fields.firstname instanceof Array, true);
+				assert.deepEqual(order.fields.firstname.length, 1);
+				assert.deepEqual(order.fields.firstname[0].length > 0, true);
+				assert.deepEqual(order.fields.lastname instanceof Array, true);
+				assert.deepEqual(order.fields.active instanceof Array, false);
 				assert.deepEqual(uuidValidate(order.uuid, 4), true);
 				assert.deepEqual(toString.call(order.created), '[object Date]');
 			}
