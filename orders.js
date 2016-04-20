@@ -1,9 +1,8 @@
 'use strict';
 
-const uuidLib 	= require('node-uuid'),
-      async			= require('async'),
-      log 			= require('winston'),
-      db    		= require('larvitdb');
+const uuidLib = require('node-uuid'),
+      async   = require('async'),
+      db      = require('larvitdb');
 
 function Orders() {
 }
@@ -15,6 +14,7 @@ Orders.prototype.get = function(cb) {
 
 	let orders = [];
 
+	// Get basic orders
 	tasks.push(function(cb) {
 		const dbFields = [];
 
@@ -41,7 +41,13 @@ Orders.prototype.get = function(cb) {
 
 		sql += ' ORDER BY created';
 
-		log.debug('larvitorder: orders.get() - Getting orders');
+		if (that.limit) {
+			sql += ' LIMIT ' + parseInt(that.limit);
+			if (that.offset) {
+				sql += ' OFFSET ' + parseInt(that.offset);
+			}
+		}
+
 		db.query(sql, dbFields, function(err, rows) {
 			if (err) {
 				cb(err);

@@ -310,7 +310,7 @@ describe('Orders', function() {
 		});
 	});
 
-	it('should get orderes by uuids', function(done) {
+	it('should get orders by uuids', function(done) {
 		const tasks = [];
 
 		// Get all uuids in db
@@ -400,6 +400,37 @@ describe('Orders', function() {
 		});
 
 		async.series(tasks, done);
+	});
+
+	it('should get orders with limits', function(done) {
+		const orders = new orderLib.Orders();
+
+		orders.limit = 2;
+
+		orders.get(function(err, orderList) {
+			assert( ! err, 'err should be negative');
+			assert.deepEqual(orderList instanceof Array, true);
+			assert.deepEqual(orderList.length, 2);
+
+			done();
+		});
+	});
+
+	it('should get orders with limit and offset', function(done) {
+		const orders = new orderLib.Orders();
+
+		orders.limit  = 2;
+		orders.offset = 2;
+
+		orders.get(function(err, orderList) {
+			assert( ! err, 'err should be negative');
+			assert.deepEqual(orderList instanceof Array, true);
+
+			// Since there are only 3 rows in the database, a single row should be returned
+			assert.deepEqual(orderList.length, 1);
+
+			done();
+		});
 	});
 
 	it('should get firstname and lastname from all orders', function(done) {
