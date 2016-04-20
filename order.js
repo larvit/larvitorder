@@ -134,6 +134,7 @@ class Order {
 			}
 
 			for (let i = 0; data.length > i; i ++) {
+				let value;
 
 				data[i].rowUuid = uuidLib.unparse(data[i].rowUuid);
 
@@ -143,10 +144,16 @@ class Order {
 					};
 				}
 
-				if (sorter[data[i].rowUuid][data[i].name] !== undefined) {
-					sorter[data[i].rowUuid][data[i].name].push(data[i].rowStrValue);
+				if (data[i].rowStrValue === null) {
+					value = data[i].rowIntValue;
 				} else {
-					sorter[data[i].rowUuid][data[i].name] = [data[i].rowStrValue];
+					value = data[i].rowStrValue;
+				}
+
+				if (sorter[data[i].rowUuid][data[i].name] !== undefined) {
+					sorter[data[i].rowUuid][data[i].name].push(value);
+				} else {
+					sorter[data[i].rowUuid][data[i].name] = [value];
 				}
 			}
 
