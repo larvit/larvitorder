@@ -1,6 +1,7 @@
 'use strict';
 
 const uuidLib = require('node-uuid'),
+      ready   = require(__dirname + '/migrate.js').ready,
       async   = require('async'),
       db      = require('larvitdb');
 
@@ -48,20 +49,22 @@ Orders.prototype.get = function(cb) {
 			}
 		}
 
-		db.query(sql, dbFields, function(err, rows) {
-			if (err) {
-				cb(err);
-				return;
-			}
+		ready(function() {
+			db.query(sql, dbFields, function(err, rows) {
+				if (err) {
+					cb(err);
+					return;
+				}
 
-			orders = rows;
+				orders = rows;
 
-			for (let i = 0; orders[i] !== undefined; i ++) {
-				orders[i].uuid = uuidLib.unparse(orders[i].uuid);
-				orderUuids.push(orders[i].uuid);
-			}
+				for (let i = 0; orders[i] !== undefined; i ++) {
+					orders[i].uuid = uuidLib.unparse(orders[i].uuid);
+					orderUuids.push(orders[i].uuid);
+				}
 
-			cb();
+				cb();
+			});
 		});
 	});
 
@@ -96,44 +99,45 @@ Orders.prototype.get = function(cb) {
 		}
 
 		sql = sql.substring(0, sql.length - 1) + ')\n';
+		ready(function() {
+			db.query(sql, dbFields, function(err, rows) {
+				const rowsByOrderUuid = {};
 
-		db.query(sql, dbFields, function(err, rows) {
-			const rowsByOrderUuid = {};
-
-			if (err) {
-				cb(err);
-				return;
-			}
-
-			for (let i = 0; rows[i] !== undefined; i ++) {
-				const row = rows[i];
-
-				row.orderUuid = uuidLib.unparse(row.orderUuid);
-
-				if (rowsByOrderUuid[row.orderUuid] === undefined) {
-					rowsByOrderUuid[row.orderUuid] = [];
+				if (err) {
+					cb(err);
+					return;
 				}
 
-				rowsByOrderUuid[row.orderUuid].push(row);
-			}
+				for (let i = 0; rows[i] !== undefined; i ++) {
+					const row = rows[i];
 
-			for (let i = 0; orders[i] !== undefined; i ++) {
-				const order = orders[i];
+					row.orderUuid = uuidLib.unparse(row.orderUuid);
 
-				order.fields = {};
-
-				for (let i = 0; rowsByOrderUuid[order.uuid][i] !== undefined; i ++) {
-					const row = rowsByOrderUuid[order.uuid][i];
-
-					if (order.fields[row.fieldName] === undefined) {
-						order.fields[row.fieldName] = [];
+					if (rowsByOrderUuid[row.orderUuid] === undefined) {
+						rowsByOrderUuid[row.orderUuid] = [];
 					}
 
-					order.fields[row.fieldName].push(row.fieldValue);
+					rowsByOrderUuid[row.orderUuid].push(row);
 				}
-			}
 
-			cb();
+				for (let i = 0; orders[i] !== undefined; i ++) {
+					const order = orders[i];
+
+					order.fields = {};
+
+					for (let i = 0; rowsByOrderUuid[order.uuid][i] !== undefined; i ++) {
+						const row = rowsByOrderUuid[order.uuid][i];
+
+						if (order.fields[row.fieldName] === undefined) {
+							order.fields[row.fieldName] = [];
+						}
+
+						order.fields[row.fieldName].push(row.fieldValue);
+					}
+				}
+
+				cb();
+			});
 		});
 	});
 

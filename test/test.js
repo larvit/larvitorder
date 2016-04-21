@@ -1,7 +1,6 @@
 'use strict';
 
 const uuidValidate  = require('uuid-validate'),
-      dbMigration   = require('larvitdbmigration')({'migrationScriptsPath': __dirname + '/../dbmigration'}),
       orderLib      = require(__dirname + '/../index.js'),
       uuidLib       = require('node-uuid'),
       assert        = require('assert'),
@@ -77,10 +76,7 @@ describe('Order', function() {
 				process.exit(1);
 			}
 
-			dbMigration(function(err) {
-				assert( ! err, 'err should be negative');
-				done();
-			});
+			done();
 		});
 	});
 
