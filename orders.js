@@ -19,6 +19,7 @@ Orders.prototype.get = function(cb) {
 		const dbFields = [];
 
 		let sql = 'SELECT * FROM orders WHERE 1';
+
 		if (that.uuids !== undefined) {
 			if ( ! (that.uuids instanceof Array)) {
 				that.uuids = [that.uuids];
@@ -36,6 +37,19 @@ Orders.prototype.get = function(cb) {
 				}
 
 				sql = sql.substring(0, sql.length - 1) + ')';
+			}
+		}
+
+		if (that.matchAllFields !== undefined) {
+			for (let fieldName in that.matchAllFields) {
+				sql += ' AND orders.uuid IN (\n';
+				sql += '   SELECT orderUuid\n';
+				sql += '   FROM orders_orders_fields\n';
+				sql += '   WHERE fieldId = (SELECT id FROM orders_orderFields WHERE name = ?) AND fieldValue = ?\n';
+				sql += ')';
+
+				dbFields.push(fieldName);
+				dbFields.push(that.matchAllFields[fieldName]);
 			}
 		}
 
@@ -201,7 +215,6 @@ Orders.prototype.get = function(cb) {
 			return;
 		}
 
-		//console.log(require('util').inspect(orders, {showHidden: false, depth: null}));
 		cb(null, orders);
 	});
 

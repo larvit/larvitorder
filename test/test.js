@@ -514,6 +514,22 @@ describe('Orders', function() {
 			done();
 		});
 	});
+
+	it('should get orders filtered by field content and value', function(done) {
+		const orders = new orderLib.Orders();
+
+		orders.matchAllFields = {'active': 'true'};
+
+		orders.get(function(err, orderList) {
+			assert( ! err, 'err should be negative');
+			assert.deepEqual(typeof orderList, 'object');
+
+			// Only one order have the active attribute set to true
+			assert.deepEqual(Object.keys(orderList).length, 1);
+
+			done();
+		});
+	});
 });
 
 after(function(done) {
