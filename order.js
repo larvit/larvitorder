@@ -95,8 +95,6 @@ class Order {
 			}
 
 			for (let i = 0; data.length > i; i ++) {
-				let field = {};
-
 				if (fields[data[i].name] !== undefined) {
 					fields[data[i].name].push(data[i].value);
 				} else {
