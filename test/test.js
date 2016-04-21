@@ -210,6 +210,8 @@ describe('Order', function() {
 
 					assert.deepEqual(rows.length, 5);
 
+					// We do this weirdness because we do not know in what order the rows are saved
+					// in the database
 					for (let i = 0; rows[i] !== undefined; i ++) {
 						delete rows[i].rowUuid;
 						for (let i2 = 0; testRows[i2] !== undefined; i2 ++) {
@@ -240,12 +242,34 @@ describe('Order', function() {
 		const order = new orderLib.Order(orderUuid);
 
 		order.loadFromDb(function(err) {
+			const testRows = [
+				{'price': [399], 'name': ['plutt']},
+				{'price': [34], 'tags': ['foo', 'bar']}
+			];
+
+			let matchedRows = 0;
+
 			assert( ! err, 'err should be negative');
 			assert.deepEqual(order.uuid, orderUuid);
 			assert.deepEqual(order.fields.firstname[0], 'Migal');
-			assert.deepEqual(order.rows[0].price[0], 399);
 			assert.deepEqual(order.fields.lastname[0], 'Göransson');
 			assert.deepEqual(order.fields.lastname[1], 'Kollektiv');
+
+			// We do this weirdness because we do not know in what order the rows are saved
+			// in the database
+			for (let i = 0; order.rows[i] !== undefined; i ++) {
+				const row = order.rows[i];
+				delete row.rowUuid;
+
+				for (let i2 = 0; testRows[i2] !== undefined; i2 ++) {
+					if (JSON.stringify(row) === JSON.stringify(testRows[i2])) {
+						testRows[i2] = {'fjant': 'nu'};
+						matchedRows ++;
+					}
+				}
+			}
+
+			assert.deepEqual(matchedRows, order.rows.length);
 
 			done();
 		});
