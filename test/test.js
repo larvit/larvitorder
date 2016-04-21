@@ -458,6 +458,26 @@ describe('Orders', function() {
 			done();
 		});
 	});
+
+	it('should get orders with rows', function(done) {
+		const orders = new orderLib.Orders();
+
+		orders.returnRowFields = ['price', 'name'];
+
+		orders.get(function(err, orderList) {
+			assert( ! err, 'err should be negative');
+			assert.deepEqual(orderList instanceof Array, true);
+			assert.deepEqual(orderList.length, 3);
+
+			for (let i = 0; orderList[i] !== undefined; i ++) {
+				let order = orderList[i];
+
+				assert.deepEqual(order.rows instanceof Array, true);
+			}
+
+			done();
+		});
+	});
 });
 
 after(function(done) {
