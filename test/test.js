@@ -1,13 +1,13 @@
 'use strict';
 
-const uuidValidate  = require('uuid-validate'),
-      orderLib      = require(__dirname + '/../index.js'),
-      uuidLib       = require('node-uuid'),
-      assert        = require('assert'),
-      async         = require('async'),
-      log           = require('winston'),
-      db            = require('larvitdb'),
-      fs            = require('fs');
+const uuidValidate = require('uuid-validate'),
+      orderLib     = require(__dirname + '/../index.js'),
+      uuidLib      = require('node-uuid'),
+      assert       = require('assert'),
+      async        = require('async'),
+      log          = require('winston'),
+      db           = require('larvitdb'),
+      fs           = require('fs');
 
 // Set up winston
 log.remove(log.transports.Console);
