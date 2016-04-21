@@ -9,11 +9,10 @@ function Orders() {
 }
 
 Orders.prototype.get = function(cb) {
-	const orderUuids = [],
-	      tasks      = [],
-	      that       = this;
+	const tasks = [],
+	      that  = this;
 
-	let orders = [];
+	let orders = {};
 
 	// Get basic orders
 	tasks.push(function(cb) {
@@ -56,11 +55,11 @@ Orders.prototype.get = function(cb) {
 					return;
 				}
 
-				orders = rows;
-
-				for (let i = 0; orders[i] !== undefined; i ++) {
-					orders[i].uuid = uuidLib.unparse(orders[i].uuid);
-					orderUuids.push(orders[i].uuid);
+				for (let i = 0; rows[i] !== undefined; i ++) {
+					rows[i].uuid                 = uuidLib.unparse(rows[i].uuid);
+					orders[rows[i].uuid]         = {};
+					orders[rows[i].uuid].uuid    = rows[i].uuid;
+					orders[rows[i].uuid].created = rows[i].created;
 				}
 
 				cb();
@@ -84,9 +83,9 @@ Orders.prototype.get = function(cb) {
 		sql += 'WHERE\n';
 		sql += '	orderUuid IN (';
 
-		for (let i = 0; orderUuids[i] !== undefined; i ++) {
+		for (let orderUuid in orders) {
 			sql += '?,';
-			dbFields.push(new Buffer(uuidLib.parse(orderUuids[i])));
+			dbFields.push(new Buffer(uuidLib.parse(orderUuid)));
 		}
 
 		sql = sql.substring(0, sql.length - 1) + ')\n';
@@ -101,8 +100,6 @@ Orders.prototype.get = function(cb) {
 		sql = sql.substring(0, sql.length - 1) + ')\n';
 		ready(function() {
 			db.query(sql, dbFields, function(err, rows) {
-				const rowsByOrderUuid = {};
-
 				if (err) {
 					cb(err);
 					return;
@@ -113,26 +110,83 @@ Orders.prototype.get = function(cb) {
 
 					row.orderUuid = uuidLib.unparse(row.orderUuid);
 
-					if (rowsByOrderUuid[row.orderUuid] === undefined) {
-						rowsByOrderUuid[row.orderUuid] = [];
+					if (orders[row.orderUuid].fields === undefined) {
+						orders[row.orderUuid].fields = {};
 					}
 
-					rowsByOrderUuid[row.orderUuid].push(row);
+					if (orders[row.orderUuid].fields[row.fieldName] === undefined) {
+						orders[row.orderUuid].fields[row.fieldName] = [];
+					}
+
+					orders[row.orderUuid].fields[row.fieldName].push(row.fieldValue);
 				}
 
-				for (let i = 0; orders[i] !== undefined; i ++) {
-					const order = orders[i];
+				cb();
+			});
+		});
+	});
 
-					order.fields = {};
+	// Get rows
+	tasks.push(function(cb) {
+		const dbFields = [];
 
-					for (let i = 0; rowsByOrderUuid[order.uuid][i] !== undefined; i ++) {
-						const row = rowsByOrderUuid[order.uuid][i];
+		let sql;
 
-						if (order.fields[row.fieldName] === undefined) {
-							order.fields[row.fieldName] = [];
-						}
+		if (that.returnRowFields === undefined) {
+			cb();
+			return;
+		}
 
-						order.fields[row.fieldName].push(row.fieldValue);
+		sql  = 'SELECT r.orderUuid, r.rowUuid, f.name AS fieldName, rf.rowIntValue, rf.rowStrValue\n';
+		sql += 'FROM orders_rows r\n';
+		sql += '	LEFT JOIN orders_rows_fields rf ON rf.rowUuid = r.rowUuid\n';
+		sql += '	LEFT JOIN orders_rowFields f ON f.id = rf.rowFieldId\n';
+		sql += 'WHERE r.orderUuid IN (';
+
+		for (let orderUuid in orders) {
+			sql += '?,';
+			dbFields.push(new Buffer(uuidLib.parse(orderUuid)));
+		}
+
+		sql = sql.substring(0, sql.length - 1) + ')';
+		sql += ' AND f.name IN (';
+
+		for (let i = 0; that.returnRowFields[i] !== undefined; i ++) {
+			sql += '?,';
+			dbFields.push(that.returnRowFields[i]);
+		}
+
+		sql = sql.substring(0, sql.length - 1) + ')';
+
+		ready(function() {
+			db.query(sql, dbFields, function(err, rows) {
+				if (err) {
+					cb(err);
+					return;
+				}
+
+				for (let i = 0; rows[i] !== undefined; i ++) {
+					const row = rows[i];
+
+					row.orderUuid = uuidLib.unparse(row.orderUuid);
+					row.rowUuid   = uuidLib.unparse(row.rowUuid);
+
+					if (orders[row.orderUuid].rows === undefined) {
+						orders[row.orderUuid].rows = {};
+					}
+
+					if (orders[row.orderUuid].rows[row.rowUuid] === undefined) {
+						orders[row.orderUuid].rows[row.rowUuid] = {'uuid': row.rowUuid};
+					}
+
+					if (orders[row.orderUuid].rows[row.rowUuid][row.fieldName] === undefined) {
+						orders[row.orderUuid].rows[row.rowUuid][row.fieldName] = [];
+					}
+
+					if (row.rowIntValue !== null) {
+						orders[row.orderUuid].rows[row.rowUuid][row.fieldName].push(row.rowIntValue);
+					} else if (row.rowStrValue !== null) {
+						orders[row.orderUuid].rows[row.rowUuid][row.fieldName].push(row.rowStrValue);
 					}
 				}
 
@@ -147,6 +201,7 @@ Orders.prototype.get = function(cb) {
 			return;
 		}
 
+		//console.log(require('util').inspect(orders, {showHidden: false, depth: null}));
 		cb(null, orders);
 	});
 

@@ -277,7 +277,7 @@ describe('Order', function() {
 });
 
 describe('Orders', function() {
-	const dbUuids = [];
+	let dbUuids = [];
 
 	// Since we've created one order above, it should turn up here
 	it('should get a list of orders', function(done) {
@@ -285,12 +285,12 @@ describe('Orders', function() {
 
 		orders.get(function(err, orderList) {
 			assert( ! err, 'err should be negative');
-			assert.deepEqual(orderList instanceof Array, true);
-			assert.deepEqual(orderList.length, 1);
+			assert.deepEqual(typeof orderList, 'object');
+			assert.deepEqual(Object.keys(orderList).length, 1);
 
-			for (let i = 0; orderList[i] !== undefined; i ++) {
-				assert.deepEqual(uuidValidate(orderList[i].uuid, 4), true);
-				assert.deepEqual(toString.call(orderList[i].created), '[object Date]');
+			for (let uuid in orderList) {
+				assert.deepEqual(uuidValidate(orderList[uuid].uuid, 4), true);
+				assert.deepEqual(toString.call(orderList[uuid].created), '[object Date]');
 			}
 
 			done();
@@ -326,12 +326,12 @@ describe('Orders', function() {
 
 		orders.get(function(err, orderList) {
 			assert( ! err, 'err should be negative');
-			assert.deepEqual(orderList instanceof Array, true);
-			assert.deepEqual(orderList.length, 3);
+			assert.deepEqual(typeof orderList, 'object');
+			assert.deepEqual(Object.keys(orderList).length, 3);
 
-			for (let i = 0; orderList[i] !== undefined; i ++) {
-				assert.deepEqual(uuidValidate(orderList[i].uuid, 4), true);
-				assert.deepEqual(toString.call(orderList[i].created), '[object Date]');
+			for (let uuid in orderList) {
+				assert.deepEqual(uuidValidate(orderList[uuid].uuid, 4), true);
+				assert.deepEqual(toString.call(orderList[uuid].created), '[object Date]');
 			}
 
 			done();
@@ -348,9 +348,7 @@ describe('Orders', function() {
 			orders.get(function(err, orderList) {
 				assert( ! err, 'err should be negative');
 
-				for (let i = 0; orderList[i] !== undefined; i ++) {
-					dbUuids.push(orderList[i].uuid);
-				}
+				dbUuids = Object.keys(orderList);
 
 				cb();
 			});
@@ -364,11 +362,11 @@ describe('Orders', function() {
 
 			orders.get(function(err, orderList) {
 				assert( ! err, 'err should be negative');
-				assert.deepEqual(orderList instanceof Array, true);
-				assert.deepEqual(orderList.length, 1);
-				assert.deepEqual(uuidValidate(orderList[0].uuid, 4), true);
-				assert.deepEqual(orderList[0].uuid, dbUuids[0]);
-				assert.deepEqual(toString.call(orderList[0].created), '[object Date]');
+				assert.deepEqual(typeof orderList, 'object');
+				assert.deepEqual(Object.keys(orderList).length, 1);
+				assert.deepEqual(uuidValidate(orderList[dbUuids[0]].uuid, 4), true);
+				assert.deepEqual(orderList[dbUuids[0]].uuid, dbUuids[0]);
+				assert.deepEqual(toString.call(orderList[dbUuids[0]].created), '[object Date]');
 
 				cb();
 			});
@@ -382,8 +380,8 @@ describe('Orders', function() {
 
 			orders.get(function(err, orderList) {
 				assert( ! err, 'err should be negative');
-				assert.deepEqual(orderList instanceof Array, true);
-				assert.deepEqual(orderList.length, 0);
+				assert.deepEqual(typeof orderList, 'object');
+				assert.deepEqual(Object.keys(orderList).length, 0);
 
 				cb();
 			});
@@ -397,8 +395,8 @@ describe('Orders', function() {
 
 			orders.get(function(err, orderList) {
 				assert( ! err, 'err should be negative');
-				assert.deepEqual(orderList instanceof Array, true);
-				assert.deepEqual(orderList.length, 0);
+				assert.deepEqual(typeof orderList, 'object');
+				assert.deepEqual(Object.keys(orderList).length, 0);
 
 				cb();
 			});
@@ -412,16 +410,16 @@ describe('Orders', function() {
 
 			orders.get(function(err, orderList) {
 				assert( ! err, 'err should be negative');
-				assert.deepEqual(orderList instanceof Array, true);
-				assert.deepEqual(orderList.length, 2);
+				assert.deepEqual(typeof orderList, 'object');
+				assert.deepEqual(Object.keys(orderList).length, 2);
 
-				assert.deepEqual(uuidValidate(orderList[0].uuid, 4), true);
-				assert.deepEqual(orderList[0].uuid, dbUuids[0]);
-				assert.deepEqual(toString.call(orderList[0].created), '[object Date]');
+				assert.deepEqual(uuidValidate(orderList[dbUuids[0]].uuid, 4), true);
+				assert.deepEqual(orderList[dbUuids[0]].uuid, dbUuids[0]);
+				assert.deepEqual(toString.call(orderList[dbUuids[0]].created), '[object Date]');
 
-				assert.deepEqual(uuidValidate(orderList[1].uuid, 4), true);
-				assert.deepEqual(orderList[1].uuid, dbUuids[2]);
-				assert.deepEqual(toString.call(orderList[1].created), '[object Date]');
+				assert.deepEqual(uuidValidate(orderList[dbUuids[2]].uuid, 4), true);
+				assert.deepEqual(orderList[dbUuids[2]].uuid, dbUuids[2]);
+				assert.deepEqual(toString.call(orderList[dbUuids[2]].created), '[object Date]');
 
 				cb();
 			});
@@ -437,8 +435,8 @@ describe('Orders', function() {
 
 		orders.get(function(err, orderList) {
 			assert( ! err, 'err should be negative');
-			assert.deepEqual(orderList instanceof Array, true);
-			assert.deepEqual(orderList.length, 2);
+			assert.deepEqual(typeof orderList, 'object');
+			assert.deepEqual(Object.keys(orderList).length, 2);
 
 			done();
 		});
@@ -452,10 +450,10 @@ describe('Orders', function() {
 
 		orders.get(function(err, orderList) {
 			assert( ! err, 'err should be negative');
-			assert.deepEqual(orderList instanceof Array, true);
+			assert.deepEqual(typeof orderList, 'object');
 
 			// Since there are only 3 rows in the database, a single row should be returned
-			assert.deepEqual(orderList.length, 1);
+			assert.deepEqual(Object.keys(orderList).length, 1);
 
 			done();
 		});
@@ -468,11 +466,11 @@ describe('Orders', function() {
 
 		orders.get(function(err, orderList) {
 			assert( ! err, 'err should be negative');
-			assert.deepEqual(orderList instanceof Array, true);
-			assert.deepEqual(orderList.length, 3);
+			assert.deepEqual(typeof orderList, 'object');
+			assert.deepEqual(Object.keys(orderList).length, 3);
 
-			for (let i = 0; orderList[i] !== undefined; i ++) {
-				let order = orderList[i];
+			for (let orderUuid in orderList) {
+				let order = orderList[orderUuid];
 
 				assert.deepEqual(order.fields.firstname instanceof Array, true);
 				assert.deepEqual(order.fields.firstname.length, 1);
@@ -487,25 +485,35 @@ describe('Orders', function() {
 		});
 	});
 
-	/*it('should get orders with rows', function(done) {
+	it('should get orders with rows', function(done) {
 		const orders = new orderLib.Orders();
 
 		orders.returnRowFields = ['price', 'name'];
 
 		orders.get(function(err, orderList) {
 			assert( ! err, 'err should be negative');
-			assert.deepEqual(orderList instanceof Array, true);
-			assert.deepEqual(orderList.length, 3);
+			assert.deepEqual(typeof orderList, 'object');
+			assert.deepEqual(Object.keys(orderList).length, 3);
 
-			for (let i = 0; orderList[i] !== undefined; i ++) {
-				let order = orderList[i];
+			for (let orderUuid in orderList) {
+				const order = orderList[orderUuid];
 
-				assert.deepEqual(order.rows instanceof Array, true);
+				assert.deepEqual(typeof order.rows, 'object');
+
+				for (let rowUuid in order.rows) {
+					const row = order.rows[rowUuid];
+
+					assert.deepEqual(typeof row.price[0], 'number');
+
+					if (row.price[0] !== 34) { // This specific row have no name attribute
+						assert.deepEqual(typeof row.name[0], 'string');
+					}
+				}
 			}
 
 			done();
 		});
-	});*/
+	});
 });
 
 after(function(done) {
