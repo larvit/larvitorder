@@ -455,7 +455,7 @@ describe('Orders', function() {
 		});
 	});
 
-	it('should get orders with rows', function(done) {
+	/*it('should get orders with rows', function(done) {
 		const orders = new orderLib.Orders();
 
 		orders.returnRowFields = ['price', 'name'];
@@ -473,7 +473,7 @@ describe('Orders', function() {
 
 			done();
 		});
-	});
+	});*/
 });
 
 after(function(done) {
