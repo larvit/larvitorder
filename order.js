@@ -1,6 +1,7 @@
 'use strict';
 
 const uuidLib = require('node-uuid'),
+      ready   = require(__dirname + '/migrate.js').ready,
       async   = require('async'),
       log     = require('winston'),
       db      = require('larvitdb');
@@ -74,7 +75,9 @@ class Order {
 			});
 		});
 
-		async.series(tasks, cb);
+		ready(function() {
+			async.series(tasks, cb);
+		});
 	}
 
 	getOrderFields(cb) {
@@ -88,20 +91,22 @@ class Order {
 		sql += '		ON orders_orders_fields.fieldId = orders_orderFields.id\n';
 		sql += 'WHERE orders_orders_fields.orderUuid = ?';
 
-		db.query(sql, [new Buffer(uuidLib.parse(that.uuid))], function(err, data) {
-			if (err) {
-				cb(err);
-				return;
-			}
-
-			for (let i = 0; data.length > i; i ++) {
-				if (fields[data[i].name] !== undefined) {
-					fields[data[i].name].push(data[i].value);
-				} else {
-					fields[data[i].name] = [data[i].value];
+		ready(function() {
+			db.query(sql, [new Buffer(uuidLib.parse(that.uuid))], function(err, data) {
+				if (err) {
+					cb(err);
+					return;
 				}
-			}
-			cb(null, fields);
+
+				for (let i = 0; data.length > i; i ++) {
+					if (fields[data[i].name] !== undefined) {
+						fields[data[i].name].push(data[i].value);
+					} else {
+						fields[data[i].name] = [data[i].value];
+					}
+				}
+				cb(null, fields);
+			});
 		});
 	}
 
@@ -120,41 +125,43 @@ class Order {
 		sql += '		ON orders_rowFields.id = orders_rows_fields.rowFieldId\n';
 		sql += 'WHERE orders_rows.orderUuid = ?';
 
-		db.query(sql, [new Buffer(uuidLib.parse(that.uuid))], function(err, data) {
-			if (err) {
-				cb(err);
-				return;
-			}
-
-			for (let i = 0; data.length > i; i ++) {
-				let value;
-
-				data[i].rowUuid = uuidLib.unparse(data[i].rowUuid);
-
-				if (sorter[data[i].rowUuid] === undefined) {
-					sorter[data[i].rowUuid] = {
-						'rowUuid': data[i].rowUuid
-					};
+		ready(function() {
+			db.query(sql, [new Buffer(uuidLib.parse(that.uuid))], function(err, data) {
+				if (err) {
+					cb(err);
+					return;
 				}
 
-				if (data[i].rowStrValue === null) {
-					value = data[i].rowIntValue;
-				} else {
-					value = data[i].rowStrValue;
+				for (let i = 0; data.length > i; i ++) {
+					let value;
+
+					data[i].rowUuid = uuidLib.unparse(data[i].rowUuid);
+
+					if (sorter[data[i].rowUuid] === undefined) {
+						sorter[data[i].rowUuid] = {
+							'rowUuid': data[i].rowUuid
+						};
+					}
+
+					if (data[i].rowStrValue === null) {
+						value = data[i].rowIntValue;
+					} else {
+						value = data[i].rowStrValue;
+					}
+
+					if (sorter[data[i].rowUuid][data[i].name] !== undefined) {
+						sorter[data[i].rowUuid][data[i].name].push(value);
+					} else {
+						sorter[data[i].rowUuid][data[i].name] = [value];
+					}
 				}
 
-				if (sorter[data[i].rowUuid][data[i].name] !== undefined) {
-					sorter[data[i].rowUuid][data[i].name].push(value);
-				} else {
-					sorter[data[i].rowUuid][data[i].name] = [value];
+				for (let key in sorter) {
+					rows.push(sorter[key]);
 				}
-			}
 
-			for (let key in sorter) {
-				rows.push(sorter[key]);
-			}
-
-			cb(null, rows);
+				cb(null, rows);
+			});
 		});
 	}
 
@@ -163,13 +170,15 @@ class Order {
 		const that = this;
 
 		log.debug('larvitorder: createOrderField() - Creating order field: ' + fieldName);
-		db.query('INSERT IGNORE INTO orders_orderFields (name) VALUES(?)', [fieldName], function(err) {
-			if (err) {
-				cb(err);
-				return;
-			}
+		ready(function() {
+			db.query('INSERT IGNORE INTO orders_orderFields (name) VALUES(?)', [fieldName], function(err) {
+				if (err) {
+					cb(err);
+					return;
+				}
 
-			that.insertOrderfieldValue(fieldName, fieldValue, cb);
+				that.insertOrderfieldValue(fieldName, fieldValue, cb);
+			});
 		});
 	}
 
@@ -177,16 +186,18 @@ class Order {
 	insertOrderfieldValue(fieldName, fieldValue, cb) {
 		const that = this;
 
-		db.query('SELECT * FROM orders_orderFields WHERE name = ?', [fieldName], function(err, result) {
-			const sql = 'INSERT INTO orders_orders_fields (orderUuid, fieldId, fieldValue) VALUES(?, ?, ?)';
+		ready(function() {
+			db.query('SELECT * FROM orders_orderFields WHERE name = ?', [fieldName], function(err, result) {
+				const sql = 'INSERT INTO orders_orders_fields (orderUuid, fieldId, fieldValue) VALUES(?, ?, ?)';
 
-			if (err) {
-				cb(err);
-				return;
-			}
+				if (err) {
+					cb(err);
+					return;
+				}
 
-			log.debug('larvitorder: insertOrderfieldValue() - Writing order field value: ' + fieldName + ' => ' + fieldValue);
-			db.query(sql, [new Buffer(uuidLib.parse(that.uuid)), result[0].id, fieldValue], cb);
+				log.debug('larvitorder: insertOrderfieldValue() - Writing order field value: ' + fieldName + ' => ' + fieldValue);
+				db.query(sql, [new Buffer(uuidLib.parse(that.uuid)), result[0].id, fieldValue], cb);
+			});
 		});
 	}
 
@@ -196,7 +207,9 @@ class Order {
 		      sql  = 'INSERT IGNORE INTO orders (uuid, created) VALUES(?, ?)';
 
 		log.debug('larvitorder: insertOrder() - Writing order: ' + that.uuid);
-		db.query(sql, [new Buffer(uuidLib.parse(that.uuid)), that.created], cb);
+		ready(function() {
+			db.query(sql, [new Buffer(uuidLib.parse(that.uuid)), that.created], cb);
+		});
 	}
 
 	// Creates a row i the "orders_rows" table.
@@ -209,13 +222,17 @@ class Order {
 		}
 
 		log.debug('larvitorder: insertRow() - Writing row: ' + row.uuid);
-		db.query(sql, [new Buffer(uuidLib.parse(row.uuid)), new Buffer(uuidLib.parse(that.uuid))], cb);
+		ready(function() {
+			db.query(sql, [new Buffer(uuidLib.parse(row.uuid)), new Buffer(uuidLib.parse(that.uuid))], cb);
+		});
 	}
 
 	// Creates order fields if not already exists in the "orders_orderFields" table.
 	createRowField(fieldName, fieldValue, cb) {
 		log.debug('larvitorder: createRowField() - Creating row field: ' + fieldName);
-		db.query('INSERT IGNORE INTO orders_rowFields (name) VALUES(?)', [fieldName], cb);
+		ready(function() {
+			db.query('INSERT IGNORE INTO orders_rowFields (name) VALUES(?)', [fieldName], cb);
+		});
 	}
 
 	/**
@@ -238,12 +255,14 @@ class Order {
 			rowStrValue = fieldValue;
 		}
 
-		db.query('SELECT id FROM orders_rowFields WHERE name = ?', [fieldName], function(err, field) {
-			const dbFields = [new Buffer(uuidLib.parse(rowUuid)), field[0].id, rowIntValue, rowStrValue],
-			      sql      = 'INSERT INTO orders_rows_fields (rowUuid, rowFieldId, rowIntValue, rowStrValue) VALUES(?, ?, ?, ?)';
+		ready(function() {
+			db.query('SELECT id FROM orders_rowFields WHERE name = ?', [fieldName], function(err, field) {
+				const dbFields = [new Buffer(uuidLib.parse(rowUuid)), field[0].id, rowIntValue, rowStrValue],
+				      sql      = 'INSERT INTO orders_rows_fields (rowUuid, rowFieldId, rowIntValue, rowStrValue) VALUES(?, ?, ?, ?)';
 
-			log.debug('larvitorder: insertRowfieldValue() - Writing row field value: ' + fieldName + ' => ' + fieldValue);
-			db.query(sql, dbFields, cb);
+				log.debug('larvitorder: insertRowfieldValue() - Writing row field value: ' + fieldName + ' => ' + fieldValue);
+				db.query(sql, dbFields, cb);
+			});
 		});
 	}
 
