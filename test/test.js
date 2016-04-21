@@ -126,7 +126,7 @@ describe('Order', function() {
 
 			orderUuid = order.uuid;
 
-			order.fields = {'firstname': 'Migal', 'lastname': ['Göransson', 'Kollektiv']};
+			order.fields = {'firstname': 'Migal', 'lastname': ['Göransson', 'Kollektiv'], 'active': 'true'};
 			order.rows   = [{'price': 399, 'name': 'plutt'}, {'price': 34, 'tags': ['foo', 'bar']}];
 
 			order.save(cb);
@@ -139,11 +139,13 @@ describe('Order', function() {
 				db.query('SELECT * FROM orders_orderFields', function(err, rows) {
 					assert( ! err, 'err should be negative');
 
-					assert.deepEqual(rows.length, 2);
-					assert.deepEqual(rows[0].id, 1);
-					assert.deepEqual(rows[1].id, 2);
-					assert.deepEqual(rows[0].name, 'firstname');
-					assert.deepEqual(rows[1].name, 'lastname');
+					assert.deepEqual(rows.length, 3);
+					assert.deepEqual(rows[0].id, 4);
+					assert.deepEqual(rows[1].id, 1);
+					assert.deepEqual(rows[2].id, 2);
+					assert.deepEqual(rows[0].name, 'active');
+					assert.deepEqual(rows[1].name, 'firstname');
+					assert.deepEqual(rows[2].name, 'lastname');
 
 					cb(err);
 				});
@@ -153,16 +155,19 @@ describe('Order', function() {
 				db.query('SELECT * FROM orders_orders_fields', function(err, rows) {
 					assert( ! err, 'err should be negative');
 
-					assert.deepEqual(rows.length, 3);
+					assert.deepEqual(rows.length, 4);
 					assert.deepEqual(uuidLib.unparse(rows[0].orderUuid), orderUuid);
 					assert.deepEqual(uuidLib.unparse(rows[1].orderUuid), orderUuid);
 					assert.deepEqual(uuidLib.unparse(rows[2].orderUuid), orderUuid);
+					assert.deepEqual(uuidLib.unparse(rows[3].orderUuid), orderUuid);
 					assert.deepEqual(rows[0].fieldId, 1);
 					assert.deepEqual(rows[1].fieldId, 2);
 					assert.deepEqual(rows[2].fieldId, 2);
+					assert.deepEqual(rows[3].fieldId, 4);
 					assert.deepEqual(rows[0].fieldValue, 'Migal');
 					assert.deepEqual(rows[1].fieldValue, 'Göransson');
 					assert.deepEqual(rows[2].fieldValue, 'Kollektiv');
+					assert.deepEqual(rows[3].fieldValue, 'true');
 
 					cb(err);
 				});
@@ -524,7 +529,23 @@ describe('Orders', function() {
 			assert( ! err, 'err should be negative');
 			assert.deepEqual(typeof orderList, 'object');
 
-			// Only one order have the active attribute set to true
+			// Only two orders have the active attribute set to true
+			assert.deepEqual(Object.keys(orderList).length, 2);
+
+			done();
+		});
+	});
+
+	it('should get orders filtered by multiple fields contents and values', function(done) {
+		const orders = new orderLib.Orders();
+
+		orders.matchAllFields = {'firstname': 'Anna', 'active': 'true'};
+
+		orders.get(function(err, orderList) {
+			assert( ! err, 'err should be negative');
+			assert.deepEqual(typeof orderList, 'object');
+
+			// Only one order have the active attribute set to true AND the firstname field set to Anna
 			assert.deepEqual(Object.keys(orderList).length, 1);
 
 			done();
