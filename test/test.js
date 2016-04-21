@@ -196,24 +196,32 @@ describe('Order', function() {
 
 			tasks.push(function(cb) {
 				db.query('SELECT * FROM orders_rows_fields', function(err, rows) {
+					let matchedRows = 0;
+
+					const testRows = [
+						{ 'rowFieldId': 1, 'rowIntValue': 399,  'rowStrValue': null},
+						{ 'rowFieldId': 2, 'rowIntValue': null, 'rowStrValue': 'plutt'},
+						{ 'rowFieldId': 1, 'rowIntValue': 34,   'rowStrValue': null},
+						{ 'rowFieldId': 4, 'rowIntValue': null, 'rowStrValue': 'foo'},
+						{ 'rowFieldId': 4, 'rowIntValue': null, 'rowStrValue': 'bar'}
+					];
+
 					assert( ! err, 'err should be negative');
 
 					assert.deepEqual(rows.length, 5);
-					assert.deepEqual(rows[0].rowFieldId, 1);
-					assert.deepEqual(rows[1].rowFieldId, 2);
-					assert.deepEqual(rows[2].rowFieldId, 1);
-					assert.deepEqual(rows[3].rowFieldId, 4);
-					assert.deepEqual(rows[4].rowFieldId, 4);
-					assert.deepEqual(rows[0].rowIntValue, 399);
-					assert.deepEqual(rows[1].rowIntValue, null);
-					assert.deepEqual(rows[2].rowIntValue, 34);
-					assert.deepEqual(rows[3].rowIntValue, null);
-					assert.deepEqual(rows[4].rowIntValue, null);
-					assert.deepEqual(rows[0].rowStrValue, null);
-					assert.deepEqual(rows[1].rowStrValue, 'plutt');
-					assert.deepEqual(rows[2].rowStrValue, null);
-					assert.deepEqual(rows[3].rowStrValue, 'foo');
-					assert.deepEqual(rows[4].rowStrValue, 'bar');
+
+					for (let i = 0; rows[i] !== undefined; i ++) {
+						delete rows[i].rowUuid;
+						for (let i2 = 0; testRows[i2] !== undefined; i2 ++) {
+							if (JSON.stringify(rows[i]) === JSON.stringify(testRows[i2])) {
+								testRows[i2] = {'fjant': 'nu'};
+								matchedRows ++;
+							}
+						}
+					}
+
+					assert.deepEqual(matchedRows, rows.length);
+					assert.deepEqual(rows.length, testRows.length);
 
 					cb(err);
 				});

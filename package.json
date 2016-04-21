@@ -15,7 +15,6 @@
   },
   "devDependencies": {
     "eslint": "^2.8.0",
-    "lodash": "^4.11.1",
     "mocha": "^2.4.5",
     "pre-git": "^3.8.3"
   },
