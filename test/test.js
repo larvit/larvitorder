@@ -551,6 +551,22 @@ describe('Orders', function() {
 			done();
 		});
 	});
+
+	it('should get orders filtered by row content', function(done) {
+		const orders = new orderLib.Orders();
+
+		orders.matchAllRowFields = {'price': 50};
+
+		orders.get(function(err, orderList) {
+			assert( ! err, 'err should be negative');
+			assert.deepEqual(typeof orderList, 'object');
+
+			// Two orders have rows with a price of 50
+			assert.deepEqual(Object.keys(orderList).length, 2);
+
+			done();
+		});
+	});
 });
 
 after(function(done) {

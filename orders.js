@@ -43,13 +43,35 @@ Orders.prototype.get = function(cb) {
 		if (that.matchAllFields !== undefined) {
 			for (let fieldName in that.matchAllFields) {
 				sql += ' AND orders.uuid IN (\n';
-				sql += '   SELECT orderUuid\n';
+				sql += '   SELECT DISTINCT orderUuid\n';
 				sql += '   FROM orders_orders_fields\n';
 				sql += '   WHERE fieldId = (SELECT id FROM orders_orderFields WHERE name = ?) AND fieldValue = ?\n';
 				sql += ')';
 
 				dbFields.push(fieldName);
 				dbFields.push(that.matchAllFields[fieldName]);
+			}
+		}
+
+		if (that.matchAllRowFields !== undefined) {
+			for (let rowFieldName in that.matchAllRowFields) {
+				sql += ' AND orders.uuid IN (\n';
+				sql += '   SELECT DISTINCT orderUuid\n';
+				sql += '   FROM orders_rows\n';
+				sql += '   WHERE rowUuid IN (\n';
+				sql += '     SELECT rowUuid FROM orders_rows_fields WHERE rowFieldId = (SELECT id FROM orders_rowFields WHERE name = ?) AND ';
+
+				if (parseInt(that.matchAllRowFields[rowFieldName]) === that.matchAllRowFields[rowFieldName]) {
+					sql += 'rowIntValue = ?\n';
+				} else {
+					sql += 'rowStrValue = ?\n';
+				}
+
+				sql += '   )';
+				sql += ' )';
+
+				dbFields.push(rowFieldName);
+				dbFields.push(that.matchAllRowFields[rowFieldName]);
 			}
 		}
 
