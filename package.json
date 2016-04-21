@@ -18,7 +18,9 @@
     "mocha": "^2.4.5",
     "pre-git": "^3.8.3"
   },
-  "scripts": {},
+  "scripts": {
+    "test": "mocha"
+  },
   "repository": "https://github.com/larvit/larvitorder.git",
   "keywords": [
     "order",
