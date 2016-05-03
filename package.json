@@ -1,6 +1,6 @@
 {
   "name": "larvitorder",
-  "version": "0.0.1-alpha",
+  "version": "0.0.3",
   "description": "Generic order system",
   "main": "index.js",
   "dependencies": {
@@ -15,11 +15,12 @@
   },
   "devDependencies": {
     "eslint": "^2.8.0",
-    "lodash": "^4.11.1",
     "mocha": "^2.4.5",
     "pre-git": "^3.8.3"
   },
-  "scripts": {},
+  "scripts": {
+    "test": "mocha"
+  },
   "repository": "https://github.com/larvit/larvitorder.git",
   "keywords": [
     "order",
