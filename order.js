@@ -27,6 +27,10 @@ class Order {
 		this.fields  = options.fields;
 		this.rows    = options.rows;
 
+		if (this.fields = undefined) {
+			this.fields = [];
+		}
+
 		if (this.rows === undefined) {
 			this.rows = [];
 		}
