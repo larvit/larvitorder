@@ -75,7 +75,7 @@ Orders.prototype.get = function(cb) {
 			}
 		}
 
-		sql += ' ORDER BY created';
+		sql += ' ORDER BY created DESC';
 
 		if (that.limit) {
 			sql += ' LIMIT ' + parseInt(that.limit);
