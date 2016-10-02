@@ -106,8 +106,8 @@ function Order(options) {
 
 	this.created	= new Date();
 	this.fields	= options.fields;
-	this.rows	= options.rows;
 	this.ready	= ready; // To expose to the outside world
+	this.rows	= options.rows;
 
 	if (this.fields = undefined) {
 		this.fields = [];
@@ -246,70 +246,6 @@ Order.prototype.getOrderRows = function(cb) {
 	});
 };
 
-// Creates order fields if not already exists in the "orders_orderFields" table.
-Order.prototype.createOrderField = function(fieldName, fieldValue, cb) {
-	const that = this;
-
-	log.debug('larvitorder: createOrderField() - Creating order field: ' + fieldName);
-	ready(function() {
-		db.query('INSERT IGNORE INTO orders_orderFields (name) VALUES(?)', [fieldName], function(err) {
-			if (err) { cb(err); return; }
-
-			that.insertOrderfieldValue(fieldName, fieldValue, cb);
-		});
-	});
-};
-
-// Inserts order field values to the "orders_orders_fields" table.
-Order.prototype.insertOrderfieldValue = function(fieldName, fieldValue, cb) {
-	const that = this;
-
-	ready(function() {
-		db.query('SELECT * FROM orders_orderFields WHERE name = ?', [fieldName], function(err, result) {
-			const sql = 'INSERT INTO orders_orders_fields (orderUuid, fieldId, fieldValue) VALUES(?, ?, ?)';
-
-			if (err) { cb(err); return; }
-
-			log.debug('larvitorder: insertOrderfieldValue() - Writing order field value: ' + fieldName + ' => ' + fieldValue);
-			db.query(sql, [new Buffer(uuidLib.parse(that.uuid)), result[0].id, fieldValue], cb);
-		});
-	});
-};
-
-// Creates the order i the "orders" table.
-Order.prototype.insertOrder = function(cb) {
-	const	that	= this,
-		sql	= 'INSERT IGNORE INTO orders (uuid, created) VALUES(?, ?)';
-
-	log.debug('larvitorder: insertOrder() - Writing order: ' + that.uuid);
-	ready(function() {
-		db.query(sql, [new Buffer(uuidLib.parse(that.uuid)), that.created], cb);
-	});
-};
-
-// Creates a row i the "orders_rows" table.
-Order.prototype.insertRow = function(row, cb) {
-	const	that	= this,
-		sql	= 'INSERT INTO orders_rows (rowUuid, orderUuid) VALUES(?, ?)';
-
-	if ( ! row.uuid) {
-		row.uuid = uuidLib.v4();
-	}
-
-	log.debug('larvitorder: insertRow() - Writing row: ' + row.uuid);
-	ready(function() {
-		db.query(sql, [new Buffer(uuidLib.parse(row.uuid)), new Buffer(uuidLib.parse(that.uuid))], cb);
-	});
-};
-
-// Creates order fields if not already exists in the "orders_orderFields" table.
-Order.prototype.createRowField = function(fieldName, fieldValue, cb) {
-	log.debug('larvitorder: createRowField() - Creating row field: ' + fieldName);
-	ready(function() {
-		db.query('INSERT IGNORE INTO orders_rowFields (name) VALUES(?)', [fieldName], cb);
-	});
-};
-
 Order.prototype.getOrderFieldId = function(fieldName, cb) {
 	const	that	= this;
 
@@ -428,37 +364,6 @@ Order.prototype.getRowFieldIds = function(rowFieldNames, cb) {
 	});
 };
 
-/**
- * Inserts order field values to the "orders_orders_fields" table.
- *
- * @param str rowUuid
- * @param str fieldName
- * @param str or int fieldValue
- * @param func cb(err, res) - res is from the db query
- */
-Order.prototype.insertRowfieldValue = function(rowUuid, fieldName, fieldValue, cb) {
-	let	rowIntValue,
-		rowStrValue;
-
-	if (fieldValue === parseInt(fieldValue)) {
-		rowIntValue	= fieldValue;
-		rowStrValue	= null;
-	} else {
-		rowIntValue	= null;
-		rowStrValue	= fieldValue;
-	}
-
-	ready(function() {
-		db.query('SELECT id FROM orders_rowFields WHERE name = ?', [fieldName], function(err, field) {
-			const	dbFields	= [new Buffer(uuidLib.parse(rowUuid)), field[0].id, rowIntValue, rowStrValue],
-				sql	= 'INSERT INTO orders_rows_fields (rowUuid, rowFieldId, rowIntValue, rowStrValue) VALUES(?, ?, ?, ?)';
-
-			log.debug('larvitorder: insertRowfieldValue() - Writing row field value: ' + fieldName + ' => ' + fieldValue);
-			db.query(sql, dbFields, cb);
-		});
-	});
-};
-
 // Saving the order object to the database.
 Order.prototype.save = function(cb) {
 	const	tasks	= [],
@@ -472,7 +377,9 @@ Order.prototype.save = function(cb) {
 
 	// Make sure the base order row exists
 	tasks.push(function(cb) {
-		that.insertOrder(cb);
+		const	sql	= 'INSERT IGNORE INTO orders (uuid, created) VALUES(?,?)';
+
+		db.query(sql, [lUtils.uuidToBuffer(that.uuid), that.created], cb);
 	});
 
 	// Clean out old field data
