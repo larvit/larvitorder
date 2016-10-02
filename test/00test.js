@@ -134,12 +134,13 @@ describe('Order', function() {
 		function checkOrder(cb) {
 			const tasks = [];
 
+			// Check fields
 			tasks.push(function(cb) {
 				db.query('SELECT * FROM orders_orderFields', function(err, rows) {
 					if (err) throw err;
 
 					assert.deepEqual(rows.length,	3);
-					assert.deepEqual(rows[0].id,	4);
+					assert.deepEqual(rows[0].id,	3);
 					assert.deepEqual(rows[1].id,	1);
 					assert.deepEqual(rows[2].id,	2);
 					assert.deepEqual(rows[0].name,	'active');
@@ -150,6 +151,7 @@ describe('Order', function() {
 				});
 			});
 
+			// Check order fields
 			tasks.push(function(cb) {
 				db.query('SELECT * FROM orders_orders_fields', function(err, rows) {
 					if (err) throw err;
@@ -162,7 +164,7 @@ describe('Order', function() {
 					assert.deepEqual(rows[0].fieldId,	1);
 					assert.deepEqual(rows[1].fieldId,	2);
 					assert.deepEqual(rows[2].fieldId,	2);
-					assert.deepEqual(rows[3].fieldId,	4);
+					assert.deepEqual(rows[3].fieldId,	3);
 					assert.deepEqual(rows[0].fieldValue,	'Migal');
 					assert.deepEqual(rows[1].fieldValue,	'Göransson');
 					assert.deepEqual(rows[2].fieldValue,	'Kollektiv');
@@ -172,6 +174,7 @@ describe('Order', function() {
 				});
 			});
 
+			// Check rowfields
 			tasks.push(function(cb) {
 				db.query('SELECT * FROM orders_rowFields ORDER BY id', function(err, rows) {
 					if (err) throw err;
@@ -179,7 +182,7 @@ describe('Order', function() {
 					assert.deepEqual(rows.length,	3);
 					assert.deepEqual(rows[0].id,	1);
 					assert.deepEqual(rows[1].id,	2);
-					assert.deepEqual(rows[2].id,	4); // 4 because the auto_increment increases even when nothing is inserted when INSERT IGNORE INTO. Stupid... but thats life
+					assert.deepEqual(rows[2].id,	3);
 					assert.deepEqual(rows[0].name,	'price');
 					assert.deepEqual(rows[1].name,	'name');
 					assert.deepEqual(rows[2].name,	'tags');
@@ -206,8 +209,8 @@ describe('Order', function() {
 						{ 'rowFieldId':	1,	'rowIntValue':	399,	'rowStrValue':	null	},
 						{ 'rowFieldId':	2,	'rowIntValue':	null,	'rowStrValue':	'plutt'	},
 						{ 'rowFieldId':	1,	'rowIntValue':	34,	'rowStrValue':	null	},
-						{ 'rowFieldId':	4,	'rowIntValue':	null,	'rowStrValue':	'foo'	},
-						{ 'rowFieldId':	4,	'rowIntValue':	null,	'rowStrValue':	'bar'	}
+						{ 'rowFieldId':	3,	'rowIntValue':	null,	'rowStrValue':	'foo'	},
+						{ 'rowFieldId':	3,	'rowIntValue':	null,	'rowStrValue':	'bar'	}
 					];
 
 					if (err) throw err;
@@ -263,7 +266,7 @@ describe('Order', function() {
 			// in the database
 			for (let i = 0; order.rows[i] !== undefined; i ++) {
 				const row = order.rows[i];
-				delete row.rowUuid;
+				delete row.uuid;
 
 				for (let i2 = 0; testRows[i2] !== undefined; i2 ++) {
 					if (JSON.stringify(row) === JSON.stringify(testRows[i2])) {

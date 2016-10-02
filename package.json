@@ -4,18 +4,18 @@
   "description": "Generic order system",
   "main": "index.js",
   "dependencies": {
-    "async": "^1.5.2",
+    "async": "^2.0.1",
     "larvitdb": "^1.0.0",
     "larvitdbmigration": "^1.0.1",
-    "larvitutils": "^0.4.4",
+    "larvitutils": "^1.0.2",
     "node-uuid": "^1.4.7",
     "uuid-validate": "^0.0.2",
     "winston": "^2.2.0",
     "winston-daily-rotate-file": "^1.0.1"
   },
   "devDependencies": {
-    "eslint": "^2.8.0",
-    "mocha": "^2.4.5",
+    "eslint": "^3.7.0",
+    "mocha": "^3.1.0",
     "mocha-eslint": "^3.0.1"
   },
   "scripts": {

@@ -4,6 +4,7 @@ const	dbmigration	= require('larvitdbmigration')({'tableName': 'orders_db_versio
 	EventEmitter	= require('events').EventEmitter,
 	eventEmitter	= new EventEmitter(),
 	orderFields	= [],
+	rowFields	= [],
 	uuidLib	= require('node-uuid'),
 	lUtils	= require('larvitutils'),
 	async	= require('async'),
@@ -40,6 +41,9 @@ function ready(cb) {
 	// Load order fields
 	tasks.push(loadOrderFieldsToCache);
 
+	// Load row fields
+	tasks.push(loadRowFieldsToCache);
+
 	async.series(tasks, function() {
 		isReady	= true;
 		eventEmitter.emit('ready');
@@ -60,6 +64,25 @@ function loadOrderFieldsToCache(cb) {
 		// Load the new values
 		for (let i = 0; rows[i] !== undefined; i ++) {
 			orderFields.push(rows[i]);
+		}
+
+		cb();
+	});
+}
+
+function loadRowFieldsToCache(cb) {
+	db.query('SELECT * FROM orders_rowFields ORDER BY id;', function(err, rows) {
+		if (err) {
+			log.error('larvitorder: orders.js: Database error: ' + err.message);
+			return;
+		}
+
+		// Empty the previous cache
+		rowFields.length = 0;
+
+		// Load the new values
+		for (let i = 0; rows[i] !== undefined; i ++) {
+			rowFields.push(rows[i]);
 		}
 
 		cb();
@@ -173,7 +196,7 @@ Order.prototype.getOrderRows = function(cb) {
 
 	let sql = '';
 
-	sql += 'SELECT orders_rows.rowUuid, orders_rows_fields.rowStrValue, orders_rows_fields.rowIntValue, orders_rowFields.name\n';
+	sql += 'SELECT orders_rows.rowUuid AS uuid, orders_rows_fields.rowStrValue, orders_rows_fields.rowIntValue, orders_rowFields.name\n';
 	sql += 'FROM orders_rows\n';
 	sql += '	INNER JOIN orders_rows_fields\n';
 	sql += '		ON orders_rows_fields.rowUuid = orders_rows.rowUuid\n';
@@ -188,11 +211,11 @@ Order.prototype.getOrderRows = function(cb) {
 			for (let i = 0; data.length > i; i ++) {
 				let value;
 
-				data[i].rowUuid = uuidLib.unparse(data[i].rowUuid);
+				data[i].uuid = uuidLib.unparse(data[i].uuid);
 
-				if (sorter[data[i].rowUuid] === undefined) {
-					sorter[data[i].rowUuid] = {
-						'rowUuid': data[i].rowUuid
+				if (sorter[data[i].uuid] === undefined) {
+					sorter[data[i].uuid] = {
+						'uuid': data[i].uuid
 					};
 				}
 
@@ -202,15 +225,15 @@ Order.prototype.getOrderRows = function(cb) {
 					value = data[i].rowStrValue;
 				}
 
-				if (sorter[data[i].rowUuid][data[i].name] === undefined) {
-					sorter[data[i].rowUuid][data[i].name] = [];
+				if (sorter[data[i].uuid][data[i].name] === undefined) {
+					sorter[data[i].uuid][data[i].name] = [];
 				}
 
-				if ( ! (sorter[data[i].rowUuid][data[i].name] instanceof Array)) {
-					sorter[data[i].rowUuid][data[i].name] = [sorter[data[i].rowUuid][data[i].name]];
+				if ( ! (sorter[data[i].uuid][data[i].name] instanceof Array)) {
+					sorter[data[i].uuid][data[i].name] = [sorter[data[i].uuid][data[i].name]];
 				}
 
-				sorter[data[i].rowUuid][data[i].name].push(value);
+				sorter[data[i].uuid][data[i].name].push(value);
 			}
 
 			for (let key in sorter) {
@@ -318,7 +341,8 @@ Order.prototype.getOrderFieldId = function(fieldName, cb) {
  */
 Order.prototype.getOrderFieldIds = function(fieldNames, cb) {
 	const	fieldIdsByName	= {},
-		tasks	= [];
+		tasks	= [],
+		that	= this;;
 
 	for (let i = 0; fieldNames[i] !== undefined; i ++) {
 		const	fieldName = fieldNames[i];
@@ -327,6 +351,7 @@ Order.prototype.getOrderFieldIds = function(fieldNames, cb) {
 				if (err) { cb(err); return; }
 
 				fieldIdsByName[fieldName] = fieldId;
+				cb();
 			});
 		});
 	}
@@ -335,6 +360,70 @@ Order.prototype.getOrderFieldIds = function(fieldNames, cb) {
 		if (err) { cb(err); return; }
 
 		cb(null, fieldIdsByName);
+	});
+};
+
+Order.prototype.getRowFieldId = function(rowFieldName, cb) {
+	const	that	= this;
+
+	if (rowFieldName === 'uuid') {
+		const	err	= new Error('Row field "uuid" is reserved and have no id');
+		log.warn('larvitorder: order.js - getRowFieldId() - ' + err.message);
+		cb(err);
+		return;
+	}
+
+	ready(function() {
+		for (let i = 0; rowFields[i] !== undefined; i ++) {
+			if (rowFields[i].name === rowFieldName) {
+				cb(null, rowFields[i].id);
+				return;
+			}
+		}
+
+		// If we get down here, the field does not exist, create it and rerun
+		db.query('INSERT IGNORE INTO orders_rowFields (name) VALUES(?)', [rowFieldName], function(err) {
+			if (err) { cb(err); return; }
+
+			loadRowFieldsToCache(function(err) {
+				if (err) { cb(err); return; }
+
+				that.getRowFieldId(rowFieldName, cb);
+			});
+		});
+	});
+};
+
+/**
+ * Get row field ids by names
+ *
+ * @param arr	rowFieldNames array of strings
+ * @param func	cb(err, object with names as key and ids as values)
+ */
+Order.prototype.getRowFieldIds = function(rowFieldNames, cb) {
+	const	rowFieldIdsByName	= {},
+		tasks	= [],
+		that	= this;;
+
+	for (let i = 0; rowFieldNames[i] !== undefined; i ++) {
+		const	rowFieldName = rowFieldNames[i];
+
+		if (rowFieldName === 'uuid') continue; // Ignore uuid
+
+		tasks.push(function(cb) {
+			that.getRowFieldId(rowFieldName, function(err, fieldId) {
+				if (err) { cb(err); return; }
+
+				rowFieldIdsByName[rowFieldName] = fieldId;
+				cb();
+			});
+		});
+	}
+
+	async.parallel(tasks, function(err) {
+		if (err) { cb(err); return; }
+
+		cb(null, rowFieldIdsByName);
 	});
 };
 
@@ -374,16 +463,8 @@ Order.prototype.save = function(cb) {
 	const	tasks	= [],
 		that	= this;
 
-	let	fieldIdsByName;
-
-	// Make sure all rows got an uuid
-	for (let i = 0; that.rows[i] !== undefined; i ++) {
-		let row = that.rows[i];
-
-		if (row.uuid === undefined) {
-			row.uuid = uuidLib.v4();
-		}
-	}
+	let	fieldIdsByName,
+		rowFieldIdsByName;
 
 	// Await database readiness
 	tasks.push(ready);
@@ -416,13 +497,15 @@ Order.prototype.save = function(cb) {
 
 	// By now we have a clean database, lets insert stuff!
 
-	// Insert fields
+	// Get all field ids
 	tasks.push(function(cb) {
 		that.getOrderFieldIds(Object.keys(that.fields), function(err, result) {
 			fieldIdsByName = result;
 			cb(err);
 		});
 	});
+
+	// Insert fields
 	tasks.push(function(cb) {
 		const	dbFields	= [];
 
@@ -436,13 +519,105 @@ Order.prototype.save = function(cb) {
 			for (let i = 0; that.fields[fieldName][i] !== undefined; i ++) {
 				const	fieldValue	= that.fields[fieldName][i];
 				sql += '(?,?,?),';
-				dbFields.push(that.uuid);
+				dbFields.push(lUtils.uuidToBuffer(that.uuid));
 				dbFields.push(fieldIdsByName[fieldName]);
 				dbFields.push(fieldValue);
 			}
 		}
 
-		sql = sql.substring(0, sql.length - 1) + ');';
+		sql = sql.substring(0, sql.length - 1) + ';';
+
+		db.query(sql, dbFields, cb);
+	});
+
+	// Insert rows
+	tasks.push(function(cb) {
+		const	dbFields	= [];
+
+		let	sql	= 'INSERT INTO orders_rows (rowUuid, orderUuid) VALUES';
+
+		for (let i = 0; that.rows[i] !== undefined; i ++) {
+			const row = that.rows[i];
+
+			// Make sure all rows got an uuid
+			if (row.uuid === undefined) {
+				row.uuid = uuidLib.v4();
+			}
+
+			sql += '(?,?),';
+			dbFields.push(lUtils.uuidToBuffer(row.uuid));
+			dbFields.push(lUtils.uuidToBuffer(that.uuid));
+		}
+
+		if (dbFields.length === 0) {
+			cb();
+			return;
+		}
+
+		sql = sql.substring(0, sql.length - 1);
+		db.query(sql, dbFields, cb);
+	});
+
+	// Get all row field ids
+	tasks.push(function(cb) {
+		const	rowFieldNames	= [];
+
+		for (let i = 0; that.rows[i] !== undefined; i ++) {
+			const	row	= that.rows[i];
+
+			for (const rowFieldName of Object.keys(row)) {
+				if (rowFieldNames.indexOf(rowFieldName) === - 1) {
+					rowFieldNames.push(rowFieldName);
+				}
+			}
+		}
+
+		that.getRowFieldIds(rowFieldNames, function(err, result) {
+			rowFieldIdsByName = result;
+			cb(err);
+		});
+	});
+
+	// Insert row fields
+	tasks.push(function(cb) {
+		const	dbFields	= [];
+
+		let	sql	= 'INSERT INTO orders_rows_fields (rowUuid, rowFieldId, rowIntValue, rowStrValue) VALUES';
+
+		for (let i = 0; that.rows[i] !== undefined; i ++) {
+			const	row	= that.rows[i];
+
+			for (const rowFieldName of Object.keys(row)) {
+				if (rowFieldName === 'uuid') continue;
+
+				if ( ! (row[rowFieldName] instanceof Array)) {
+					row[rowFieldName] = [row[rowFieldName]];
+				}
+
+				for (let i = 0; row[rowFieldName][i] !== undefined; i ++) {
+					const rowFieldValue = row[rowFieldName][i];
+
+					sql += '(?,?,?,?),';
+					dbFields.push(lUtils.uuidToBuffer(row.uuid));
+					dbFields.push(rowFieldIdsByName[rowFieldName]);
+
+					if (typeof rowFieldValue === 'number' && (rowFieldValue % 1) === 0) {
+						dbFields.push(rowFieldValue);
+						dbFields.push(null);
+					} else {
+						dbFields.push(null);
+						dbFields.push(rowFieldValue);
+					}
+				}
+			}
+		}
+
+		if (dbFields.length === 0) {
+			cb();
+			return;
+		}
+
+		sql = sql.substring(0, sql.length - 1) + ';';
 
 		db.query(sql, dbFields, cb);
 	});
