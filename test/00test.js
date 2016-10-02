@@ -74,8 +74,11 @@ describe('Order', function() {
 		orderLib;
 
 	before(function(done) {
+		let order;
+
 		orderLib	= require(__dirname + '/../index.js');
-		done();
+		order	= new orderLib.Order();
+		order.ready(done); // We do this so the timing of the rest of the tests gets more correct
 	});
 
 	it('should instantiate a new plain order object', function(done) {

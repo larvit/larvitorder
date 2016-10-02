@@ -107,6 +107,7 @@ function Order(options) {
 	this.created	= new Date();
 	this.fields	= options.fields;
 	this.rows	= options.rows;
+	this.ready	= ready; // To expose to the outside world
 
 	if (this.fields = undefined) {
 		this.fields = [];
