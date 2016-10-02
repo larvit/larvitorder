@@ -1,9 +1,9 @@
 'use strict';
 
-const dbmigration  = require('larvitdbmigration')({'tableName': 'orders_db_version', 'migrationScriptsPath': __dirname + '/dbmigration'}),
-      events       = require('events'),
-      eventEmitter = new events.EventEmitter(),
-      log          = require('winston');
+const	dbmigration	= require('larvitdbmigration')({'tableName': 'orders_db_version', 'migrationScriptsPath': __dirname + '/dbmigration'}),
+	events	= require('events'),
+	eventEmitter	= new events.EventEmitter(),
+	log	= require('winston');
 
 let dbChecked = false;
 
@@ -18,10 +18,7 @@ dbmigration(function(err) {
 });
 
 function ready(cb) {
-	if (dbChecked) {
-		cb();
-		return;
-	}
+	if (dbChecked) { cb(); return; }
 
 	eventEmitter.on('checked', cb);
 }

@@ -11,8 +11,8 @@ const	uuidValidate	= require('uuid-validate'),
 
 // Set up winston
 log.remove(log.transports.Console);
-/** /log.add(log.transports.Console, {
-	'level': 'verbose',
+/**/log.add(log.transports.Console, {
+	'level': 'warn',
 	'colorize': true,
 	'timestamp': true,
 	'json': false

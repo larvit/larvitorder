@@ -1,10 +1,10 @@
 'use strict';
 
-const uuidLib = require('node-uuid'),
-      ready   = require(__dirname + '/migrate.js').ready,
-      async   = require('async'),
-      log     = require('winston'),
-      db      = require('larvitdb');
+const	uuidLib	= require('node-uuid'),
+	ready	= require(__dirname + '/migrate.js').ready,
+	async	= require('async'),
+	log	= require('winston'),
+	db	= require('larvitdb');
 
 class Order {
 
@@ -15,17 +15,17 @@ class Order {
 
 		// If options is a string, assume it is an uuid
 		if (typeof options === 'string') {
-			this.uuid = options;
-			options   = {};
+			this.uuid	= options;
+			options	= {};
 		} else {
-			this.uuid = uuidLib.v4();
+			this.uuid	= uuidLib.v4();
 		}
 
 		log.verbose('larvitorder: New Order - Creating Order with uuid: ' + this.uuid);
 
-		this.created = new Date();
-		this.fields  = options.fields;
-		this.rows    = options.rows;
+		this.created	= new Date();
+		this.fields	= options.fields;
+		this.rows	= options.rows;
 
 		if (this.fields = undefined) {
 			this.fields = [];
@@ -43,21 +43,18 @@ class Order {
 	}
 
 	loadFromDb(cb) {
-		const tasks = [],
-		      that 	= this;
+		const	tasks	= [],
+			that	= this;
 
 		// Get basic order data
 		tasks.push(function(cb) {
 			log.debug('larvitorder: getOrder() - Getting order: ' + that.uuid);
 			db.query('SELECT * FROM orders WHERE uuid = ?', [new Buffer(uuidLib.parse(that.uuid))], function(err, rows) {
-				if (err) {
-					cb(err);
-					return;
-				}
+				if (err) { cb(err); return; }
 
 				if (rows.length) {
-					that.uuid    = uuidLib.unparse(rows[0].uuid);
-					that.created = rows[0].created;
+					that.uuid	= uuidLib.unparse(rows[0].uuid);
+					that.created	= rows[0].created;
 				}
 				cb();
 			});
@@ -85,8 +82,8 @@ class Order {
 	}
 
 	getOrderFields(cb) {
-		const fields = {},
-		      that   = this;
+		const	fields	= {},
+			that	= this;
 
 		let sql = '';
 		sql += 'SELECT orders_orderFields.name AS name, orders_orders_fields.fieldValue AS value\n';
@@ -97,10 +94,7 @@ class Order {
 
 		ready(function() {
 			db.query(sql, [new Buffer(uuidLib.parse(that.uuid))], function(err, data) {
-				if (err) {
-					cb(err);
-					return;
-				}
+				if (err) { cb(err); return; }
 
 				for (let i = 0; data.length > i; i ++) {
 					if (fields[data[i].name] !== undefined) {
@@ -115,9 +109,9 @@ class Order {
 	}
 
 	getOrderRows(cb) {
-		const sorter = [],
-		      rows   = [],
-		      that   = this;
+		const	sorter	= [],
+			rows	= [],
+			that	= this;
 
 		let sql = '';
 
@@ -131,10 +125,7 @@ class Order {
 
 		ready(function() {
 			db.query(sql, [new Buffer(uuidLib.parse(that.uuid))], function(err, data) {
-				if (err) {
-					cb(err);
-					return;
-				}
+				if (err) { cb(err); return; }
 
 				for (let i = 0; data.length > i; i ++) {
 					let value;
@@ -176,10 +167,7 @@ class Order {
 		log.debug('larvitorder: createOrderField() - Creating order field: ' + fieldName);
 		ready(function() {
 			db.query('INSERT IGNORE INTO orders_orderFields (name) VALUES(?)', [fieldName], function(err) {
-				if (err) {
-					cb(err);
-					return;
-				}
+				if (err) { cb(err); return; }
 
 				that.insertOrderfieldValue(fieldName, fieldValue, cb);
 			});
@@ -194,10 +182,7 @@ class Order {
 			db.query('SELECT * FROM orders_orderFields WHERE name = ?', [fieldName], function(err, result) {
 				const sql = 'INSERT INTO orders_orders_fields (orderUuid, fieldId, fieldValue) VALUES(?, ?, ?)';
 
-				if (err) {
-					cb(err);
-					return;
-				}
+				if (err) { cb(err); return; }
 
 				log.debug('larvitorder: insertOrderfieldValue() - Writing order field value: ' + fieldName + ' => ' + fieldValue);
 				db.query(sql, [new Buffer(uuidLib.parse(that.uuid)), result[0].id, fieldValue], cb);
@@ -207,8 +192,8 @@ class Order {
 
 	// Creates the order i the "orders" table.
 	insertOrder(cb) {
-		const that = this,
-		      sql  = 'INSERT IGNORE INTO orders (uuid, created) VALUES(?, ?)';
+		const	that	= this,
+			sql	= 'INSERT IGNORE INTO orders (uuid, created) VALUES(?, ?)';
 
 		log.debug('larvitorder: insertOrder() - Writing order: ' + that.uuid);
 		ready(function() {
@@ -218,8 +203,8 @@ class Order {
 
 	// Creates a row i the "orders_rows" table.
 	insertRow(row, cb) {
-		const that = this,
-		      sql  = 'INSERT INTO orders_rows (rowUuid, orderUuid) VALUES(?, ?)';
+		const	that	= this,
+			sql	= 'INSERT INTO orders_rows (rowUuid, orderUuid) VALUES(?, ?)';
 
 		if ( ! row.uuid) {
 			row.uuid = uuidLib.v4();
@@ -248,21 +233,21 @@ class Order {
 	 * @param func cb(err, res) - res is from the db query
 	 */
 	insertRowfieldValue(rowUuid, fieldName, fieldValue, cb) {
-		let rowIntValue,
-		    rowStrValue;
+		let	rowIntValue,
+			rowStrValue;
 
 		if (fieldValue === parseInt(fieldValue)) {
-			rowIntValue = fieldValue;
-			rowStrValue = null;
+			rowIntValue	= fieldValue;
+			rowStrValue	= null;
 		} else {
-			rowIntValue = null;
-			rowStrValue = fieldValue;
+			rowIntValue	= null;
+			rowStrValue	= fieldValue;
 		}
 
 		ready(function() {
 			db.query('SELECT id FROM orders_rowFields WHERE name = ?', [fieldName], function(err, field) {
-				const dbFields = [new Buffer(uuidLib.parse(rowUuid)), field[0].id, rowIntValue, rowStrValue],
-				      sql      = 'INSERT INTO orders_rows_fields (rowUuid, rowFieldId, rowIntValue, rowStrValue) VALUES(?, ?, ?, ?)';
+				const	dbFields	= [new Buffer(uuidLib.parse(rowUuid)), field[0].id, rowIntValue, rowStrValue],
+					sql	= 'INSERT INTO orders_rows_fields (rowUuid, rowFieldId, rowIntValue, rowStrValue) VALUES(?, ?, ?, ?)';
 
 				log.debug('larvitorder: insertRowfieldValue() - Writing row field value: ' + fieldName + ' => ' + fieldValue);
 				db.query(sql, dbFields, cb);
@@ -272,8 +257,8 @@ class Order {
 
 	// Saving the order object to the database.
 	save(cb) {
-		const tasks = [],
-		      that  = this;
+		const	tasks	= [],
+			that	= this;
 
 		// Make sure all rows got an uuid
 		for (let i = 0; that.rows[i] !== undefined; i ++) {

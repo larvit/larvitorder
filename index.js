@@ -5,5 +5,5 @@ String.prototype.replaceAll = function(search, replacement) {
 	return target.replace(new RegExp(search, 'g'), replacement);
 };
 
-exports.Order  = require('./order.js');
-exports.Orders = require('./orders.js');
+exports.Order	= require('./order.js');
+exports.Orders	= require('./orders.js');

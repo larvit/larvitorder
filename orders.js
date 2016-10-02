@@ -1,16 +1,16 @@
 'use strict';
 
-const uuidLib = require('node-uuid'),
-      ready   = require(__dirname + '/migrate.js').ready,
-      async   = require('async'),
-      db      = require('larvitdb');
+const	uuidLib	= require('node-uuid'),
+	ready	= require(__dirname + '/migrate.js').ready,
+	async	= require('async'),
+	db	= require('larvitdb');
 
 function Orders() {
 }
 
 Orders.prototype.get = function(cb) {
-	const tasks = [],
-	      that  = this;
+	const	tasks	= [],
+		that	= this;
 
 	let orders = {};
 
@@ -26,9 +26,9 @@ Orders.prototype.get = function(cb) {
 			}
 
 			if (that.uuids.length === 0) {
-				sql += ' AND 0';
+				sql += '	AND 0';
 			} else {
-				sql += ' AND uuid IN (';
+				sql += '	AND uuid IN (';
 
 				for (let i = 0; that.uuids[i] !== undefined; i ++) {
 					let uuid = that.uuids[i].replaceAll('-', '');
@@ -42,10 +42,10 @@ Orders.prototype.get = function(cb) {
 
 		if (that.matchAllFields !== undefined) {
 			for (let fieldName in that.matchAllFields) {
-				sql += ' AND orders.uuid IN (\n';
-				sql += '   SELECT DISTINCT orderUuid\n';
-				sql += '   FROM orders_orders_fields\n';
-				sql += '   WHERE fieldId = (SELECT id FROM orders_orderFields WHERE name = ?) AND fieldValue = ?\n';
+				sql += '	AND orders.uuid IN (\n';
+				sql += '		SELECT DISTINCT orderUuid\n';
+				sql += '		FROM orders_orders_fields\n';
+				sql += '		WHERE fieldId = (SELECT id FROM orders_orderFields WHERE name = ?) AND fieldValue = ?\n';
 				sql += ')';
 
 				dbFields.push(fieldName);
@@ -55,11 +55,11 @@ Orders.prototype.get = function(cb) {
 
 		if (that.matchAllRowFields !== undefined) {
 			for (let rowFieldName in that.matchAllRowFields) {
-				sql += ' AND orders.uuid IN (\n';
-				sql += '   SELECT DISTINCT orderUuid\n';
-				sql += '   FROM orders_rows\n';
-				sql += '   WHERE rowUuid IN (\n';
-				sql += '     SELECT rowUuid FROM orders_rows_fields WHERE rowFieldId = (SELECT id FROM orders_rowFields WHERE name = ?) AND ';
+				sql += '	AND orders.uuid IN (\n';
+				sql += '		SELECT DISTINCT orderUuid\n';
+				sql += '		FROM orders_rows\n';
+				sql += '		WHERE rowUuid IN (\n';
+				sql += '			SELECT rowUuid FROM orders_rows_fields WHERE rowFieldId = (SELECT id FROM orders_rowFields WHERE name = ?) AND ';
 
 				if (parseInt(that.matchAllRowFields[rowFieldName]) === that.matchAllRowFields[rowFieldName]) {
 					sql += 'rowIntValue = ?\n';
@@ -67,15 +67,15 @@ Orders.prototype.get = function(cb) {
 					sql += 'rowStrValue = ?\n';
 				}
 
-				sql += '   )';
-				sql += ' )';
+				sql += '		)';
+				sql += '	)';
 
 				dbFields.push(rowFieldName);
 				dbFields.push(that.matchAllRowFields[rowFieldName]);
 			}
 		}
 
-		sql += ' ORDER BY created DESC';
+		sql += '	ORDER BY created DESC';
 
 		if (that.limit) {
 			sql += ' LIMIT ' + parseInt(that.limit);
@@ -86,16 +86,13 @@ Orders.prototype.get = function(cb) {
 
 		ready(function() {
 			db.query(sql, dbFields, function(err, rows) {
-				if (err) {
-					cb(err);
-					return;
-				}
+				if (err) { cb(err); return; }
 
 				for (let i = 0; rows[i] !== undefined; i ++) {
-					rows[i].uuid                 = uuidLib.unparse(rows[i].uuid);
-					orders[rows[i].uuid]         = {};
-					orders[rows[i].uuid].uuid    = rows[i].uuid;
-					orders[rows[i].uuid].created = rows[i].created;
+					rows[i].uuid	= uuidLib.unparse(rows[i].uuid);
+					orders[rows[i].uuid]	= {};
+					orders[rows[i].uuid].uuid	= rows[i].uuid;
+					orders[rows[i].uuid].created	= rows[i].created;
 				}
 
 				cb();
@@ -136,10 +133,7 @@ Orders.prototype.get = function(cb) {
 		sql = sql.substring(0, sql.length - 1) + ')\n';
 		ready(function() {
 			db.query(sql, dbFields, function(err, rows) {
-				if (err) {
-					cb(err);
-					return;
-				}
+				if (err) { cb(err); return; }
 
 				for (let i = 0; rows[i] !== undefined; i ++) {
 					const row = rows[i];
@@ -185,7 +179,7 @@ Orders.prototype.get = function(cb) {
 		}
 
 		sql = sql.substring(0, sql.length - 1) + ')';
-		sql += ' AND f.name IN (';
+		sql += '	AND f.name IN (';
 
 		for (let i = 0; that.returnRowFields[i] !== undefined; i ++) {
 			sql += '?,';
@@ -196,16 +190,13 @@ Orders.prototype.get = function(cb) {
 
 		ready(function() {
 			db.query(sql, dbFields, function(err, rows) {
-				if (err) {
-					cb(err);
-					return;
-				}
+				if (err) { cb(err); return; }
 
 				for (let i = 0; rows[i] !== undefined; i ++) {
 					const row = rows[i];
 
-					row.orderUuid = uuidLib.unparse(row.orderUuid);
-					row.rowUuid   = uuidLib.unparse(row.rowUuid);
+					row.orderUuid	= uuidLib.unparse(row.orderUuid);
+					row.rowUuid	= uuidLib.unparse(row.rowUuid);
 
 					if (orders[row.orderUuid].rows === undefined) {
 						orders[row.orderUuid].rows = {};
@@ -232,10 +223,7 @@ Orders.prototype.get = function(cb) {
 	});
 
 	async.series(tasks, function(err) {
-		if (err) {
-			cb(err);
-			return;
-		}
+		if (err) { cb(err); return; }
 
 		cb(null, orders);
 	});
