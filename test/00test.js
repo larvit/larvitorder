@@ -1,7 +1,6 @@
 'use strict';
 
 const	uuidValidate	= require('uuid-validate'),
-	orderLib	= require(__dirname + '/../index.js'),
 	uuidLib	= require('node-uuid'),
 	assert	= require('assert'),
 	async	= require('async'),
@@ -12,61 +11,64 @@ const	uuidValidate	= require('uuid-validate'),
 // Set up winston
 log.remove(log.transports.Console);
 /**/log.add(log.transports.Console, {
-	'level': 'warn',
-	'colorize': true,
-	'timestamp': true,
-	'json': false
+	'level':	'warn',
+	'colorize':	true,
+	'timestamp':	true,
+	'json':	false
 });/**/
 
 before(function(done) {
-	let confFile;
+	this.timeout(10000);
+	const	tasks	= [];
 
-	function runDbSetup(confFile) {
-		log.verbose('DB config: ' + JSON.stringify(require(confFile)));
+	// Run DB Setup
+	tasks.push(function(cb) {
+		let confFile;
 
-		db.setup(require(confFile), function(err) {
-			assert( ! err, 'err should be negative');
+		if (process.argv[3] === undefined) {
+			confFile = __dirname + '/../config/db_test.json';
+		} else {
+			confFile = process.argv[3].split('=')[1];
+		}
 
-			done();
+		log.verbose('DB config file: "' + confFile + '"');
+
+		fs.stat(confFile, function(err) {
+			if (err) throw err;
+
+			log.verbose('DB config: ' + JSON.stringify(require(confFile)));
+
+			db.setup(require(confFile), function(err) {
+				assert( ! err, 'err should be negative');
+
+				cb();
+			});
 		});
-	}
-
-	if (process.argv[3] === undefined) {
-		confFile = __dirname + '/../config/db_test.json';
-	} else {
-		confFile = process.argv[3].split('=')[1];
-	}
-
-	log.verbose('DB config file: "' + confFile + '"');
-
-	fs.stat(confFile, function(err) {
-		if (err) throw err;
-
-		runDbSetup(confFile);
 	});
+
+	// Check for empty db
+	tasks.push(function(cb) {
+		db.query('SHOW TABLES', function(err, rows) {
+			if (err) throw err;
+
+			if (rows.length) {
+				throw new Error('Database is not empty. To make a test, you must supply an empty database!');
+			}
+
+			cb();
+		});
+	});
+
+	async.series(tasks, done);
 });
 
 describe('Order', function() {
-	let orderUuid;
+	let	orderUuid,
+		orderLib;
 
 	before(function(done) {
-		this.timeout(10000);
-
-		// Check for empty db
-		db.query('SHOW TABLES', function(err, rows) {
-			if (err) {
-				assert( ! err, 'err should be negative');
-				log.error(err);
-				process.exit(1);
-			}
-
-			if (rows.length) {
-				log.error('Database is not empty. To make a test, you must supply an empty database!');
-				process.exit(1);
-			}
-
-			done();
-		});
+		orderLib	= require(__dirname + '/../index.js');
+		done();
 	});
 
 	it('should instantiate a new plain order object', function(done) {
@@ -272,7 +274,13 @@ describe('Order', function() {
 });
 
 describe('Orders', function() {
-	let dbUuids = [];
+	let	dbUuids	= [],
+		orderLib;
+
+	before(function(done) {
+		orderLib	= require(__dirname + '/../index.js');
+		done();
+	});
 
 	// Since we've created one order above, it should turn up here
 	it('should get a list of orders', function(done) {
