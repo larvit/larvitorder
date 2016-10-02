@@ -7,7 +7,7 @@
     "async": "^1.5.2",
     "larvitdb": "^1.0.0",
     "larvitdbmigration": "^1.0.1",
-    "larvitutils": "^0.4.3",
+    "larvitutils": "^0.4.4",
     "node-uuid": "^1.4.7",
     "uuid-validate": "^0.0.2",
     "winston": "^2.2.0",

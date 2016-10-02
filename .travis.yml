@@ -22,7 +22,7 @@ install:
 before_script:
   - mysql -e 'CREATE DATABASE test'
 
-script: npm test -- -confFile=db_travis.json
+script: env CONFFILE=db_travis.json mocha
 
 services:
   - mysql

@@ -25,24 +25,31 @@ before(function(done) {
 	tasks.push(function(cb) {
 		let confFile;
 
-		if (process.argv[3] === undefined) {
+		if (process.env.CONFFILE === undefined) {
 			confFile = __dirname + '/../config/db_test.json';
 		} else {
-			confFile = process.argv[3].split('=')[1];
+			confFile = process.env.CONFFILE;
 		}
 
 		log.verbose('DB config file: "' + confFile + '"');
 
+		// First look for absolute path
 		fs.stat(confFile, function(err) {
-			if (err) throw err;
+			if (err) {
+
+				// Then look for this string in the config folder
+				confFile = __dirname + '/../config/' + confFile;
+				fs.stat(confFile, function(err) {
+					if (err) throw err;
+					log.verbose('DB config: ' + JSON.stringify(require(confFile)));
+					db.setup(require(confFile), cb);
+				});
+
+				return;
+			}
 
 			log.verbose('DB config: ' + JSON.stringify(require(confFile)));
-
-			db.setup(require(confFile), function(err) {
-				assert( ! err, 'err should be negative');
-
-				cb();
-			});
+			db.setup(require(confFile), cb);
 		});
 	});
 
@@ -270,6 +277,52 @@ describe('Order', function() {
 
 			done();
 		});
+	});
+
+	it('should alter an order already saved to db', function(done) {
+		const	tasks	= [];
+
+		tasks.push(function(cb) {
+			const	order	= new orderLib.Order(orderUuid);
+
+			order.loadFromDb(function(err) {
+				if (err) throw err;
+
+				order.fields.boll = ['foo'];
+
+				order.save(function(err) {
+					if (err) throw err;
+
+					assert.deepEqual(order.uuid,	orderUuid);
+					assert.deepEqual(order.fields.firstname[0],	'Migal');
+					assert.deepEqual(order.fields.lastname[0],	'Göransson');
+					assert.deepEqual(order.fields.lastname[1],	'Kollektiv');
+					assert.deepEqual(order.fields.boll[0],	'foo');
+
+					cb();
+				});
+			});
+		});
+
+		tasks.push(function(cb) {
+			const	order	= new orderLib.Order(orderUuid);
+
+			order.loadFromDb(function(err) {
+				if (err) throw err;
+
+				assert.deepEqual(order.uuid,	orderUuid);
+				assert.deepEqual(order.fields.firstname[0],	'Migal');
+				assert.deepEqual(order.fields.firstname.length,	1);
+				assert.deepEqual(order.fields.lastname[0],	'Göransson');
+				assert.deepEqual(order.fields.lastname[1],	'Kollektiv');
+				assert.deepEqual(order.fields.lastname.length,	2);
+				assert.deepEqual(order.fields.boll[0],	'foo');
+
+				cb();
+			});
+		});
+
+		async.series(tasks, done);
 	});
 });
 
