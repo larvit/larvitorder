@@ -3,28 +3,29 @@
 Generic order module for nodejs.
 
 order data structure:
-
-order {
-	'uuid': 'string',
-	'fields': {
-		'field1': [
-			'value1',
-			'value2'
+```json
+{
+	"uuid": "string",
+	"fields": {
+		"field1": [
+			"value1",
+			"value2"
 		],
-		'field2': [
-			'value3'
+		"field2": [
+			"value3"
 		]
 	},
-	'rows': [
+	"rows": [
 		{
-			'uuid': 'string',
-			'fields': {
-				'field1': [394],
-				'field2': ['nisse', 20]
+			"uuid": "string",
+			"fields": {
+				"field1": [394],
+				"field2": ["nisse", 20]
 			}
 		}
 	]
 }
+```
 
 ## Installation
 
