@@ -143,12 +143,11 @@ describe('Order', function() {
 					if (err) throw err;
 
 					assert.deepEqual(rows.length,	3);
-					assert.deepEqual(rows[0].id,	3);
-					assert.deepEqual(rows[1].id,	1);
-					assert.deepEqual(rows[2].id,	2);
-					assert.deepEqual(rows[0].name,	'active');
-					assert.deepEqual(rows[1].name,	'firstname');
-					assert.deepEqual(rows[2].name,	'lastname');
+
+					for (let i = 0; rows[i] !== undefined; i ++) {
+						assert.notDeepEqual(rows[i].id,	undefined);
+						assert.notDeepEqual(['active', 'firstname', 'lastname'].indexOf(rows[i].name),	- 1);
+					}
 
 					cb(err);
 				});
@@ -164,14 +163,11 @@ describe('Order', function() {
 					assert.deepEqual(uuidLib.unparse(rows[1].orderUuid),	orderUuid);
 					assert.deepEqual(uuidLib.unparse(rows[2].orderUuid),	orderUuid);
 					assert.deepEqual(uuidLib.unparse(rows[3].orderUuid),	orderUuid);
-					assert.deepEqual(rows[0].fieldId,	1);
-					assert.deepEqual(rows[1].fieldId,	2);
-					assert.deepEqual(rows[2].fieldId,	2);
-					assert.deepEqual(rows[3].fieldId,	3);
-					assert.deepEqual(rows[0].fieldValue,	'Migal');
-					assert.deepEqual(rows[1].fieldValue,	'Göransson');
-					assert.deepEqual(rows[2].fieldValue,	'Kollektiv');
-					assert.deepEqual(rows[3].fieldValue,	'true');
+
+					for (let i = 0; rows[i] !== undefined; i ++) {
+						assert.notDeepEqual([1, 2, 3]	.indexOf(rows[i].fieldId),	- 1);
+						assert.notDeepEqual(['Migal', 'Göransson', 'Kollektiv', 'true']	.indexOf(rows[i].fieldValue),	- 1);
+					}
 
 					cb(err);
 				});
@@ -183,12 +179,11 @@ describe('Order', function() {
 					if (err) throw err;
 
 					assert.deepEqual(rows.length,	3);
-					assert.deepEqual(rows[0].id,	1);
-					assert.deepEqual(rows[1].id,	2);
-					assert.deepEqual(rows[2].id,	3);
-					assert.deepEqual(rows[0].name,	'price');
-					assert.deepEqual(rows[1].name,	'name');
-					assert.deepEqual(rows[2].name,	'tags');
+
+					for (let i = 0; rows[i] !== undefined; i ++) {
+						assert.notDeepEqual([1, 2, 3]	.indexOf(rows[i].id),	- 1);
+						assert.notDeepEqual(['price', 'name', 'tags']	.indexOf(rows[i].name),	- 1);
+					}
 
 					cb(err);
 				});
