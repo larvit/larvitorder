@@ -1,0 +1,33 @@
+<%= _.render('inc/head', obj) %>
+<%= _.render('inc/pageTop', obj) %>
+<table>
+	<thead>
+		<tr>
+			<th>UUID</th>
+			<th>Customer</th>
+			<th>Order time</th>
+			<th>Sum</th>
+			<th>Currency</th>
+			<th>Status</th>
+		</tr>
+	</thead>
+	<tbody>
+		<tr>
+			<td><a href="/orders/edit?uuid=03135005-8820-420e-a3f8-aac605b58614">03135005-8820-420e-a3f8-aac605b58614</a></td>
+			<td>Larv IT AB</td>
+			<td>2016-10-12 14:13:11</td>
+			<td>42 000</td>
+			<td>SEK</td>
+			<td>Sent to Pyramid</td>
+		</tr>
+		<tr>
+			<td><a href="/orders/edit?uuid=5a736dbb-2a69-4c9d-b102-46e82cdce416">5a736dbb-2a69-4c9d-b102-46e82cdce416</a></td>
+			<td>Telia</td>
+			<td>2016-10-12 15:00:33</td>
+			<td>2 100</td>
+			<td>SEK</td>
+			<td>Confirmed by customer</td>
+		</tr>
+	</tbody>
+</table>
+<%= _.render('inc/pageBottom', obj) %>

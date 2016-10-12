@@ -1,0 +1,33 @@
+<%= _.render('inc/head', obj) %>
+<%= _.render('inc/pageTop', obj) %>
+<form method="post">
+
+	<div class="row">
+		<div class="three columns">
+			<label for="uuid">Uuid</label>
+			<input class="u-full-width" type="text" name="uuid" readonly="readonly" value="<%= obj.global.urlParsed.query.uuid %>" />
+		</div>
+	</div>
+
+	<h2>Fields</h2>
+	<div class="row">
+		<div class="three columns">
+			<label for="fieldName[]">Field Name</label>
+			<input class="u-full-width" type="text" name="fieldName[]" value="created" />
+		</div>
+
+		<div class="three columns">
+			<label for="fieldValue[]">Field Value</label>
+			<input class="u-full-width" type="text" name="fieldValue[]" value="2016-10-12 11:02:01" />
+		</div>
+	</div>
+
+	<div class="controls clearfix">
+		<button type="submit" name="save" class="button right inv">Save</button>
+		<a class="button left" href="/orders/list">Cancel</a>
+		<% if (global.urlParsed.query.uuid) { %>
+			<button type="submit" name="rmOrder" class="button left warning" value="true">Delete order</button>
+		<% } %>
+	</div>
+</form>
+<%= _.render('inc/pageBottom', obj) %>
