@@ -54,17 +54,17 @@ before(function(done) {
 	});
 
 	// Check for empty db
-	tasks.push(function(cb) {
-		db.query('SHOW TABLES', function(err, rows) {
-			if (err) throw err;
-
-			if (rows.length) {
-				throw new Error('Database is not empty. To make a test, you must supply an empty database!');
-			}
-
-			cb();
-		});
-	});
+//	tasks.push(function(cb) {
+//		db.query('SHOW TABLES', function(err, rows) {
+//			if (err) throw err;
+//
+//			if (rows.length) {
+//				throw new Error('Database is not empty. To make a test, you must supply an empty database!');
+//			}
+//
+//			cb();
+//		});
+//	});
 
 	async.series(tasks, done);
 });
