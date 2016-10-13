@@ -45,7 +45,7 @@ Orders.prototype.get = function(cb) {
 				sql += '	AND orders.uuid IN (\n';
 				sql += '		SELECT DISTINCT orderUuid\n';
 				sql += '		FROM orders_orders_fields\n';
-				sql += '		WHERE fieldId = (SELECT id FROM orders_orderFields WHERE name = ?) AND fieldValue = ?\n';
+				sql += '		WHERE fieldUuid = (SELECT uuid FROM orders_orderFields WHERE name = ?) AND fieldValue = ?\n';
 				sql += ')';
 
 				dbFields.push(fieldName);
@@ -59,7 +59,7 @@ Orders.prototype.get = function(cb) {
 				sql += '		SELECT DISTINCT orderUuid\n';
 				sql += '		FROM orders_rows\n';
 				sql += '		WHERE rowUuid IN (\n';
-				sql += '			SELECT rowUuid FROM orders_rows_fields WHERE rowFieldId = (SELECT id FROM orders_rowFields WHERE name = ?) AND ';
+				sql += '			SELECT rowUuid FROM orders_rows_fields WHERE rowFieldUuid = (SELECT uuid FROM orders_rowFields WHERE name = ?) AND ';
 
 				if (parseInt(that.matchAllRowFields[rowFieldName]) === that.matchAllRowFields[rowFieldName]) {
 					sql += 'rowIntValue = ?\n';
@@ -112,7 +112,7 @@ Orders.prototype.get = function(cb) {
 		}
 
 		sql =  'SELECT orderUuid, name AS fieldName, fieldValue\n';
-		sql += 'FROM orders_orders_fields JOIN orders_orderFields ON fieldId = id\n';
+		sql += 'FROM orders_orders_fields JOIN orders_orderFields ON fieldUuid = uuid\n';
 		sql += 'WHERE\n';
 		sql += '	orderUuid IN (';
 
@@ -169,8 +169,8 @@ Orders.prototype.get = function(cb) {
 
 		sql  = 'SELECT r.orderUuid, r.rowUuid, f.name AS fieldName, rf.rowIntValue, rf.rowStrValue\n';
 		sql += 'FROM orders_rows r\n';
-		sql += '	LEFT JOIN orders_rows_fields rf ON rf.rowUuid = r.rowUuid\n';
-		sql += '	LEFT JOIN orders_rowFields f ON f.id = rf.rowFieldId\n';
+		sql += '	LEFT JOIN orders_rows_fields	rf	ON rf.rowUuid	= r.rowUuid\n';
+		sql += '	LEFT JOIN orders_rowFields	f	ON f.uuid	= rf.rowFieldUuid\n';
 		sql += 'WHERE r.orderUuid IN (';
 
 		for (let orderUuid in orders) {

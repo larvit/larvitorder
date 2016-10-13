@@ -3,6 +3,7 @@
 const	uuidValidate	= require('uuid-validate'),
 	uuidLib	= require('node-uuid'),
 	assert	= require('assert'),
+	lUtils	= require('larvitutils'),
 	async	= require('async'),
 	log	= require('winston'),
 	db	= require('larvitdb'),
@@ -92,7 +93,7 @@ describe('Order', function() {
 
 		done();
 	});
-/*
+
 	it('should instantiate a new plain order object, with object as option', function(done) {
 		const order = new orderLib.Order({});
 
@@ -145,7 +146,7 @@ describe('Order', function() {
 					assert.deepEqual(rows.length,	3);
 
 					for (let i = 0; rows[i] !== undefined; i ++) {
-						assert.notDeepEqual(rows[i].id,	undefined);
+						assert.notDeepEqual(rows[i].uuid,	undefined);
 						assert.notDeepEqual(['active', 'firstname', 'lastname'].indexOf(rows[i].name),	- 1);
 					}
 
@@ -165,8 +166,8 @@ describe('Order', function() {
 					assert.deepEqual(uuidLib.unparse(rows[3].orderUuid),	orderUuid);
 
 					for (let i = 0; rows[i] !== undefined; i ++) {
-						assert.notDeepEqual([1, 2, 3]	.indexOf(rows[i].fieldId),	- 1);
-						assert.notDeepEqual(['Migal', 'Göransson', 'Kollektiv', 'true']	.indexOf(rows[i].fieldValue),	- 1);
+						assert.notDeepEqual(lUtils.formatUuid(rows[i].fieldUuid),	false);
+						assert.notDeepEqual(['Migal', 'Göransson', 'Kollektiv', 'true'].indexOf(rows[i].fieldValue),	- 1);
 					}
 
 					cb(err);
@@ -175,14 +176,14 @@ describe('Order', function() {
 
 			// Check rowfields
 			tasks.push(function(cb) {
-				db.query('SELECT * FROM orders_rowFields ORDER BY id', function(err, rows) {
+				db.query('SELECT * FROM orders_rowFields ORDER BY name', function(err, rows) {
 					if (err) throw err;
 
 					assert.deepEqual(rows.length,	3);
 
 					for (let i = 0; rows[i] !== undefined; i ++) {
-						assert.notDeepEqual([1, 2, 3]	.indexOf(rows[i].id),	- 1);
-						assert.notDeepEqual(['price', 'name', 'tags']	.indexOf(rows[i].name),	- 1);
+						assert.notDeepEqual(lUtils.formatUuid(rows[i].uuid),	false);
+						assert.notDeepEqual(['price', 'name', 'tags'].indexOf(rows[i].name),	- 1);
 					}
 
 					cb(err);
@@ -200,15 +201,15 @@ describe('Order', function() {
 			});
 
 			tasks.push(function(cb) {
-				db.query('SELECT * FROM orders_rows_fields', function(err, rows) {
+				db.query('SELECT rowIntValue, rowStrValue FROM orders_rows_fields', function(err, rows) {
 					let matchedRows = 0;
 
 					const testRows = [
-						{ 'rowFieldId':	1,	'rowIntValue':	399,	'rowStrValue':	null	},
-						{ 'rowFieldId':	2,	'rowIntValue':	null,	'rowStrValue':	'plutt'	},
-						{ 'rowFieldId':	1,	'rowIntValue':	34,	'rowStrValue':	null	},
-						{ 'rowFieldId':	3,	'rowIntValue':	null,	'rowStrValue':	'foo'	},
-						{ 'rowFieldId':	3,	'rowIntValue':	null,	'rowStrValue':	'bar'	}
+						{ 'rowIntValue':	399,	'rowStrValue':	null	},
+						{ 'rowIntValue':	null,	'rowStrValue':	'plutt'	},
+						{ 'rowIntValue':	34,	'rowStrValue':	null	},
+						{ 'rowIntValue':	null,	'rowStrValue':	'foo'	},
+						{ 'rowIntValue':	null,	'rowStrValue':	'bar'	}
 					];
 
 					if (err) throw err;
@@ -218,7 +219,6 @@ describe('Order', function() {
 					// We do this weirdness because we do not know in what order the rows are saved
 					// in the database
 					for (let i = 0; rows[i] !== undefined; i ++) {
-						delete rows[i].rowUuid;
 						for (let i2 = 0; testRows[i2] !== undefined; i2 ++) {
 							if (JSON.stringify(rows[i]) === JSON.stringify(testRows[i2])) {
 								testRows[i2] = {'fjant': 'nu'};
@@ -325,9 +325,8 @@ describe('Order', function() {
 
 		async.series(tasks, done);
 	});
-/**/
 });
-/*
+
 describe('Orders', function() {
 	let	dbUuids	= [],
 		orderLib;
@@ -621,7 +620,7 @@ describe('Orders', function() {
 		});
 	});
 });
-*/
+
 after(function(done) {
 	db.removeAllTables(done);
 });
