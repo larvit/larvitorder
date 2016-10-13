@@ -52,7 +52,7 @@ function ready(cb) {
 }
 
 function loadOrderFieldsToCache(cb) {
-	db.query('SELECT * FROM orders_orderFields ORDER BY id;', function(err, rows) {
+	db.query('SELECT * FROM orders_orderFields ORDER BY name;', function(err, rows) {
 		if (err) {
 			log.error('larvitorder: orders.js: Database error: ' + err.message);
 			return;
@@ -171,7 +171,7 @@ Order.prototype.getOrderFields = function(cb) {
 	sql += 'SELECT orders_orderFields.name AS name, orders_orders_fields.fieldValue AS value\n';
 	sql += 'FROM orders_orders_fields\n';
 	sql += '	INNER JOIN orders_orderFields\n';
-	sql += '		ON orders_orders_fields.fieldId = orders_orderFields.id\n';
+	sql += '		ON orders_orders_fields.fieldUuid = orders_orderFields.uuid\n';
 	sql += 'WHERE orders_orders_fields.orderUuid = ?';
 
 	ready(function() {
@@ -246,13 +246,13 @@ Order.prototype.getOrderRows = function(cb) {
 	});
 };
 
-Order.prototype.getOrderFieldId = function(fieldName, cb) {
+Order.prototype.getOrderFieldUuid = function(fieldName, cb) {
 	const	that	= this;
 
 	ready(function() {
 		for (let i = 0; orderFields[i] !== undefined; i ++) {
 			if (orderFields[i].name === fieldName) {
-				cb(null, orderFields[i].id);
+				cb(null, orderFields[i].uuid);
 				return;
 			}
 		}

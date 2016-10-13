@@ -54,17 +54,17 @@ before(function(done) {
 	});
 
 	// Check for empty db
-//	tasks.push(function(cb) {
-//		db.query('SHOW TABLES', function(err, rows) {
-//			if (err) throw err;
-//
-//			if (rows.length) {
-//				throw new Error('Database is not empty. To make a test, you must supply an empty database!');
-//			}
-//
-//			cb();
-//		});
-//	});
+	tasks.push(function(cb) {
+		db.query('SHOW TABLES', function(err, rows) {
+			if (err) throw err;
+
+			if (rows.length) {
+				throw new Error('Database is not empty. To make a test, you must supply an empty database!');
+			}
+
+			cb();
+		});
+	});
 
 	async.series(tasks, done);
 });
@@ -92,7 +92,7 @@ describe('Order', function() {
 
 		done();
 	});
-
+/*
 	it('should instantiate a new plain order object, with object as option', function(done) {
 		const order = new orderLib.Order({});
 
@@ -325,8 +325,9 @@ describe('Order', function() {
 
 		async.series(tasks, done);
 	});
+/**/
 });
-
+/*
 describe('Orders', function() {
 	let	dbUuids	= [],
 		orderLib;
@@ -620,7 +621,7 @@ describe('Orders', function() {
 		});
 	});
 });
-
+*/
 after(function(done) {
 	db.removeAllTables(done);
 });
