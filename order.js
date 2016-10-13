@@ -3,11 +3,10 @@
 const	EventEmitter	= require('events').EventEmitter,
 	eventEmitter	= new EventEmitter(),
 	dbmigration	= require('larvitdbmigration')({'tableName': 'orders_db_version', 'migrationScriptsPath': __dirname + '/dbmigration'}),
-	orderFields	= [],
-	rowFields	= [],
+	dataWriter	= require(__dirname + '/dataWriter.js'),
 	intercom	= require('larvitutils').instances.intercom,
+	helpers	= require(__dirname + '/helpers.js'),
 	uuidLib	= require('node-uuid'),
-	lUtils	= require('larvitutils'),
 	async	= require('async'),
 	log	= require('winston'),
 	db	= require('larvitdb');
@@ -40,52 +39,14 @@ function ready(cb) {
 	});
 
 	// Load order fields
-	tasks.push(loadOrderFieldsToCache);
+	tasks.push(helpers.loadOrderFieldsToCache);
 
 	// Load row fields
-	tasks.push(loadRowFieldsToCache);
+	tasks.push(helpers.loadRowFieldsToCache);
 
 	async.series(tasks, function() {
 		isReady	= true;
 		eventEmitter.emit('ready');
-		cb();
-	});
-}
-
-function loadOrderFieldsToCache(cb) {
-	db.query('SELECT * FROM orders_orderFields ORDER BY name;', function(err, rows) {
-		if (err) {
-			log.error('larvitorder: orders.js: Database error: ' + err.message);
-			return;
-		}
-
-		// Empty the previous cache
-		orderFields.length = 0;
-
-		// Load the new values
-		for (let i = 0; rows[i] !== undefined; i ++) {
-			orderFields.push(rows[i]);
-		}
-
-		cb();
-	});
-}
-
-function loadRowFieldsToCache(cb) {
-	db.query('SELECT * FROM orders_rowFields ORDER BY name;', function(err, rows) {
-		if (err) {
-			log.error('larvitorder: orders.js: Database error: ' + err.message);
-			return;
-		}
-
-		// Empty the previous cache
-		rowFields.length = 0;
-
-		// Load the new values
-		for (let i = 0; rows[i] !== undefined; i ++) {
-			rowFields.push(rows[i]);
-		}
-
 		cb();
 	});
 }
@@ -247,305 +208,42 @@ Order.prototype.getOrderRows = function(cb) {
 	});
 };
 
-Order.prototype.getOrderFieldUuid = function(fieldName, cb) {
-	const	that	= this;
-
-	ready(function() {
-		for (let i = 0; orderFields[i] !== undefined; i ++) {
-			if (orderFields[i].name === fieldName) {
-				cb(null, orderFields[i].uuid);
-				return;
-			}
-		}
-
-		// If we get down here, the field does not exist, create it and rerun
-		db.query('INSERT IGNORE INTO orders_orderFields (uuid, name) VALUES(?,?)', [uuidLib.v4(), fieldName], function(err) {
-			if (err) { cb(err); return; }
-
-			loadOrderFieldsToCache(function(err) {
-				if (err) { cb(err); return; }
-
-				that.getOrderFieldUuid(fieldName, cb);
-			});
-		});
-	});
-};
-
-/**
- * Get order field ids by names
- *
- * @param arr	fieldNames array of strings
- * @param func	cb(err, object with names as key and uuids as values)
- */
-Order.prototype.getOrderFieldUuids = function(fieldNames, cb) {
-	const	fieldUuidsByName	= {},
-		tasks	= [],
-		that	= this;;
-
-	for (let i = 0; fieldNames[i] !== undefined; i ++) {
-		const	fieldName = fieldNames[i];
-
-		tasks.push(function(cb) {
-			that.getOrderFieldUuid(fieldName, function(err, fieldUuid) {
-				if (err) { cb(err); return; }
-
-				fieldUuidsByName[fieldName] = fieldUuid;
-				cb();
-			});
-		});
-	}
-
-	async.parallel(tasks, function(err) {
-		if (err) { cb(err); return; }
-
-		cb(null, fieldUuidsByName);
-	});
-};
-
-Order.prototype.getRowFieldUuid = function(rowFieldName, cb) {
-	const	that	= this;
-
-	if (rowFieldName === 'uuid') {
-		const	err	= new Error('Row field "uuid" is reserved and have no uuid');
-		log.warn('larvitorder: order.js - getRowFieldUuid() - ' + err.message);
-		cb(err);
-		return;
-	}
-
-	ready(function() {
-		for (let i = 0; rowFields[i] !== undefined; i ++) {
-			if (rowFields[i].name === rowFieldName) {
-				cb(null, rowFields[i].uuid);
-				return;
-			}
-		}
-
-		// If we get down here, the field does not exist, create it and rerun
-		db.query('INSERT IGNORE INTO orders_rowFields (uuid, name) VALUES(?,?)', [uuidLib.v4(), rowFieldName], function(err) {
-			if (err) { cb(err); return; }
-
-			loadRowFieldsToCache(function(err) {
-				if (err) { cb(err); return; }
-
-				that.getRowFieldUuid(rowFieldName, cb);
-			});
-		});
-	});
-};
-
-/**
- * Get row field ids by names
- *
- * @param arr	rowFieldNames array of strings
- * @param func	cb(err, object with names as key and ids as values)
- */
-Order.prototype.getRowFieldUuids = function(rowFieldNames, cb) {
-	const	rowFieldUuidsByName	= {},
-		tasks	= [],
-		that	= this;;
-
-	for (let i = 0; rowFieldNames[i] !== undefined; i ++) {
-		const	rowFieldName = rowFieldNames[i];
-
-		if (rowFieldName === 'uuid') continue; // Ignore uuid
-
-		tasks.push(function(cb) {
-			that.getRowFieldUuid(rowFieldName, function(err, fieldUuid) {
-				if (err) { cb(err); return; }
-
-				rowFieldUuidsByName[rowFieldName] = fieldUuid;
-				cb();
-			});
-		});
-	}
-
-	async.parallel(tasks, function(err) {
-		if (err) { cb(err); return; }
-
-		cb(null, rowFieldUuidsByName);
-	});
-};
+Order.prototype.getOrderFieldUuid	= helpers.getOrderFieldUuid;
+Order.prototype.getOrderFieldUuids	= helpers.getOrderFieldUuids;
+Order.prototype.getRowFieldUuid	= helpers.getRowFieldUuid;
+Order.prototype.getRowFieldUuids	= helpers.getRowFieldUuids;
 
 // Saving the order object to the database.
 Order.prototype.save = function(cb) {
 	const	tasks	= [],
 		that	= this;
 
-	let	fieldUuidsByName,
-		rowFieldUuidsByName;
-
 	// Await database readiness
 	tasks.push(ready);
 
 	tasks.push(function(cb) {
-		intercom.send({
-			'action':	'writeOrder',
-			'params':	[
-				that.uuid,
-				that.created,
-				that.fields,
-				that.rows
-			]
-		}, function(err, msgUuid) {
-			cb(err);
+		const	options	= {'exchange': dataWriter.exchangeName},
+			message	= {};
+
+		message.action	= 'writeOrder';
+		message.params	= [];
+
+		message.params.push(that.uuid);
+		message.params.push(that.created);
+		message.params.push(that.fields);
+		message.params.push(that.rows);
+
+		intercom.send(message, options, function(err, msgUuid) {
+			if (err) { cb(err); return; }
+
+			dataWriter.emitter.once(msgUuid, function(err) {
+				if (err) throw err;
+				console.log('YESSSS!');
+			});
 		});
 	});
 
-	// Make sure the base order row exists
-	tasks.push(function(cb) {
-		const	sql	= 'INSERT IGNORE INTO orders (uuid, created) VALUES(?,?)';
-
-		db.query(sql, [lUtils.uuidToBuffer(that.uuid), that.created], cb);
-	});
-
-	// Clean out old field data
-	tasks.push(function(cb) {
-		db.query('DELETE FROM orders_orders_fields WHERE orderUuid = ?', [lUtils.uuidToBuffer(that.uuid)], cb);
-	});
-
-	// Clean out old row field data
-	tasks.push(function(cb) {
-		const	dbFields	= [lUtils.uuidToBuffer(that.uuid)],
-			sql	= 'DELETE FROM orders_rows_fields WHERE rowUuid IN (SELECT rowUuid FROM orders_rows WHERE orderUuid = ?)';
-
-		db.query(sql, dbFields, cb);
-	});
-
-	// Clean out old rows
-	tasks.push(function(cb) {
-		const	dbFields	= [lUtils.uuidToBuffer(that.uuid)],
-			sql	= 'DELETE FROM orders_rows WHERE orderUuid = ?';
-
-		db.query(sql, dbFields, cb);
-	});
-
-	// By now we have a clean database, lets insert stuff!
-
-	// Get all field ids
-	tasks.push(function(cb) {
-		that.getOrderFieldUuids(Object.keys(that.fields), function(err, result) {
-			fieldUuidsByName = result;
-
-			cb(err);
-		});
-	});
-
-	// Insert fields
-	tasks.push(function(cb) {
-		const	dbFields	= [];
-
-		let	sql	= 'INSERT INTO orders_orders_fields (orderUuid, fieldUuid, fieldValue) VALUES';
-
-		for (const fieldName of Object.keys(that.fields)) {
-			if ( ! (that.fields[fieldName] instanceof Array)) {
-				that.fields[fieldName] = [that.fields[fieldName]];
-			}
-
-			for (let i = 0; that.fields[fieldName][i] !== undefined; i ++) {
-				const	fieldValue	= that.fields[fieldName][i];
-				sql += '(?,?,?),';
-				dbFields.push(lUtils.uuidToBuffer(that.uuid));
-				dbFields.push(fieldUuidsByName[fieldName]);
-				dbFields.push(fieldValue);
-			}
-		}
-
-		sql = sql.substring(0, sql.length - 1) + ';';
-
-		db.query(sql, dbFields, cb);
-	});
-
-	// Insert rows
-	tasks.push(function(cb) {
-		const	dbFields	= [];
-
-		let	sql	= 'INSERT INTO orders_rows (rowUuid, orderUuid) VALUES';
-
-		for (let i = 0; that.rows[i] !== undefined; i ++) {
-			const row = that.rows[i];
-
-			// Make sure all rows got an uuid
-			if (row.uuid === undefined) {
-				row.uuid = uuidLib.v4();
-			}
-
-			sql += '(?,?),';
-			dbFields.push(lUtils.uuidToBuffer(row.uuid));
-			dbFields.push(lUtils.uuidToBuffer(that.uuid));
-		}
-
-		if (dbFields.length === 0) {
-			cb();
-			return;
-		}
-
-		sql = sql.substring(0, sql.length - 1);
-		db.query(sql, dbFields, cb);
-	});
-
-	// Get all row field uuids
-	tasks.push(function(cb) {
-		const	rowFieldNames	= [];
-
-		for (let i = 0; that.rows[i] !== undefined; i ++) {
-			const	row	= that.rows[i];
-
-			for (const rowFieldName of Object.keys(row)) {
-				if (rowFieldNames.indexOf(rowFieldName) === - 1) {
-					rowFieldNames.push(rowFieldName);
-				}
-			}
-		}
-
-		that.getRowFieldUuids(rowFieldNames, function(err, result) {
-			rowFieldUuidsByName = result;
-			cb(err);
-		});
-	});
-
-	// Insert row fields
-	tasks.push(function(cb) {
-		const	dbFields	= [];
-
-		let	sql	= 'INSERT INTO orders_rows_fields (rowUuid, rowFieldUuid, rowIntValue, rowStrValue) VALUES';
-
-		for (let i = 0; that.rows[i] !== undefined; i ++) {
-			const	row	= that.rows[i];
-
-			for (const rowFieldName of Object.keys(row)) {
-				if (rowFieldName === 'uuid') continue;
-
-				if ( ! (row[rowFieldName] instanceof Array)) {
-					row[rowFieldName] = [row[rowFieldName]];
-				}
-
-				for (let i = 0; row[rowFieldName][i] !== undefined; i ++) {
-					const rowFieldValue = row[rowFieldName][i];
-
-					sql += '(?,?,?,?),';
-					dbFields.push(lUtils.uuidToBuffer(row.uuid));
-					dbFields.push(rowFieldUuidsByName[rowFieldName]);
-
-					if (typeof rowFieldValue === 'number' && (rowFieldValue % 1) === 0) {
-						dbFields.push(rowFieldValue);
-						dbFields.push(null);
-					} else {
-						dbFields.push(null);
-						dbFields.push(rowFieldValue);
-					}
-				}
-			}
-		}
-
-		if (dbFields.length === 0) {
-			cb();
-			return;
-		}
-
-		sql = sql.substring(0, sql.length - 1) + ';';
-
-		db.query(sql, dbFields, cb);
-	});
+	tasks.push(that.loadFromDb);
 
 	async.series(tasks, cb);
 };

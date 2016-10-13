@@ -17,3 +17,4 @@ String.prototype.replaceAll = function(search, replacement) {
 
 exports.Order	= require('./order.js');
 exports.Orders	= require('./orders.js');
+exports.helpers	= require('./helpers.js');

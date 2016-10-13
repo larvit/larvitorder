@@ -1,70 +1,225 @@
 'use strict';
 
-const	exchangeName	= 'larvitorder',
-	EventEmitter	= require('events').EventEmitter,
+const	EventEmitter	= require('events').EventEmitter,
 	intercom	= require('larvitutils').instances.intercom,
+	helpers	= require(__dirname + '/helpers.js'),
 	lUtils	= require('larvitutils'),
+	async	= require('async'),
 	log	= require('winston'),
 	db	= require('larvitdb');
 
-function årder(params, deliveryTag) {
-	const	dbFields	= [],
-		sql	= 'INSERT INTO user_users (uuid, username, password) VALUES(?,?,?) ON DUPLICATE KEY UPDATE username = ?, password = ?;';
+function writeOrder(params, deliveryTag, msgUuid) {
+	const	orderFields	= params[2],
+		orderRows	= params[3],
+		orderUuid	= params[0],
+		orderUuidBuf	= lUtils.uuidToBuffer(orderUuid),
+		created	= params[1],
+		tasks	= [];
 
-	let	userUuid,
-		username,
-		password,
-		userData;
+	let	fieldUuidsByName,
+		rowFieldUuidsByName;
 
-	if ( ! (params instanceof Array) || params.length !== 4) {
-		const	err	= new Error('invalid params, is not an array of four for deliveryTag: "' + deliveryTag + '"');
-		log.warn('larvitorder: dataWriter.js - createUser() - ' + err.message);
-		exports.emit('userCreate', err);
+	if (lUtils.formatUuid(orderUuid) === false || orderUuidBuf === false) {
+		log.error('larvitorder: ./dataWriter.js - writeOrder() - Invalid orderUuid: "' + orderUuid + '"');
+		exports.emitter.emit(orderUuid);
 		return;
 	}
 
-	userUuid	= params[0];
-	username	= params[1];
-	password	= params[2];
-	userData	= params[3];
+	// Make sure the base order row exists
+	tasks.push(function(cb) {
+		const	sql	= 'INSERT IGNORE INTO orders (uuid, created) VALUES(?,?)';
 
-	if (lUtils.formatUuid(userUuid) === false) {
-		const	err	= new Error('invalid user uuid: "' + userUuid + '" for deliveryTag: "' + deliveryTag + '"');
-		log.warn('larvitorder: dataWriter.js - createUser() - ' + err.message);
-		exports.emit('userCreate', err, userUuid);
-		return;
-	}
+		db.query(sql, [orderUuidBuf, created], cb);
+	});
 
-	dbFields.push(userUuid);
-	dbFields.push(username);
-	dbFields.push(password);
-	dbFields.push(username);
-	dbFields.push(password);
+	// Clean out old field data
+	tasks.push(function(cb) {
+		db.query('DELETE FROM orders_orders_fields WHERE orderUuid = ?', [orderUuidBuf], cb);
+	});
 
-	db.query(sql, dbFields, function(err) {
-		if (err) {
-			exports.emit('userCreate', err, userUuid);
+	// Clean out old row field data
+	tasks.push(function(cb) {
+		const	dbFields	= [orderUuidBuf],
+			sql	= 'DELETE FROM orders_rows_fields WHERE rowUuid IN (SELECT rowUuid FROM orders_rows WHERE orderUuid = ?)';
+
+		db.query(sql, dbFields, cb);
+	});
+
+	// Clean out old rows
+	tasks.push(function(cb) {
+		const	dbFields	= [orderUuidBuf],
+			sql	= 'DELETE FROM orders_rows WHERE orderUuid = ?';
+
+		db.query(sql, dbFields, cb);
+	});
+
+	// By now we have a clean database, lets insert stuff!
+
+	// Get all field ids
+	tasks.push(function(cb) {
+		helpers.getOrderFieldUuids(Object.keys(orderFields), function(err, result) {
+			fieldUuidsByName = result;
+			cb(err);
+		});
+	});
+
+	// Insert fields
+	tasks.push(function(cb) {
+		const	dbFields	= [];
+
+		let	sql	= 'INSERT INTO orders_orders_fields (orderUuid, fieldUuid, fieldValue) VALUES';
+
+		for (const fieldName of Object.keys(orderFields)) {
+			if ( ! (orderFields[fieldName] instanceof Array)) {
+				orderFields[fieldName] = [orderFields[fieldName]];
+			}
+
+			for (let i = 0; orderFields[fieldName][i] !== undefined; i ++) {
+				const	fieldValue	= orderFields[fieldName][i];
+				sql += '(?,?,?),';
+				dbFields.push(orderUuidBuf);
+				dbFields.push(fieldUuidsByName[fieldName]);
+				dbFields.push(fieldValue);
+			}
+		}
+
+		sql = sql.substring(0, sql.length - 1) + ';';
+
+		db.query(sql, dbFields, cb);
+	});
+
+	// Insert rows
+	tasks.push(function(cb) {
+		const	dbFields	= [];
+
+		let	sql	= 'INSERT INTO orders_rows (rowUuid, orderUuid) VALUES';
+
+		for (let i = 0; orderRows[i] !== undefined; i ++) {
+			const row = orderRows[i];
+
+			// Make sure all rows got an uuid
+			if (row.uuid === undefined) {
+				row.uuid = uuidLib.v4();
+			}
+
+			sql += '(?,?),';
+			dbFields.push(lUtils.uuidToBuffer(row.uuid));
+			dbFields.push(orderUuidBuf);
+		}
+
+		if (dbFields.length === 0) {
+			cb();
 			return;
 		}
 
-		exports.emit('userCreate', null, userUuid);
+		sql = sql.substring(0, sql.length - 1);
+		db.query(sql, dbFields, cb);
 	});
-};
 
-module.exports	= new EventEmitter();
-exports	= module.exports;
-exports.createUser	= createUser;
+	// Get all row field uuids
+	tasks.push(function(cb) {
+		const	rowFieldNames	= [];
 
-intercom.subscribe({'exchange': exchangeName}, function(message, ack, deliveryTag) {
+		for (let i = 0; orderRows[i] !== undefined; i ++) {
+			const	row	= orderRows[i];
+
+			for (const rowFieldName of Object.keys(row)) {
+				if (rowFieldNames.indexOf(rowFieldName) === - 1) {
+					rowFieldNames.push(rowFieldName);
+				}
+			}
+		}
+
+		getRowFieldUuids(rowFieldNames, function(err, result) {
+			rowFieldUuidsByName = result;
+			cb(err);
+		});
+	});
+
+	// Insert row fields
+	tasks.push(function(cb) {
+		const	dbFields	= [];
+
+		let	sql	= 'INSERT INTO orders_rows_fields (rowUuid, rowFieldUuid, rowIntValue, rowStrValue) VALUES';
+
+		for (let i = 0; orderRows[i] !== undefined; i ++) {
+			const	row	= orderRows[i];
+
+			for (const rowFieldName of Object.keys(row)) {
+				if (rowFieldName === 'uuid') continue;
+
+				if ( ! (row[rowFieldName] instanceof Array)) {
+					row[rowFieldName] = [row[rowFieldName]];
+				}
+
+				for (let i = 0; row[rowFieldName][i] !== undefined; i ++) {
+					const rowFieldValue = row[rowFieldName][i];
+
+					sql += '(?,?,?,?),';
+					dbFields.push(lUtils.uuidToBuffer(row.uuid));
+					dbFields.push(rowFieldUuidsByName[rowFieldName]);
+
+					if (typeof rowFieldValue === 'number' && (rowFieldValue % 1) === 0) {
+						dbFields.push(rowFieldValue);
+						dbFields.push(null);
+					} else {
+						dbFields.push(null);
+						dbFields.push(rowFieldValue);
+					}
+				}
+			}
+		}
+
+		if (dbFields.length === 0) {
+			cb();
+			return;
+		}
+
+		sql = sql.substring(0, sql.length - 1) + ';';
+
+		db.query(sql, dbFields, cb);
+	});
+
+	async.series(tasks, function(err) {
+		exports.emitter.emit(msgUuid, err);
+	});
+}
+
+function writeOrderField(params, deliveryTag, msgUuid) {
+	const	uuid	= params[0],
+		name	= params[1];
+
+	db.query('INSERT IGNORE INTO orders_orderFields (uuid, name) VALUES(?,?)', [uuid, name], function(err) {
+		console.log('emitting!!!');
+		exports.emitter.emit(msgUuid, err);
+	});
+}
+
+function writeRowField(params, deliveryTag, msgUuid) {
+	const	uuid	= params[0],
+		name	= params[1];
+
+	db.query('INSERT IGNORE INTO orders_rowFields (uuid, name) VALUES(?,?)', [uuid, name], function(err) {
+		exports.emitter.emit(msgUuid, err);
+	});
+}
+
+exports.emitter	= new EventEmitter();
+exports.exchangeName	= 'larvitorder';
+exports.writeOrder	= writeOrder;
+exports.writeOrderField	= writeOrderField;
+exports.writeRowField	= writeRowField;
+
+intercom.subscribe({'exchange': exports.exchangeName}, function(message, ack, deliveryTag) {
 	ack(); // Ack first, if something goes wrong we log it and handle it manually
-
+console.log('incoming on queue!!1! message.action: ' + message.action);
 	if (typeof message !== 'object') {
 		log.error('larvitorder: dataWriter.js - intercom.subscribe() - Invalid message received, is not an object! deliveryTag: "' + deliveryTag + '"');
 		return;
 	}
 
 	if (typeof exports[message.action] === 'function') {
-		exports[message.action](message.params, deliveryTag);
+		exports[message.action](message.params, deliveryTag, message.uuid);
 	} else {
 		log.warn('larvitorder: dataWriter.js - intercom.subscribe() - Unknown message.action received: "' + message.action + '"');
 	}

@@ -15,7 +15,7 @@ let	orderLib;
 // Set up winston
 log.remove(log.transports.Console);
 /**/log.add(log.transports.Console, {
-	'level':	'warn',
+	'level':	'debug',
 	'colorize':	true,
 	'timestamp':	true,
 	'json':	false
