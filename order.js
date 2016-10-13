@@ -5,6 +5,7 @@ const	EventEmitter	= require('events').EventEmitter,
 	dbmigration	= require('larvitdbmigration')({'tableName': 'orders_db_version', 'migrationScriptsPath': __dirname + '/dbmigration'}),
 	orderFields	= [],
 	rowFields	= [],
+	intercom	= require('larvitutils').instances.intercom,
 	uuidLib	= require('node-uuid'),
 	lUtils	= require('larvitutils'),
 	async	= require('async'),
@@ -375,6 +376,20 @@ Order.prototype.save = function(cb) {
 
 	// Await database readiness
 	tasks.push(ready);
+
+	tasks.push(function(cb) {
+		intercom.send({
+			'action':	'writeOrder',
+			'params':	[
+				that.uuid,
+				that.created,
+				that.fields,
+				that.rows
+			]
+		}, function(err, msgUuid) {
+			cb(err);
+		});
+	});
 
 	// Make sure the base order row exists
 	tasks.push(function(cb) {

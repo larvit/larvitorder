@@ -1,10 +1,11 @@
 {
   "name": "larvitorder",
-  "version": "0.0.4",
+  "version": "0.1.0",
   "description": "Generic order system",
   "main": "index.js",
   "dependencies": {
     "async": "^2.0.1",
+    "larvitamintercom": "0.1.0",
     "larvitdb": "^1.0.0",
     "larvitdbmigration": "^1.0.1",
     "larvitutils": "^1.0.2",

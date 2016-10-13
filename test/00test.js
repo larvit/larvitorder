@@ -1,6 +1,7 @@
 'use strict';
 
 const	uuidValidate	= require('uuid-validate'),
+	Intercom	= require('larvitamintercom'),
 	uuidLib	= require('node-uuid'),
 	assert	= require('assert'),
 	lUtils	= require('larvitutils'),
@@ -28,10 +29,10 @@ before(function(done) {
 	tasks.push(function(cb) {
 		let confFile;
 
-		if (process.env.CONFFILE === undefined) {
+		if (process.env.DBCONFFILE === undefined) {
 			confFile = __dirname + '/../config/db_test.json';
 		} else {
-			confFile = process.env.CONFFILE;
+			confFile = process.env.DBCONFFILE;
 		}
 
 		log.verbose('DB config file: "' + confFile + '"');
@@ -66,6 +67,40 @@ before(function(done) {
 			}
 
 			cb();
+		});
+	});
+
+	// Setup intercom
+	tasks.push(function(cb) {
+		let confFile;
+
+		if (process.env.INTCONFFILE === undefined) {
+			confFile = __dirname + '/../config/amqp_test.json';
+		} else {
+			confFile = process.env.INTCONFFILE;
+		}
+
+		log.verbose('Intercom config file: "' + confFile + '"');
+
+		// First look for absolute path
+		fs.stat(confFile, function(err) {
+			if (err) {
+
+				// Then look for this string in the config folder
+				confFile = __dirname + '/../config/' + confFile;
+				fs.stat(confFile, function(err) {
+					if (err) throw err;
+					log.verbose('Intercom config: ' + JSON.stringify(require(confFile)));
+					lUtils.instances.intercom = new Intercom(require(confFile).default);
+					lUtils.instances.intercom.on('ready', cb);
+				});
+
+				return;
+			}
+
+			log.verbose('Intercom config: ' + JSON.stringify(require(confFile)));
+			lUtils.instances.intercom = new Intercom(require(confFile).default);
+			lUtils.instances.intercom.on('ready', cb);
 		});
 	});
 
