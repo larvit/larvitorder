@@ -9,6 +9,8 @@ const	uuidValidate	= require('uuid-validate'),
 	db	= require('larvitdb'),
 	fs	= require('fs');
 
+let	orderLib;
+
 // Set up winston
 log.remove(log.transports.Console);
 /**/log.add(log.transports.Console, {
@@ -67,20 +69,31 @@ before(function(done) {
 		});
 	});
 
+	// Preload caches etc
+	// We do this so the timing of the rest of the tests gets more correct
+	tasks.push(function(cb) {
+		const	tasks	= [];
+
+		orderLib	= require(__dirname + '/../index.js');
+
+		tasks.push(function(cb) {
+			const	order	= new orderLib.Order();
+			order.ready(cb);
+		});
+
+		tasks.push(function(cb) {
+			const	orders	= new orderLib.Orders();
+			orders.ready(cb);
+		});
+
+		async.parallel(tasks, cb);
+	});
+
 	async.series(tasks, done);
 });
 
 describe('Order', function() {
-	let	orderUuid,
-		orderLib;
-
-	before(function(done) {
-		let order;
-
-		orderLib	= require(__dirname + '/../index.js');
-		order	= new orderLib.Order();
-		order.ready(done); // We do this so the timing of the rest of the tests gets more correct
-	});
+	let	orderUuid;
 
 	it('should instantiate a new plain order object', function(done) {
 		const order = new orderLib.Order();
@@ -328,13 +341,7 @@ describe('Order', function() {
 });
 
 describe('Orders', function() {
-	let	dbUuids	= [],
-		orderLib;
-
-	before(function(done) {
-		orderLib	= require(__dirname + '/../index.js');
-		done();
-	});
+	let	dbUuids	= [];
 
 	// Since we've created one order above, it should turn up here
 	it('should get a list of orders', function(done) {
