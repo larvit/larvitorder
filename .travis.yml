@@ -36,8 +36,4 @@ addons:
     packages:
     - g++-4.8
 
-env:
-  - DBCONFFILE=db_travis.json
-  - INTCONFFILE=amqp_travis.json
-
-script: mocha
+script: DBCONFFILE=db_travis.json INTCONFFILE=amqp_travis.json mocha
