@@ -3,25 +3,27 @@
 const	EventEmitter	= require('events').EventEmitter,
 	intercom	= require('larvitutils').instances.intercom,
 	helpers	= require(__dirname + '/helpers.js'),
+	uuidLib	= require('node-uuid'),
 	lUtils	= require('larvitutils'),
 	async	= require('async'),
 	log	= require('winston'),
 	db	= require('larvitdb');
 
 function writeOrder(params, deliveryTag, msgUuid) {
-	const	orderFields	= params[2],
-		orderRows	= params[3],
-		orderUuid	= params[0],
+	const	orderFields	= params.fields,
+		orderRows	= params.rows,
+		orderUuid	= params.uuid,
 		orderUuidBuf	= lUtils.uuidToBuffer(orderUuid),
-		created	= params[1],
+		created	= params.created,
 		tasks	= [];
 
 	let	fieldUuidsByName,
 		rowFieldUuidsByName;
 
 	if (lUtils.formatUuid(orderUuid) === false || orderUuidBuf === false) {
-		log.error('larvitorder: ./dataWriter.js - writeOrder() - Invalid orderUuid: "' + orderUuid + '"');
-		exports.emitter.emit(orderUuid);
+		const err = new Error('Invalid orderUuid: "' + orderUuid + '"');
+		log.error('larvitorder: ./dataWriter.js - writeOrder() - ' + err.message);
+		exports.emitter.emit(orderUuid, err);
 		return;
 	}
 
@@ -130,7 +132,7 @@ function writeOrder(params, deliveryTag, msgUuid) {
 			}
 		}
 
-		getRowFieldUuids(rowFieldNames, function(err, result) {
+		helpers.getRowFieldUuids(rowFieldNames, function(err, result) {
 			rowFieldUuidsByName = result;
 			cb(err);
 		});
@@ -186,18 +188,17 @@ function writeOrder(params, deliveryTag, msgUuid) {
 }
 
 function writeOrderField(params, deliveryTag, msgUuid) {
-	const	uuid	= params[0],
-		name	= params[1];
+	const	uuid	= params.uuid,
+		name	= params.name;
 
 	db.query('INSERT IGNORE INTO orders_orderFields (uuid, name) VALUES(?,?)', [uuid, name], function(err) {
-		console.log('emitting!!!');
 		exports.emitter.emit(msgUuid, err);
 	});
 }
 
 function writeRowField(params, deliveryTag, msgUuid) {
-	const	uuid	= params[0],
-		name	= params[1];
+	const	uuid	= params.uuid,
+		name	= params.name;
 
 	db.query('INSERT IGNORE INTO orders_rowFields (uuid, name) VALUES(?,?)', [uuid, name], function(err) {
 		exports.emitter.emit(msgUuid, err);
@@ -212,7 +213,7 @@ exports.writeRowField	= writeRowField;
 
 intercom.subscribe({'exchange': exports.exchangeName}, function(message, ack, deliveryTag) {
 	ack(); // Ack first, if something goes wrong we log it and handle it manually
-console.log('incoming on queue!!1! message.action: ' + message.action);
+
 	if (typeof message !== 'object') {
 		log.error('larvitorder: dataWriter.js - intercom.subscribe() - Invalid message received, is not an object! deliveryTag: "' + deliveryTag + '"');
 		return;

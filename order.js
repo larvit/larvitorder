@@ -226,24 +226,23 @@ Order.prototype.save = function(cb) {
 			message	= {};
 
 		message.action	= 'writeOrder';
-		message.params	= [];
+		message.params	= {};
 
-		message.params.push(that.uuid);
-		message.params.push(that.created);
-		message.params.push(that.fields);
-		message.params.push(that.rows);
+		message.params.uuid	= that.uuid;
+		message.params.created	= that.created;
+		message.params.fields	= that.fields;
+		message.params.rows	= that.rows;
 
 		intercom.send(message, options, function(err, msgUuid) {
 			if (err) { cb(err); return; }
 
-			dataWriter.emitter.once(msgUuid, function(err) {
-				if (err) throw err;
-				console.log('YESSSS!');
-			});
+			dataWriter.emitter.once(msgUuid, cb);
 		});
 	});
 
-	tasks.push(that.loadFromDb);
+	tasks.push(function(cb) {
+		that.loadFromDb(cb);
+	});
 
 	async.series(tasks, cb);
 };

@@ -21,14 +21,14 @@ function getOrderFieldUuid(fieldName, cb) {
 			message	= {};
 
 		message.action	= 'writeOrderField';
-		message.params	= [];
+		message.params	= {};
 
-		message.params.push(uuidLib.v4());
-		message.params.push(fieldName);
+		message.params.uuid	= uuidLib.v4();
+		message.params.name	= fieldName;
 
 		intercom.send(message, options, function(err, msgUuid) {
 			if (err) { cb(err); return; }
-console.log('send to queue');
+
 			dataWriter.emitter.once(msgUuid, function(err) {
 				if (err) { cb(err); return; }
 
@@ -93,10 +93,10 @@ function getRowFieldUuid(rowFieldName, cb) {
 			message	= {};
 
 		message.action	= 'writeRowField';
-		message.params	= [];
+		message.params	= {};
 
-		message.params.push(uuidLib.v4());
-		message.params.push(fieldName);
+		message.params.uuid	= uuidLib.v4();
+		message.params.name	= rowFieldName;
 
 		intercom.send(message, options, function(err, msgUuid) {
 			if (err) { cb(err); return; }
