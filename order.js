@@ -71,7 +71,7 @@ function Order(options) {
 	this.ready	= ready; // To expose to the outside world
 	this.rows	= options.rows;
 
-	if (this.fields = undefined) {
+	if (this.fields === undefined) {
 		this.fields = [];
 	}
 

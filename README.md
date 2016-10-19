@@ -17,11 +17,9 @@ order data structure:
 	},
 	"rows": [
 		{
-			"uuid": "string",
-			"fields": {
-				"field1": [394],
-				"field2": ["nisse", 20]
-			}
+			"uuid": "string", <-- special field
+			"field1": [394],
+			"field2": ["nisse", 20]
 		}
 	]
 }
