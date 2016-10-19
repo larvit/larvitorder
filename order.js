@@ -213,6 +213,23 @@ Order.prototype.getOrderFieldUuids	= helpers.getOrderFieldUuids;
 Order.prototype.getRowFieldUuid	= helpers.getRowFieldUuid;
 Order.prototype.getRowFieldUuids	= helpers.getRowFieldUuids;
 
+Order.prototype.rm = function(cb) {
+	const	options	= {'exchange': dataWriter.exchangeName},
+		message	= {},
+		that	= this;
+
+	message.action	= 'rmOrder';
+	message.params	= {};
+
+	message.params.uuid	= that.uuid;
+
+	intercom.send(message, options, function(err, msgUuid) {
+		if (err) { cb(err); return; }
+
+		dataWriter.emitter.once(msgUuid, cb);
+	});
+};
+
 // Saving the order object to the database.
 Order.prototype.save = function(cb) {
 	const	tasks	= [],

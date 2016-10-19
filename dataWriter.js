@@ -9,6 +9,45 @@ const	EventEmitter	= require('events').EventEmitter,
 	log	= require('winston'),
 	db	= require('larvitdb');
 
+function rmOrder(params, deliveryTag, msgUuid) {
+	const	orderUuid	= params.uuid,
+		orderUuidBuf	= lUtils.uuidToBuffer(orderUuid),
+		tasks	= [];
+
+	// Delete field data
+	tasks.push(function(cb) {
+		db.query('DELETE FROM orders_orders_fields WHERE orderUuid = ?', [orderUuidBuf], cb);
+	});
+
+	// Delete row field data
+	tasks.push(function(cb) {
+		const	dbFields	= [orderUuidBuf],
+			sql	= 'DELETE FROM orders_rows_fields WHERE rowUuid IN (SELECT rowUuid FROM orders_rows WHERE orderUuid = ?)';
+
+		db.query(sql, dbFields, cb);
+	});
+
+	// Delete rows
+	tasks.push(function(cb) {
+		const	dbFields	= [orderUuidBuf],
+			sql	= 'DELETE FROM orders_rows WHERE orderUuid = ?';
+
+		db.query(sql, dbFields, cb);
+	});
+
+	// Delete order
+	tasks.push(function(cb) {
+		const	dbFields	= [orderUuidBuf],
+			sql	= 'DELETE FROM orders WHERE uuid = ?';
+
+		db.query(sql, dbFields, cb);
+	});
+
+	async.series(tasks, function(err) {
+		exports.emitter.emit(msgUuid, err);
+	});
+}
+
 function writeOrder(params, deliveryTag, msgUuid) {
 	const	orderFields	= params.fields,
 		orderRows	= params.rows,
@@ -207,6 +246,7 @@ function writeRowField(params, deliveryTag, msgUuid) {
 
 exports.emitter	= new EventEmitter();
 exports.exchangeName	= 'larvitorder';
+exports.rmOrder	= rmOrder;
 exports.writeOrder	= writeOrder;
 exports.writeOrderField	= writeOrderField;
 exports.writeRowField	= writeRowField;

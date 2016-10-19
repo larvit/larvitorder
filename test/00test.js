@@ -373,6 +373,101 @@ describe('Order', function() {
 
 		async.series(tasks, done);
 	});
+
+	it('should remove an order', function(done) {
+		const	tasks	= [];
+
+		let	orders,
+			orders_orderFields,
+			orders_orders_fields,
+			orders_rows,
+			orders_rowFields,
+			orders_rows_fields;
+
+
+		// Check order tables before.
+		tasks.push(function(cb) {
+			const	subtasks	= [];
+
+			// Get orders
+			subtasks.push(function(cb) {
+				db.query('SELECT * FROM orders', [], function(err, rows) {
+					if (err) throw err;
+					orders	= rows;
+					cb();
+				});
+			});
+
+			// Get order fields
+			subtasks.push(function(cb) {
+				db.query('SELECT * FROM orders_orderFields', [], function(err, rows) {
+					if (err) throw err;
+					orders_orderFields	= rows;
+					cb();
+				});
+			});
+
+			// Get order field values
+			subtasks.push(function(cb) {
+				db.query('SELECT * FROM orders_orders_fields', [], function(err, rows) {
+					if (err) throw err;
+					orders_orders_fields	= rows;
+					cb();
+				});
+			});
+
+			// Get order rows
+			subtasks.push(function(cb) {
+				db.query('SELECT * FROM orders_rows', [], function(err, rows) {
+					if (err) throw err;
+					orders_rows	= rows;
+					cb();
+				});
+			});
+
+			//Get row fields
+			subtasks.push(function(cb) {
+				db.query('SELECT * FROM orders_rowFields', [], function(err, rows) {
+					if (err) throw err;
+					orders_rowFields	= rows;
+					cb();
+				});
+			});
+
+			// Get row field values
+			subtasks.push(function(cb) {
+				db.query('SELECT * FROM orders_rows_fields', [], function(err, rows) {
+					if (err) throw err;
+					orders_rows_fields	= rows;
+					cb();
+				});
+			});
+
+			async.series(subtasks, function(err) {
+				if (err) throw err;
+				cb();
+			});
+
+		});
+
+		// Create an order to delete later.
+		tasks.push(function(cb) {
+			const order = new orderLib.Order();
+
+			orderUuid = order.uuid;
+
+			order.fields	= {'firstname': 'Gaggz0r', 'lastname': ['Difus'], 'active': 'true'};
+			order.rows	= [{'price': 99, 'name': 'katt'}, {'price': 34, 'tags': ['hallon', 'korv']}];
+
+			order.save(cb);
+		});
+
+		async.series(tasks, function(err) {
+			if (err) throw err;
+			done();
+		});
+
+	});
 });
 
 describe('Orders', function() {
