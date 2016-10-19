@@ -1,9 +1,10 @@
 'use strict';
 
-const	orderLib	= require(__dirname + '/../../index.js');
+const	orderLib	= require(__dirname + '/../../index.js'),
+	async	= require('async');
 
 exports.run = function(req, res, cb) {
-	const	orders	= new orderLib.Orders(),
+	const	tasks	= [],
 		data	= {'global': res.globalData};
 
 	// Make sure the user have the correct rights
@@ -15,10 +16,29 @@ exports.run = function(req, res, cb) {
 
 	data.global.menuControllerName = 'orders';
 
-	orders.returnFields = ['status'];
+	tasks.push(function(cb) {
+		const	orders	= new orderLib.Orders();
 
-	orders.get(function(err, result) {
-		data.orders	= result;
+		orders.returnFields = ['status'];
+
+		if (data.global.urlParsed.query.filterStatus) {
+			orders.matchAllFields = {'status': data.global.urlParsed.query.filterStatus};
+		}
+
+		orders.get(function(err, result) {
+			data.orders	= result;
+			cb(err);
+		});
+	});
+
+	tasks.push(function(cb) {
+		orderLib.helpers.getFieldValues('status', function(err, result) {
+			data.statuses	= result;
+			cb(err, result);
+		});
+	});
+
+	async.series(tasks, function(err) {
 		cb(err, req, res, data);
 	});
 };

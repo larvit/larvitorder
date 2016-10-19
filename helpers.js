@@ -7,6 +7,32 @@ const	dataWriter	= require(__dirname + '/dataWriter.js'),
 	log	= require('winston'),
 	db	= require('larvitdb');
 
+/**
+ * Get all values on a field
+ *
+ * @param str fieldName
+ * @param func cb(err, names) - names being an array of strings
+ */
+function getFieldValues(fieldName, cb) {
+	let	sql	= 'SELECT DISTINCT fieldValue\n';
+
+	sql += 'FROM orders_orders_fields\n';
+	sql += 'WHERE fieldUuid = (SELECT uuid FROM orders_orderFields WHERE name = ?)\n';
+	sql += 'ORDER BY fieldValue;';
+
+	db.query(sql, [fieldName], function(err, rows) {
+		const	names	= [];
+
+		if (err) { cb(err); return; }
+
+		for (let i = 0; rows[i] !== undefined; i ++) {
+			names.push(rows[i].fieldValue);
+		}
+
+		cb(null, names);
+	});
+}
+
 function getOrderFieldUuid(fieldName, cb) {
 	for (let i = 0; exports.orderFields[i] !== undefined; i ++) {
 		if (exports.orderFields[i].name === fieldName) {
@@ -183,6 +209,7 @@ function loadRowFieldsToCache(cb) {
 	});
 }
 
+exports.getFieldValues	= getFieldValues;
 exports.getOrderFieldUuids	= getOrderFieldUuids;
 exports.getRowFieldUuids	= getRowFieldUuids;
 exports.loadOrderFieldsToCache	= loadOrderFieldsToCache;
