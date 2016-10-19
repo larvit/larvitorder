@@ -38,22 +38,11 @@ npm i --save larvitorder
 ### Add a new order
 
 ```javascript
-const	orderLib	= require('larvitorder');
+const	orderLib	= require('larvitorder'),
+	order	= new orderLib.Order();
 
-let order = new orderLib.Order({
-	'fields': {
-		'firstname': 'Günter',
-		'lastname': ['Edelweiss', 'Schloffs']
-	},
-	'rows': [
-		{
-			'fields': {
-				'price': 120,
-				'name': 'Screw'
-			}
-		}
-	]
-});
+order.fields	= {'firstname': 'Günter', 'lastname': ['Edelweiss', 'Schloffs']};
+order.rows	= [{'price': 399, 'name': 'Screw'}, {'price': 34, 'name': 'teh_foo', 'tags': ['foo', 'bar']}];
 
 order.save(function(err) {
 	if (err) throw err;
