@@ -6,7 +6,7 @@ const	intercom	= require('larvitutils').instances.intercom,
 // We are strictly in need of the intercom!
 if ( ! (intercom instanceof require('larvitamintercom'))) {
 	const	err	= new Error('larvitutils.instances.intercom is not an instance of Intercom!');
-	log.error('larvituser: index.js - ' + err.message);
+	log.error('larvitorder: index.js - ' + err.message);
 	throw err;
 }
 
