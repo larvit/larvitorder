@@ -83,6 +83,20 @@ exports.run = function(req, res, cb) {
 		});
 	}
 
+	if (data.global.formFields.rmOrder !== undefined) {
+		tasks.push(function(cb) {
+			log.verbose('larvitorder: ./controllers/orders/edit.js: run() - Removing order, uuid: "' + data.order.uuid + '"');
+			data.order.rm(function(err) {
+				if (err) { cb(err); return; }
+
+				req.session.data.nextCallData	= {'global': {'messages': ['Order removed: ' + data.order.uuid]}};
+				res.statusCode	= 302;
+				res.setHeader('Location', '/orders/list');
+				cb();
+			});
+		});
+	}
+
 	async.series(tasks, function(err) {
 		cb(err, req, res, data);
 	});
