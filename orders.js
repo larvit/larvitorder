@@ -146,7 +146,7 @@ Orders.prototype.get = function(cb) {
 
 		let sql;
 
-		if ( ! that.returnFields) {
+		if ( ! that.returnFields || Object.keys(orders).length === 0) {
 			cb();
 			return;
 		}
@@ -171,28 +171,27 @@ Orders.prototype.get = function(cb) {
 		}
 
 		sql = sql.substring(0, sql.length - 1) + ')\n';
-		ready(function() {
-			db.query(sql, dbFields, function(err, rows) {
-				if (err) { cb(err); return; }
 
-				for (let i = 0; rows[i] !== undefined; i ++) {
-					const row = rows[i];
+		db.query(sql, dbFields, function(err, rows) {
+			if (err) { cb(err); return; }
 
-					row.orderUuid = uuidLib.unparse(row.orderUuid);
+			for (let i = 0; rows[i] !== undefined; i ++) {
+				const row = rows[i];
 
-					if (orders[row.orderUuid].fields === undefined) {
-						orders[row.orderUuid].fields = {};
-					}
+				row.orderUuid = uuidLib.unparse(row.orderUuid);
 
-					if (orders[row.orderUuid].fields[row.fieldName] === undefined) {
-						orders[row.orderUuid].fields[row.fieldName] = [];
-					}
-
-					orders[row.orderUuid].fields[row.fieldName].push(row.fieldValue);
+				if (orders[row.orderUuid].fields === undefined) {
+					orders[row.orderUuid].fields = {};
 				}
 
-				cb();
-			});
+				if (orders[row.orderUuid].fields[row.fieldName] === undefined) {
+					orders[row.orderUuid].fields[row.fieldName] = [];
+				}
+
+				orders[row.orderUuid].fields[row.fieldName].push(row.fieldValue);
+			}
+
+			cb();
 		});
 	});
 
@@ -202,7 +201,7 @@ Orders.prototype.get = function(cb) {
 
 		let sql;
 
-		if (that.returnRowFields === undefined) {
+		if (that.returnRowFields === undefined || Object.keys(orders).length === 0) {
 			cb();
 			return;
 		}
@@ -228,37 +227,35 @@ Orders.prototype.get = function(cb) {
 
 		sql = sql.substring(0, sql.length - 1) + ')';
 
-		ready(function() {
-			db.query(sql, dbFields, function(err, rows) {
-				if (err) { cb(err); return; }
+		db.query(sql, dbFields, function(err, rows) {
+			if (err) { cb(err); return; }
 
-				for (let i = 0; rows[i] !== undefined; i ++) {
-					const row = rows[i];
+			for (let i = 0; rows[i] !== undefined; i ++) {
+				const row = rows[i];
 
-					row.orderUuid	= uuidLib.unparse(row.orderUuid);
-					row.rowUuid	= uuidLib.unparse(row.rowUuid);
+				row.orderUuid	= uuidLib.unparse(row.orderUuid);
+				row.rowUuid	= uuidLib.unparse(row.rowUuid);
 
-					if (orders[row.orderUuid].rows === undefined) {
-						orders[row.orderUuid].rows = {};
-					}
-
-					if (orders[row.orderUuid].rows[row.rowUuid] === undefined) {
-						orders[row.orderUuid].rows[row.rowUuid] = {'uuid': row.rowUuid};
-					}
-
-					if (orders[row.orderUuid].rows[row.rowUuid][row.fieldName] === undefined) {
-						orders[row.orderUuid].rows[row.rowUuid][row.fieldName] = [];
-					}
-
-					if (row.rowIntValue !== null) {
-						orders[row.orderUuid].rows[row.rowUuid][row.fieldName].push(row.rowIntValue);
-					} else if (row.rowStrValue !== null) {
-						orders[row.orderUuid].rows[row.rowUuid][row.fieldName].push(row.rowStrValue);
-					}
+				if (orders[row.orderUuid].rows === undefined) {
+					orders[row.orderUuid].rows = {};
 				}
 
-				cb();
-			});
+				if (orders[row.orderUuid].rows[row.rowUuid] === undefined) {
+					orders[row.orderUuid].rows[row.rowUuid] = {'uuid': row.rowUuid};
+				}
+
+				if (orders[row.orderUuid].rows[row.rowUuid][row.fieldName] === undefined) {
+					orders[row.orderUuid].rows[row.rowUuid][row.fieldName] = [];
+				}
+
+				if (row.rowIntValue !== null) {
+					orders[row.orderUuid].rows[row.rowUuid][row.fieldName].push(row.rowIntValue);
+				} else if (row.rowStrValue !== null) {
+					orders[row.orderUuid].rows[row.rowUuid][row.fieldName].push(row.rowStrValue);
+				}
+			}
+
+			cb();
 		});
 	});
 
