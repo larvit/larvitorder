@@ -386,39 +386,27 @@ describe('Order', function() {
 
 
 		function getOrders(cb) {
-			db.query('SELECT * FROM orders', [], function(err, rows) {
-				cb(err, rows);
-			});
+			db.query('SELECT * FROM orders', cb);
 		}
 
 		function getOrderFields(cb) {
-			db.query('SELECT * FROM orders_orderFields', [], function(err, rows) {
-				cb(err, rows);
-			});
+			db.query('SELECT * FROM orders_orderFields', cb);
 		}
 
 		function getOrderFieldValues(cb) {
-			db.query('SELECT * FROM orders_orders_fields', [], function(err, rows) {
-				cb(err, rows);
-			});
+			db.query('SELECT * FROM orders_orders_fields', cb);
 		}
 
 		function getOrderRows(cb) {
-			db.query('SELECT * FROM orders_rows', [], function(err, rows) {
-				cb(err, rows);
-			});
+			db.query('SELECT * FROM orders_rows', cb);
 		}
 
 		function getOrderRowFields(cb) {
-			db.query('SELECT * FROM orders_rowFields', [], function(err, rows) {
-				cb(err, rows);
-			});
+			db.query('SELECT * FROM orders_rowFields', cb);
 		}
 
 		function getOrderRowFieldValues(cb) {
-			db.query('SELECT * FROM orders_rows_fields', [], function(err, rows) {
-				cb(err, rows);
-			});
+			db.query('SELECT * FROM orders_rows_fields', cb);
 		}
 
 		// Check order tables before.
@@ -428,62 +416,52 @@ describe('Order', function() {
 			// Get orders
 			subtasks.push(function(cb) {
 				getOrders(function(err, result) {
-					if (err) throw err;
 					orders = result;
-					cb();
+					cb(err);
 				});
 			});
 
 			// Get order fields
 			subtasks.push(function(cb) {
 				getOrderFields(function(err, result) {
-					if (err) throw err;
 					orders_orderFields	= result;
-					cb();
+					cb(err);
 				});
 			});
 
 			// Get order field values
 			subtasks.push(function(cb) {
 				getOrderFieldValues(function(err, result) {
-					if (err) throw err;
 					orders_orders_fields	= result;
-					cb();
+					cb(err);
 				});
 			});
 
 			// Get order rows
 			subtasks.push(function(cb) {
 				getOrderRows(function(err, result) {
-					if (err) throw err;
 					orders_rows	= result;
-					cb();
+					cb(err);
 				});
 			});
 
 			//Get row fields
 			subtasks.push(function(cb) {
 				getOrderRowFields(function(err, result) {
-					if (err) throw err;
 					orders_rowFields	= result;
-					cb();
+					cb(err);
 				});
 			});
 
 			// Get row field values
 			subtasks.push(function(cb) {
 				getOrderRowFieldValues(function(err, result) {
-					if (err) throw err;
 					orders_rows_fields	= result;
-					cb();
+					cb(err);
 				});
 			});
 
-			async.series(subtasks, function(err) {
-				if (err) throw err;
-				cb();
-			});
-
+			async.parallel(subtasks, cb);
 		});
 
 		// Create an order to remove later.
@@ -501,11 +479,7 @@ describe('Order', function() {
 		// Remove order
 		tasks.push(function(cb) {
 			const order = new orderLib.Order(orderUuid);
-
-			order.rm(function(err) {
-				if (err) throw err;
-				cb();
-			});
+			order.rm(cb);
 		});
 
 		// Check if database is identical after the order removed
@@ -515,69 +489,58 @@ describe('Order', function() {
 			// Check orders
 			subtasks.push(function(cb) {
 				getOrders(function(err, result) {
-					if (err) throw err;
 					assert.deepEqual(orders, result);
-					cb();
+					cb(err);
 				});
 			});
 
 			// Check order fields
 			subtasks.push(function(cb) {
 				getOrderFields(function(err, result) {
-					if (err) throw err;
 					assert.deepEqual(orders_orderFields, result);
-					cb();
+					cb(err);
 				});
 			});
 
 			// Check order field values
 			subtasks.push(function(cb) {
 				getOrderFieldValues(function(err, result) {
-					if (err) throw err;
 					assert.deepEqual(orders_orders_fields, result);
-					cb();
+					cb(err);
 				});
 			});
 
 			// Check order rows
 			subtasks.push(function(cb) {
 				getOrderRows(function(err, result) {
-					if (err) throw err;
 					assert.deepEqual(orders_rows, result);
-					cb();
+					cb(err);
 				});
 			});
 
 			// Check row fields
 			subtasks.push(function(cb) {
 				getOrderRowFields(function(err, result) {
-					if (err) throw err;
 					assert.deepEqual(orders_rowFields, result);
-					cb();
+					cb(err);
 				});
 			});
 
 			// Check row field values
 			subtasks.push(function(cb) {
 				getOrderRowFieldValues(function(err, result) {
-					if (err) throw err;
 					assert.deepEqual(orders_rows_fields, result);
-					cb();
+					cb(err);
 				});
 			});
 
-			async.series(subtasks, function(err) {
-				if (err) throw err;
-				cb();
-			});
-
+			async.series(subtasks, cb);
 		});
 
 		async.series(tasks, function(err) {
 			if (err) throw err;
 			done();
 		});
-
 	});
 });
 

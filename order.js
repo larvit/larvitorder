@@ -61,10 +61,11 @@ function Order(options) {
 		this.uuid	= options;
 		options	= {};
 	} else {
+		log.verbose('larvitorder: New Order - Creating Order with uuid: ' + this.uuid);
 		this.uuid	= uuidLib.v4();
 	}
 
-	log.verbose('larvitorder: New Order - Creating Order with uuid: ' + this.uuid);
+
 
 	this.created	= new Date();
 	this.fields	= options.fields;
