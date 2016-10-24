@@ -45,11 +45,17 @@ function Orders() {
 	this.ready	= ready;
 }
 
+/**
+ * Get orders
+ *
+ * @param func cb(err, orders, totalHits) - orders being an array and totalHits being a number
+ */
 Orders.prototype.get = function(cb) {
 	const	tasks	= [],
 		that	= this;
 
-	let orders = {};
+	let	orders	= {},
+		hits;
 
 	// Make sure database is ready
 	tasks.push(ready);
@@ -58,7 +64,8 @@ Orders.prototype.get = function(cb) {
 	tasks.push(function(cb) {
 		const dbFields = [];
 
-		let sql = 'SELECT * FROM orders WHERE 1';
+		let	sql	= ' FROM orders WHERE 1',
+			hitsSql	= '';
 
 		if (that.uuids !== undefined) {
 			if ( ! (that.uuids instanceof Array)) {
@@ -117,6 +124,9 @@ Orders.prototype.get = function(cb) {
 
 		sql += '	ORDER BY created DESC';
 
+		hitsSql	= 'SELECT COUNT(*) AS hits' + sql;
+		sql	= 'SELECT *' + sql;
+
 		if (that.limit) {
 			sql += ' LIMIT ' + parseInt(that.limit);
 			if (that.offset) {
@@ -125,18 +135,34 @@ Orders.prototype.get = function(cb) {
 		}
 
 		ready(function() {
-			db.query(sql, dbFields, function(err, rows) {
-				if (err) { cb(err); return; }
+			const	tasks	= [];
 
-				for (let i = 0; rows[i] !== undefined; i ++) {
-					rows[i].uuid	= uuidLib.unparse(rows[i].uuid);
-					orders[rows[i].uuid]	= {};
-					orders[rows[i].uuid].uuid	= rows[i].uuid;
-					orders[rows[i].uuid].created	= rows[i].created;
-				}
+			tasks.push(function(cb) {
+				db.query(sql, dbFields, function(err, rows) {
+					if (err) { cb(err); return; }
 
-				cb();
+					for (let i = 0; rows[i] !== undefined; i ++) {
+						rows[i].uuid	= uuidLib.unparse(rows[i].uuid);
+						orders[rows[i].uuid]	= {};
+						orders[rows[i].uuid].uuid	= rows[i].uuid;
+						orders[rows[i].uuid].created	= rows[i].created;
+					}
+
+					cb();
+				});
 			});
+
+			tasks.push(function(cb) {
+				db.query(hitsSql, dbFields, function(err, rows) {
+					if (err) { cb(err); return; }
+
+					hits	= rows[0].hits;
+
+					cb();
+				});
+			});
+
+			async.parallel(tasks, cb);
 		});
 	});
 
@@ -262,7 +288,7 @@ Orders.prototype.get = function(cb) {
 	async.series(tasks, function(err) {
 		if (err) { cb(err); return; }
 
-		cb(null, orders);
+		cb(null, orders, hits);
 	});
 
 };

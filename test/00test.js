@@ -551,10 +551,11 @@ describe('Orders', function() {
 	it('should get a list of orders', function(done) {
 		const orders = new orderLib.Orders();
 
-		orders.get(function(err, orderList) {
+		orders.get(function(err, orderList, orderHits) {
 			if (err) throw err;
 			assert.deepEqual(typeof orderList,	'object');
 			assert.deepEqual(Object.keys(orderList).length,	1);
+			assert.deepEqual(orderHits,	1);
 
 			for (let uuid in orderList) {
 				assert.deepEqual(uuidValidate(orderList[uuid].uuid, 4),	true);
@@ -592,10 +593,11 @@ describe('Orders', function() {
 	it('should now get 3 orders', function(done) {
 		const orders = new orderLib.Orders();
 
-		orders.get(function(err, orderList) {
+		orders.get(function(err, orderList, orderHits) {
 			if (err) throw err;
 			assert.deepEqual(typeof orderList,	'object');
 			assert.deepEqual(Object.keys(orderList).length,	3);
+			assert.deepEqual(orderHits,	3);
 
 			for (let uuid in orderList) {
 				assert.deepEqual(uuidValidate(orderList[uuid].uuid, 4),	true);
@@ -628,10 +630,11 @@ describe('Orders', function() {
 
 			orders.uuids = dbUuids[0];
 
-			orders.get(function(err, orderList) {
+			orders.get(function(err, orderList, orderHits) {
 				if (err) throw err;
 				assert.deepEqual(typeof orderList,	'object');
 				assert.deepEqual(Object.keys(orderList).length,	1);
+				assert.deepEqual(orderHits,	1);
 				assert.deepEqual(uuidValidate(orderList[dbUuids[0]].uuid, 4),	true);
 				assert.deepEqual(orderList[dbUuids[0]].uuid,	dbUuids[0]);
 				assert.deepEqual(toString.call(orderList[dbUuids[0]].created),	'[object Date]');
@@ -646,25 +649,27 @@ describe('Orders', function() {
 
 			orders.uuids = uuidLib.v4();
 
-			orders.get(function(err, orderList) {
+			orders.get(function(err, orderList, orderHits) {
 				if (err) throw err;
 				assert.deepEqual(typeof orderList,	'object');
 				assert.deepEqual(Object.keys(orderList).length,	0);
+				assert.deepEqual(orderHits,	0);
 
 				cb();
 			});
 		});
 
-		// Get 0 results for no uuids (empty array)
+		// Get 0 results for no uuids
 		tasks.push(function(cb) {
 			const orders = new orderLib.Orders();
 
 			orders.uuids = [];
 
-			orders.get(function(err, orderList) {
+			orders.get(function(err, orderList, orderHits) {
 				if (err) throw err;
 				assert.deepEqual(typeof orderList,	'object');
 				assert.deepEqual(Object.keys(orderList).length,	0);
+				assert.deepEqual(orderHits,	0);
 
 				cb();
 			});
@@ -676,10 +681,11 @@ describe('Orders', function() {
 
 			orders.uuids = [dbUuids[0], dbUuids[2]];
 
-			orders.get(function(err, orderList) {
+			orders.get(function(err, orderList, orderHits) {
 				if (err) throw err;
 				assert.deepEqual(typeof orderList,	'object');
 				assert.deepEqual(Object.keys(orderList).length,	2);
+				assert.deepEqual(orderHits,	2);
 
 				assert.deepEqual(uuidValidate(orderList[dbUuids[0]].uuid, 4),	true);
 				assert.deepEqual(orderList[dbUuids[0]].uuid,	dbUuids[0]);
@@ -701,10 +707,11 @@ describe('Orders', function() {
 
 		orders.limit = 2;
 
-		orders.get(function(err, orderList) {
+		orders.get(function(err, orderList, orderHits) {
 			if (err) throw err;
 			assert.deepEqual(typeof orderList,	'object');
 			assert.deepEqual(Object.keys(orderList).length,	2);
+			assert.deepEqual(orderHits,	3);
 
 			done();
 		});
@@ -716,12 +723,13 @@ describe('Orders', function() {
 		orders.limit	= 2;
 		orders.offset	= 2;
 
-		orders.get(function(err, orderList) {
+		orders.get(function(err, orderList, orderHits) {
 			if (err) throw err;
 			assert.deepEqual(typeof orderList,	'object');
 
 			// Since there are only 3 rows in the database, a single row should be returned
 			assert.deepEqual(Object.keys(orderList).length,	1);
+			assert.deepEqual(orderHits,	3);
 
 			done();
 		});
