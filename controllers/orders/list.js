@@ -14,19 +14,29 @@ exports.run = function(req, res, cb) {
 		return;
 	}
 
-	data.global.menuControllerName = 'orders';
+	data.global.menuControllerName	= 'orders';
+	data.pagination	= {};
+	data.pagination.urlParsed	= data.global.urlParsed;
+	data.pagination.elementsPerPage	= 100;
 
 	tasks.push(function(cb) {
 		const	orders	= new orderLib.Orders();
 
-		orders.returnFields = ['status'];
+		orders.returnFields	= ['status'];
+		orders.limit	= data.pagination.elementsPerPage;
+		orders.offset	= parseInt(data.global.urlParsed.query.offset)	|| 0;
+
+		if (isNaN(orders.offset) || orders.offset < 0) {
+			orders.offset = 0;
+		}
 
 		if (data.global.urlParsed.query.filterStatus) {
 			orders.matchAllFields = {'status': data.global.urlParsed.query.filterStatus};
 		}
 
-		orders.get(function(err, result) {
+		orders.get(function(err, result, totalElements) {
 			data.orders	= result;
+			data.pagination.totalElements	= totalElements;
 			cb(err);
 		});
 	});
