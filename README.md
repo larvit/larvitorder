@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/larvit/larvitorder.svg?branch=master)](https://travis-ci.org/larvit/larvitorder) [![Dependencies](https://david-dm.org/larvit/larvitorder.svg)](https://david-dm.org/larvit/larvitorder.svg)
+
 # larvitorder
 
 Generic order module for nodejs.
