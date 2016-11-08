@@ -71,7 +71,7 @@ function Order(options) {
 	this.rows	= options.rows;
 
 	if (this.fields === undefined) {
-		this.fields = [];
+		this.fields = {};
 	}
 
 	if (this.rows === undefined) {
