@@ -124,8 +124,12 @@ function writeOrder(params, deliveryTag, msgUuid) {
 			}
 		}
 
-		sql = sql.substring(0, sql.length - 1) + ';';
+		if (dbFields.length === 0) {
+			cb();
+			return;
+		}
 
+		sql = sql.substring(0, sql.length - 1) + ';';
 		db.query(sql, dbFields, cb);
 	});
 

@@ -10,7 +10,8 @@ const	uuidValidate	= require('uuid-validate'),
 	db	= require('larvitdb'),
 	fs	= require('fs');
 
-let	orderLib;
+let	noFieldsOrderUuid,
+	orderLib;
 
 // Set up winston
 log.remove(log.transports.Console);
@@ -250,6 +251,85 @@ describe('Order', function() {
 
 			tasks.push(function(cb) {
 				db.query('SELECT rowIntValue, rowStrValue FROM orders_rows_fields', function(err, rows) {
+					let matchedRows = 0;
+
+					const testRows = [
+						{ 'rowIntValue':	399,	'rowStrValue':	null	},
+						{ 'rowIntValue':	null,	'rowStrValue':	'plutt'	},
+						{ 'rowIntValue':	34,	'rowStrValue':	null	},
+						{ 'rowIntValue':	null,	'rowStrValue':	'foo'	},
+						{ 'rowIntValue':	null,	'rowStrValue':	'bar'	}
+					];
+
+					if (err) throw err;
+
+					assert.deepEqual(rows.length,	5);
+
+					// We do this weirdness because we do not know in what order the rows are saved
+					// in the database
+					for (let i = 0; rows[i] !== undefined; i ++) {
+						for (let i2 = 0; testRows[i2] !== undefined; i2 ++) {
+							if (JSON.stringify(rows[i]) === JSON.stringify(testRows[i2])) {
+								testRows[i2] = {'fjant': 'nu'};
+								matchedRows ++;
+							}
+						}
+					}
+
+					assert.deepEqual(matchedRows,	rows.length);
+					assert.deepEqual(rows.length,	testRows.length);
+
+					cb(err);
+				});
+			});
+
+			async.parallel(tasks, cb);
+		}
+
+		async.series([createOrder, checkOrder], function(err) {
+			if (err) throw err;
+			done();
+		});
+	});
+
+	it('should save an order without fields', function(done) {
+		function createOrder(cb) {
+			const order = new orderLib.Order();
+
+			noFieldsOrderUuid	= order.uuid;
+			order.rows	= [{'price': 399, 'name': 'plutt'}, {'price': 34, 'tags': ['foo', 'bar']}];
+
+			order.save(cb);
+		}
+
+		function checkOrder(cb) {
+			const tasks = [];
+
+			// Check order fields
+			tasks.push(function(cb) {
+				db.query('SELECT * FROM orders_orders_fields WHERE orderUuid = ?', [lUtils.uuidToBuffer(noFieldsOrderUuid)], function(err, rows) {
+					if (err) throw err;
+
+					assert.deepEqual(rows.length,	0);
+
+					cb(err);
+				});
+			});
+
+			tasks.push(function(cb) {
+				db.query('SELECT * FROM orders_rows WHERE orderUuid = ?', [lUtils.uuidToBuffer(noFieldsOrderUuid)], function(err, rows) {
+					if (err) throw err;
+
+					assert.deepEqual(rows.length,	2);
+
+					cb(err);
+				});
+			});
+
+			tasks.push(function(cb) {
+				const	sql	= 'SELECT rowIntValue, rowStrValue FROM orders_rows_fields WHERE rowUuid IN (SELECT rowUuid FROM orders_rows WHERE orderUuid = ?)';
+
+				db.query(sql, [lUtils.uuidToBuffer(noFieldsOrderUuid)], function(err, rows) {
 					let matchedRows = 0;
 
 					const testRows = [
@@ -554,8 +634,8 @@ describe('Orders', function() {
 		orders.get(function(err, orderList, orderHits) {
 			if (err) throw err;
 			assert.deepEqual(typeof orderList,	'object');
-			assert.deepEqual(Object.keys(orderList).length,	1);
-			assert.deepEqual(orderHits,	1);
+			assert.deepEqual(Object.keys(orderList).length,	2);
+			assert.deepEqual(orderHits,	2);
 
 			for (let uuid in orderList) {
 				assert.deepEqual(uuidValidate(orderList[uuid].uuid, 4),	true);
@@ -590,14 +670,14 @@ describe('Orders', function() {
 		async.parallel(tasks, done);
 	});
 
-	it('should now get 3 orders', function(done) {
+	it('should now get 4 orders', function(done) {
 		const orders = new orderLib.Orders();
 
 		orders.get(function(err, orderList, orderHits) {
 			if (err) throw err;
 			assert.deepEqual(typeof orderList,	'object');
-			assert.deepEqual(Object.keys(orderList).length,	3);
-			assert.deepEqual(orderHits,	3);
+			assert.deepEqual(Object.keys(orderList).length,	4);
+			assert.deepEqual(orderHits,	4);
 
 			for (let uuid in orderList) {
 				assert.deepEqual(uuidValidate(orderList[uuid].uuid, 4),	true);
@@ -711,7 +791,7 @@ describe('Orders', function() {
 			if (err) throw err;
 			assert.deepEqual(typeof orderList,	'object');
 			assert.deepEqual(Object.keys(orderList).length,	2);
-			assert.deepEqual(orderHits,	3);
+			assert.deepEqual(orderHits,	4);
 
 			done();
 		});
@@ -721,15 +801,15 @@ describe('Orders', function() {
 		const orders = new orderLib.Orders();
 
 		orders.limit	= 2;
-		orders.offset	= 2;
+		orders.offset	= 3;
 
 		orders.get(function(err, orderList, orderHits) {
 			if (err) throw err;
 			assert.deepEqual(typeof orderList,	'object');
 
-			// Since there are only 3 rows in the database, a single row should be returned
+			// Since there are only 4 rows in the database, a single row should be returned
 			assert.deepEqual(Object.keys(orderList).length,	1);
-			assert.deepEqual(orderHits,	3);
+			assert.deepEqual(orderHits,	4);
 
 			done();
 		});
@@ -743,16 +823,19 @@ describe('Orders', function() {
 		orders.get(function(err, orderList) {
 			if (err) throw err;
 			assert.deepEqual(typeof orderList,	'object');
-			assert.deepEqual(Object.keys(orderList).length,	3);
+			assert.deepEqual(Object.keys(orderList).length,	4);
 
 			for (let orderUuid in orderList) {
 				let order = orderList[orderUuid];
 
-				assert.deepEqual(order.fields.firstname instanceof Array,	true);
-				assert.deepEqual(order.fields.firstname.length,	1);
-				assert.deepEqual(order.fields.firstname[0].length > 0,	true);
-				assert.deepEqual(order.fields.lastname instanceof Array,	true);
-				assert.deepEqual(order.fields.active instanceof Array,	false);
+				if (orderUuid !== noFieldsOrderUuid) {
+					assert.deepEqual(order.fields.firstname instanceof Array,	true);
+					assert.deepEqual(order.fields.firstname.length,	1);
+					assert.deepEqual(order.fields.firstname[0].length > 0,	true);
+					assert.deepEqual(order.fields.lastname instanceof Array,	true);
+					assert.deepEqual(order.fields.active instanceof Array,	false);
+				}
+
 				assert.deepEqual(uuidValidate(order.uuid, 4),	true);
 				assert.deepEqual(toString.call(order.created),	'[object Date]');
 			}
@@ -769,7 +852,7 @@ describe('Orders', function() {
 		orders.get(function(err, orderList) {
 			if (err) throw err;
 			assert.deepEqual(typeof orderList,	'object');
-			assert.deepEqual(Object.keys(orderList).length,	3);
+			assert.deepEqual(Object.keys(orderList).length,	4);
 
 			for (let orderUuid in orderList) {
 				const order = orderList[orderUuid];
