@@ -1,6 +1,6 @@
 'use strict';
 
-const	uuidLib	= require('node-uuid'),
+const	uuidLib	= require('uuid'),
 	async	= require('async'),
 	db	= require('larvitdb');
 

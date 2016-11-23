@@ -2,7 +2,7 @@
 
 const	dataWriter	= require(__dirname + '/dataWriter.js'),
 	intercom	= require('larvitutils').instances.intercom,
-	uuidLib	= require('node-uuid'),
+	uuidLib	= require('uuid'),
 	async	= require('async'),
 	log	= require('winston'),
 	db	= require('larvitdb');

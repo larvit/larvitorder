@@ -3,7 +3,7 @@
 const	EventEmitter	= require('events').EventEmitter,
 	intercom	= require('larvitutils').instances.intercom,
 	helpers	= require(__dirname + '/helpers.js'),
-	uuidLib	= require('node-uuid'),
+	uuidLib	= require('uuid'),
 	lUtils	= require('larvitutils'),
 	async	= require('async'),
 	log	= require('winston'),
