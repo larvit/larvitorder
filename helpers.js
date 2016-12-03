@@ -49,7 +49,7 @@ function getOrderFieldUuid(fieldName, cb) {
 		message.action	= 'writeOrderField';
 		message.params	= {};
 
-		message.params.uuid	= uuidLib.v4();
+		message.params.uuid	= uuidLib.v1();
 		message.params.name	= fieldName;
 
 		intercom.send(message, options, function(err, msgUuid) {
@@ -121,7 +121,7 @@ function getRowFieldUuid(rowFieldName, cb) {
 		message.action	= 'writeRowField';
 		message.params	= {};
 
-		message.params.uuid	= uuidLib.v4();
+		message.params.uuid	= uuidLib.v1();
 		message.params.name	= rowFieldName;
 
 		intercom.send(message, options, function(err, msgUuid) {

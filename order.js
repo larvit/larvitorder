@@ -61,7 +61,7 @@ function Order(options) {
 		this.uuid	= options;
 		options	= {};
 	} else {
-		this.uuid	= uuidLib.v4();
+		this.uuid	= uuidLib.v1();
 		log.verbose('larvitorder: New Order - Creating Order with uuid: ' + this.uuid);
 	}
 
@@ -80,7 +80,7 @@ function Order(options) {
 
 	for (let i = 0; this.rows[i] !== undefined; i ++) {
 		if (this.rows[i].uuid === undefined) {
-			this.rows[i].uuid = uuidLib.v4();
+			this.rows[i].uuid = uuidLib.v1();
 		}
 	}
 }
