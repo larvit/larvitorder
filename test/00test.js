@@ -135,7 +135,7 @@ describe('Order', function() {
 		const order = new orderLib.Order();
 
 		assert.deepEqual(toString.call(order),	'[object Object]');
-		assert.deepEqual(uuidValidate(order.uuid, 4),	true);
+		assert.deepEqual(uuidValidate(order.uuid, 1),	true);
 		assert.deepEqual(toString.call(order.created),	'[object Date]');
 		assert.deepEqual(order.rows instanceof Array,	true);
 		assert.deepEqual(order.rows.length,	0);
@@ -147,7 +147,7 @@ describe('Order', function() {
 		const order = new orderLib.Order({});
 
 		assert.deepEqual(toString.call(order),	'[object Object]');
-		assert.deepEqual(uuidValidate(order.uuid, 4),	true);
+		assert.deepEqual(uuidValidate(order.uuid, 1),	true);
 		assert.deepEqual(toString.call(order.created),	'[object Date]');
 		assert.deepEqual(order.rows instanceof Array,	true);
 		assert.deepEqual(order.rows.length,	0);
@@ -156,14 +156,14 @@ describe('Order', function() {
 	});
 
 	it('should instantiate a new plain order object, with custom uuid', function(done) {
-		const order = new orderLib.Order('2d293548-067f-4a88-b23f-cc0e58801512');
+		const order = new orderLib.Order('7ce6ebde-b9a8-11e6-a4a6-cec0c932ce01');
 
 		order.loadFromDb(function(err) {
 			if (err) throw err;
 
 			assert.deepEqual(toString.call(order),	'[object Object]');
-			assert.deepEqual(uuidValidate(order.uuid, 4),	true);
-			assert.deepEqual(order.uuid,	'2d293548-067f-4a88-b23f-cc0e58801512');
+			assert.deepEqual(uuidValidate(order.uuid, 1),	true);
+			assert.deepEqual(order.uuid,	'7ce6ebde-b9a8-11e6-a4a6-cec0c932ce01');
 			assert.deepEqual(toString.call(order.created),	'[object Date]');
 			assert.deepEqual(order.rows instanceof Array,	true);
 			assert.deepEqual(order.rows.length,	0);
@@ -638,7 +638,7 @@ describe('Orders', function() {
 			assert.deepEqual(orderHits,	2);
 
 			for (let uuid in orderList) {
-				assert.deepEqual(uuidValidate(orderList[uuid].uuid, 4),	true);
+				assert.deepEqual(uuidValidate(orderList[uuid].uuid, 1),	true);
 				assert.deepEqual(toString.call(orderList[uuid].created),	'[object Date]');
 			}
 
@@ -680,7 +680,7 @@ describe('Orders', function() {
 			assert.deepEqual(orderHits,	4);
 
 			for (let uuid in orderList) {
-				assert.deepEqual(uuidValidate(orderList[uuid].uuid, 4),	true);
+				assert.deepEqual(uuidValidate(orderList[uuid].uuid, 1),	true);
 				assert.deepEqual(toString.call(orderList[uuid].created),	'[object Date]');
 			}
 
@@ -715,7 +715,7 @@ describe('Orders', function() {
 				assert.deepEqual(typeof orderList,	'object');
 				assert.deepEqual(Object.keys(orderList).length,	1);
 				assert.deepEqual(orderHits,	1);
-				assert.deepEqual(uuidValidate(orderList[dbUuids[0]].uuid, 4),	true);
+				assert.deepEqual(uuidValidate(orderList[dbUuids[0]].uuid, 1),	true);
 				assert.deepEqual(orderList[dbUuids[0]].uuid,	dbUuids[0]);
 				assert.deepEqual(toString.call(orderList[dbUuids[0]].created),	'[object Date]');
 
@@ -727,7 +727,7 @@ describe('Orders', function() {
 		tasks.push(function(cb) {
 			const orders = new orderLib.Orders();
 
-			orders.uuids = uuidLib.v4();
+			orders.uuids = uuidLib.v1();
 
 			orders.get(function(err, orderList, orderHits) {
 				if (err) throw err;
@@ -767,11 +767,11 @@ describe('Orders', function() {
 				assert.deepEqual(Object.keys(orderList).length,	2);
 				assert.deepEqual(orderHits,	2);
 
-				assert.deepEqual(uuidValidate(orderList[dbUuids[0]].uuid, 4),	true);
+				assert.deepEqual(uuidValidate(orderList[dbUuids[0]].uuid, 1),	true);
 				assert.deepEqual(orderList[dbUuids[0]].uuid,	dbUuids[0]);
 				assert.deepEqual(toString.call(orderList[dbUuids[0]].created),	'[object Date]');
 
-				assert.deepEqual(uuidValidate(orderList[dbUuids[2]].uuid, 4),	true);
+				assert.deepEqual(uuidValidate(orderList[dbUuids[2]].uuid, 1),	true);
 				assert.deepEqual(orderList[dbUuids[2]].uuid,	dbUuids[2]);
 				assert.deepEqual(toString.call(orderList[dbUuids[2]].created),	'[object Date]');
 
@@ -836,7 +836,7 @@ describe('Orders', function() {
 					assert.deepEqual(order.fields.active instanceof Array,	false);
 				}
 
-				assert.deepEqual(uuidValidate(order.uuid, 4),	true);
+				assert.deepEqual(uuidValidate(order.uuid, 1),	true);
 				assert.deepEqual(toString.call(order.created),	'[object Date]');
 			}
 

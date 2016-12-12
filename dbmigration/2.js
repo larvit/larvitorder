@@ -27,7 +27,7 @@ exports = module.exports = function(cb) {
 				const	row = rows[i];
 
 				tasks.push(function(cb) {
-					db.query('UPDATE orders_rowFields SET uuid = ? WHERE id = ?', [uuidLib.v4(), row.id], cb);
+					db.query('UPDATE orders_rowFields SET uuid = ? WHERE id = ?', [uuidLib.v1(), row.id], cb);
 				});
 			}
 
@@ -46,7 +46,7 @@ exports = module.exports = function(cb) {
 				const	row = rows[i];
 
 				tasks.push(function(cb) {
-					db.query('UPDATE orders_orderFields SET uuid = ? WHERE id = ?', [uuidLib.v4(), row.id], cb);
+					db.query('UPDATE orders_orderFields SET uuid = ? WHERE id = ?', [uuidLib.v1(), row.id], cb);
 				});
 			}
 

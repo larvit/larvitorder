@@ -144,7 +144,7 @@ function writeOrder(params, deliveryTag, msgUuid) {
 
 			// Make sure all rows got an uuid
 			if (row.uuid === undefined) {
-				row.uuid = uuidLib.v4();
+				row.uuid = uuidLib.v1();
 			}
 
 			sql += '(?,?),';
