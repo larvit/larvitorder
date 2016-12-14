@@ -2,7 +2,7 @@
 
 const	uuidValidate	= require('uuid-validate'),
 	Intercom	= require('larvitamintercom'),
-	uuidLib	= require('node-uuid'),
+	uuidLib	= require('uuid'),
 	assert	= require('assert'),
 	lUtils	= require('larvitutils'),
 	async	= require('async'),
