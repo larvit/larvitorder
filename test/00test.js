@@ -3,7 +3,7 @@
 const	uuidValidate	= require('uuid-validate'),
 	Intercom	= require('larvitamintercom'),
 	orderLib	= require(__dirname + '/../index.js'),
-	uuidLib	= require('node-uuid'),
+	uuidLib	= require('uuid'),
 	assert	= require('assert'),
 	lUtils	= require('larvitutils'),
 	async	= require('async'),
@@ -203,10 +203,10 @@ describe('Order', function() {
 					if (err) throw err;
 
 					assert.deepEqual(rows.length,	4);
-					assert.deepEqual(uuidLib.unparse(rows[0].orderUuid),	orderUuid);
-					assert.deepEqual(uuidLib.unparse(rows[1].orderUuid),	orderUuid);
-					assert.deepEqual(uuidLib.unparse(rows[2].orderUuid),	orderUuid);
-					assert.deepEqual(uuidLib.unparse(rows[3].orderUuid),	orderUuid);
+					assert.deepEqual(lUtils.formatUuid(rows[0].orderUuid),	orderUuid);
+					assert.deepEqual(lUtils.formatUuid(rows[1].orderUuid),	orderUuid);
+					assert.deepEqual(lUtils.formatUuid(rows[2].orderUuid),	orderUuid);
+					assert.deepEqual(lUtils.formatUuid(rows[3].orderUuid),	orderUuid);
 
 					for (let i = 0; rows[i] !== undefined; i ++) {
 						assert.notDeepEqual(lUtils.formatUuid(rows[i].fieldUuid),	false);

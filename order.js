@@ -4,7 +4,8 @@ const	EventEmitter	= require('events').EventEmitter,
 	eventEmitter	= new EventEmitter(),
 	dataWriter	= require(__dirname + '/dataWriter.js'),
 	helpers	= require(__dirname + '/helpers.js'),
-	uuidLib	= require('node-uuid'),
+	uuidLib	= require('uuid'),
+	lUtils	= require('larvitutils'),
 	async	= require('async'),
 	log	= require('winston'),
 	db	= require('larvitdb');
@@ -91,11 +92,11 @@ Order.prototype.loadFromDb = function(cb) {
 	// Get basic order data
 	tasks.push(function(cb) {
 		log.debug('larvitorder: getOrder() - Getting order: ' + that.uuid);
-		db.query('SELECT * FROM orders WHERE uuid = ?', [new Buffer(uuidLib.parse(that.uuid))], function(err, rows) {
+		db.query('SELECT * FROM orders WHERE uuid = ?', [lUtils.uuidToBuffer(that.uuid)], function(err, rows) {
 			if (err) { cb(err); return; }
 
 			if (rows.length) {
-				that.uuid	= uuidLib.unparse(rows[0].uuid);
+				that.uuid	= lUtils.formatUuid(rows[0].uuid);
 				that.created	= rows[0].created;
 			}
 			cb();
@@ -133,7 +134,7 @@ Order.prototype.getOrderFields = function(cb) {
 	sql += 'WHERE orders_orders_fields.orderUuid = ?';
 
 	ready(function() {
-		db.query(sql, [new Buffer(uuidLib.parse(that.uuid))], function(err, data) {
+		db.query(sql, [lUtils.uuidToBuffer(that.uuid)], function(err, data) {
 			if (err) { cb(err); return; }
 
 			for (let i = 0; data.length > i; i ++) {
@@ -164,13 +165,13 @@ Order.prototype.getOrderRows = function(cb) {
 	sql += 'WHERE orders_rows.orderUuid = ?';
 
 	ready(function() {
-		db.query(sql, [new Buffer(uuidLib.parse(that.uuid))], function(err, data) {
+		db.query(sql, [lUtils.uuidToBuffer(that.uuid)], function(err, data) {
 			if (err) { cb(err); return; }
 
 			for (let i = 0; data.length > i; i ++) {
 				let value;
 
-				data[i].uuid = uuidLib.unparse(data[i].uuid);
+				data[i].uuid = lUtils.formatUuid(data[i].uuid);
 
 				if (sorter[data[i].uuid] === undefined) {
 					sorter[data[i].uuid] = {

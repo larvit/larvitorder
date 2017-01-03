@@ -2,7 +2,7 @@
 
 const	EventEmitter	= require('events').EventEmitter,
 	eventEmitter	= new EventEmitter(),
-	uuidLib	= require('node-uuid'),
+	lUtils	= require('larvitutils'),
 	async	= require('async'),
 	db	= require('larvitdb');
 
@@ -65,9 +65,8 @@ Orders.prototype.get = function(cb) {
 				sql += '	AND uuid IN (';
 
 				for (let i = 0; that.uuids[i] !== undefined; i ++) {
-					let uuid = that.uuids[i].replaceAll('-', '');
 					sql += '?,';
-					dbFields.push(new Buffer(uuid, 'hex'));
+					dbFields.push(lUtils.uuidToBuffer(that.uuids[i]));
 				}
 
 				sql = sql.substring(0, sql.length - 1) + ')';
@@ -129,7 +128,7 @@ Orders.prototype.get = function(cb) {
 					if (err) { cb(err); return; }
 
 					for (let i = 0; rows[i] !== undefined; i ++) {
-						rows[i].uuid	= uuidLib.unparse(rows[i].uuid);
+						rows[i].uuid	= lUtils.formatUuid(rows[i].uuid);
 						orders[rows[i].uuid]	= {};
 						orders[rows[i].uuid].uuid	= rows[i].uuid;
 						orders[rows[i].uuid].created	= rows[i].created;
@@ -171,7 +170,7 @@ Orders.prototype.get = function(cb) {
 
 		for (let orderUuid in orders) {
 			sql += '?,';
-			dbFields.push(new Buffer(uuidLib.parse(orderUuid)));
+			dbFields.push(lUtils.uuidToBuffer(orderUuid));
 		}
 
 		sql = sql.substring(0, sql.length - 1) + ')\n';
@@ -191,7 +190,7 @@ Orders.prototype.get = function(cb) {
 			for (let i = 0; rows[i] !== undefined; i ++) {
 				const row = rows[i];
 
-				row.orderUuid = uuidLib.unparse(row.orderUuid);
+				row.orderUuid = lUtils.formatUuid(row.orderUuid);
 
 				if (orders[row.orderUuid].fields === undefined) {
 					orders[row.orderUuid].fields = {};
@@ -227,7 +226,7 @@ Orders.prototype.get = function(cb) {
 
 		for (let orderUuid in orders) {
 			sql += '?,';
-			dbFields.push(new Buffer(uuidLib.parse(orderUuid)));
+			dbFields.push(lUtils.uuidToBuffer(orderUuid));
 		}
 
 		sql = sql.substring(0, sql.length - 1) + ')';
@@ -246,8 +245,8 @@ Orders.prototype.get = function(cb) {
 			for (let i = 0; rows[i] !== undefined; i ++) {
 				const row = rows[i];
 
-				row.orderUuid	= uuidLib.unparse(row.orderUuid);
-				row.rowUuid	= uuidLib.unparse(row.rowUuid);
+				row.orderUuid	= lUtils.formatUuid(row.orderUuid);
+				row.rowUuid	= lUtils.formatUuid(row.rowUuid);
 
 				if (orders[row.orderUuid].rows === undefined) {
 					orders[row.orderUuid].rows = {};

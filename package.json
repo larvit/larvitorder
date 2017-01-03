@@ -1,6 +1,6 @@
 {
   "name": "larvitorder",
-  "version": "0.2.9",
+  "version": "0.2.10",
   "description": "Generic order system",
   "main": "index.js",
   "dependencies": {
@@ -10,7 +10,7 @@
     "larvitdb": "^1.0.0",
     "larvitdbmigration": "^1.0.1",
     "larvitutils": "^1.1.0",
-    "node-uuid": "^1.4.7",
+    "uuid": "^3.0.1",
     "uuid-validate": "^0.0.2",
     "winston": "^2.2.0",
     "winston-daily-rotate-file": "^1.4.0"

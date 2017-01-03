@@ -1,7 +1,7 @@
 'use strict';
 
 const	dataWriter	= require(__dirname + '/dataWriter.js'),
-	uuidLib	= require('node-uuid'),
+	uuidLib	= require('uuid'),
 	async	= require('async'),
 	log	= require('winston'),
 	db	= require('larvitdb');
