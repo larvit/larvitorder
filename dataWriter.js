@@ -135,13 +135,6 @@ function ready(retries, cb) {
 
 	readyInProgress = true;
 
-	// We are strictly in need of the intercom!
-	if ( ! (intercom instanceof require('larvitamintercom'))) {
-		const	err	= new Error('larvitutils.instances.intercom is not an instance of Intercom!');
-		log.error('larvitorder: dataWriter.js - ready() - ' + err.message);
-		throw err;
-	}
-
 	if (exports.mode === 'both' || exports.mode === 'slave') {
 		log.verbose('larvitorder: dataWriter.js - ready() - exports.mode: "' + exports.mode + '", so read');
 
