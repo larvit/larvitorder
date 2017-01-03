@@ -107,6 +107,10 @@ before(function(done) {
 		});
 	});
 
+	tasks.push(function(cb) {
+		orderLib.dataWriter.ready(cb);
+	});
+
 	// Load caches
 	tasks.push(function(cb) {
 		orderLib.helpers.loadOrderFieldsToCache(cb);
