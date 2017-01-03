@@ -2,9 +2,7 @@
 
 const	EventEmitter	= require('events').EventEmitter,
 	eventEmitter	= new EventEmitter(),
-	dbmigration	= require('larvitdbmigration')({'tableName': 'orders_db_version', 'migrationScriptsPath': __dirname + '/dbmigration'}),
 	dataWriter	= require(__dirname + '/dataWriter.js'),
-	intercom	= require('larvitutils').instances.intercom,
 	helpers	= require(__dirname + '/helpers.js'),
 	uuidLib	= require('node-uuid'),
 	async	= require('async'),
@@ -12,7 +10,8 @@ const	EventEmitter	= require('events').EventEmitter,
 	db	= require('larvitdb');
 
 let	readyInProgress	= false,
-	isReady	= false;
+	isReady	= false,
+	intercom;
 
 function ready(cb) {
 	const	tasks	= [];
@@ -26,16 +25,14 @@ function ready(cb) {
 
 	readyInProgress = true;
 
-	// Migrate database
 	tasks.push(function(cb) {
-		dbmigration(function(err) {
-			if (err) {
-				log.error('larvitorder: orders.js: Database error: ' + err.message);
-				return;
-			}
+		dataWriter.ready(cb);
+	});
 
-			cb();
-		});
+	// Load intercom. This must be done after the datawriter is ready
+	tasks.push(function(cb) {
+		intercom	= require('larvitutils').instances.intercom;
+		cb();
 	});
 
 	// Load order fields

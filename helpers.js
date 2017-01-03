@@ -1,11 +1,12 @@
 'use strict';
 
 const	dataWriter	= require(__dirname + '/dataWriter.js'),
-	intercom	= require('larvitutils').instances.intercom,
 	uuidLib	= require('node-uuid'),
 	async	= require('async'),
 	log	= require('winston'),
 	db	= require('larvitdb');
+
+let	intercom;
 
 /**
  * Get all values on a field
@@ -14,26 +15,44 @@ const	dataWriter	= require(__dirname + '/dataWriter.js'),
  * @param func cb(err, names) - names being an array of strings
  */
 function getFieldValues(fieldName, cb) {
-	let	sql	= 'SELECT DISTINCT fieldValue\n';
+	const	tasks	= [],
+		names	= [];
 
-	sql += 'FROM orders_orders_fields\n';
-	sql += 'WHERE fieldUuid = (SELECT uuid FROM orders_orderFields WHERE name = ?)\n';
-	sql += 'ORDER BY fieldValue;';
+	tasks.push(function(cb) {
+		dataWriter.ready(cb);
+	});
 
-	db.query(sql, [fieldName], function(err, rows) {
-		const	names	= [];
+	tasks.push(function(cb) {
+		intercom	= require('larvitutils').instances.intercom;
+		cb();
+	});
 
-		if (err) { cb(err); return; }
+	tasks.push(function(cb) {
+		let	sql	= 'SELECT DISTINCT fieldValue\n';
 
-		for (let i = 0; rows[i] !== undefined; i ++) {
-			names.push(rows[i].fieldValue);
-		}
+		sql += 'FROM orders_orders_fields\n';
+		sql += 'WHERE fieldUuid = (SELECT uuid FROM orders_orderFields WHERE name = ?)\n';
+		sql += 'ORDER BY fieldValue;';
 
-		cb(null, names);
+		db.query(sql, [fieldName], function(err, rows) {
+			if (err) { cb(err); return; }
+
+			for (let i = 0; rows[i] !== undefined; i ++) {
+				names.push(rows[i].fieldValue);
+			}
+
+			cb(null, names);
+		});
+	});
+
+	async.series(tasks, function(err) {
+		cb(err, names);
 	});
 }
 
 function getOrderFieldUuid(fieldName, cb) {
+	const	tasks	= [];
+
 	for (let i = 0; exports.orderFields[i] !== undefined; i ++) {
 		if (exports.orderFields[i].name === fieldName) {
 			cb(null, exports.orderFields[i].uuid);
@@ -42,7 +61,17 @@ function getOrderFieldUuid(fieldName, cb) {
 	}
 
 	// If we get down here, the field does not exist, create it and rerun
-	(function() {
+
+	tasks.push(function(cb) {
+		dataWriter.ready(cb);
+	});
+
+	tasks.push(function(cb) {
+		intercom	= require('larvitutils').instances.intercom;
+		cb();
+	});
+
+	tasks.push(function(cb) {
 		const	options	= {'exchange': dataWriter.exchangeName},
 			message	= {};
 
@@ -58,14 +87,16 @@ function getOrderFieldUuid(fieldName, cb) {
 			dataWriter.emitter.once(msgUuid, function(err) {
 				if (err) { cb(err); return; }
 
-				loadOrderFieldsToCache(function(err) {
-					if (err) { cb(err); return; }
-
-					getOrderFieldUuid(fieldName, cb);
-				});
+				loadOrderFieldsToCache(cb);
 			});
 		});
-	})();
+	});
+
+	async.series(tasks, function(err) {
+		if (err) { cb(err); return; }
+
+		getOrderFieldUuid(fieldName, cb);
+	});
 };
 
 /**
@@ -99,6 +130,8 @@ function getOrderFieldUuids(fieldNames, cb) {
 };
 
 function getRowFieldUuid(rowFieldName, cb) {
+	const	tasks	= [];
+
 	if (rowFieldName === 'uuid') {
 		const	err	= new Error('Row field "uuid" is reserved and have no uuid');
 		log.warn('larvitorder: helpers.js - getRowFieldUuid() - ' + err.message);
@@ -114,7 +147,17 @@ function getRowFieldUuid(rowFieldName, cb) {
 	}
 
 	// If we get down here, the field does not exist, create it and rerun
-	(function() {
+
+	tasks.push(function(cb) {
+		dataWriter.ready(cb);
+	});
+
+	tasks.push(function(cb) {
+		intercom	= require('larvitutils').instances.intercom;
+		cb();
+	});
+
+	tasks.push(function(cb) {
 		const	options	= {'exchange': dataWriter.exchangeName},
 			message	= {};
 
@@ -129,14 +172,16 @@ function getRowFieldUuid(rowFieldName, cb) {
 			dataWriter.emitter.once(msgUuid, function(err) {
 				if (err) { cb(err); return; }
 
-				loadRowFieldsToCache(function(err) {
-					if (err) { cb(err); return; }
-
-					getRowFieldUuid(rowFieldName, cb);
-				});
+				loadRowFieldsToCache(cb);
 			});
 		});
-	})();
+	});
+
+	async.series(tasks, function(err) {
+		if (err) { cb(err); return; }
+
+		getRowFieldUuid(rowFieldName, cb);
+	});
 };
 
 /**

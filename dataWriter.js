@@ -1,13 +1,181 @@
 'use strict';
 
 const	EventEmitter	= require('events').EventEmitter,
-	intercom	= require('larvitutils').instances.intercom,
+	eventEmitter	= new EventEmitter(),
+	dbmigration	= require('larvitdbmigration')({'tableName': 'orders_db_version', 'migrationScriptsPath': __dirname + '/dbmigration'}),
 	helpers	= require(__dirname + '/helpers.js'),
 	uuidLib	= require('node-uuid'),
 	lUtils	= require('larvitutils'),
+	amsync	= require('larvitamsync'),
 	async	= require('async'),
 	log	= require('winston'),
 	db	= require('larvitdb');
+
+let	readyInProgress	= false,
+	isReady	= false,
+	intercom;
+
+function listenToQueue(retries, cb) {
+	const	options	= {'exchange': exports.exchangeName};
+
+	let	listenMethod;
+
+	if (typeof retries === 'function') {
+		cb	= retries;
+		retries	= 0;
+	}
+
+	if (typeof cb !== 'function') {
+		cb = function(){};
+	}
+
+	if (retries === undefined) {
+		retries = 0;
+	}
+
+	if (exports.mode === 'master') {
+		listenMethod	= 'consume';
+		options.exclusive	= true;	// It is important no other client tries to sneak
+				// out messages from us, and we want "consume"
+				// since we want the queue to persist even if this
+				// minion goes offline.
+	} else if (exports.mode === 'slave') {
+		listenMethod = 'subscribe';
+	} else {
+		const	err	= new Error('Invalid exports.mode. Must be either "master" or "slave"');
+		log.error('larvitorder: dataWriter.js - listenToQueue() - ' + err.message);
+		cb(err);
+		return;
+	}
+
+	intercom	= require('larvitutils').instances.intercom;
+
+	if ( ! (intercom instanceof require('larvitamintercom')) && retries < 10) {
+		retries ++;
+		setTimeout(function() {
+			listenToQueue(retries, cb);
+		}, 50);
+		return;
+	} else if ( ! (intercom instanceof require('larvitamintercom'))) {
+		log.error('larvitorder: dataWriter.js - listenToQueue() - Intercom is not set!');
+		return;
+	}
+
+	log.info('larvitorder: dataWriter.js - listenToQueue() - listenMethod: ' + listenMethod);
+
+	intercom.ready(function(err) {
+		if (err) {
+			log.error('larvitorder: dataWriter.js - listenToQueue() - intercom.ready() err: ' + err.message);
+			return;
+		}
+
+		intercom[listenMethod](options, function(message, ack, deliveryTag) {
+			exports.ready(function(err) {
+				ack(err); // Ack first, if something goes wrong we log it and handle it manually
+
+				if (err) {
+					log.error('larvitorder: dataWriter.js - listenToQueue() - intercom.' + listenMethod + '() - exports.ready() returned err: ' + err.message);
+					return;
+				}
+
+				if (typeof message !== 'object') {
+					log.error('larvitorder: dataWriter.js - listenToQueue() - intercom.' + listenMethod + '() - Invalid message received, is not an object! deliveryTag: "' + deliveryTag + '"');
+					return;
+				}
+
+				if (typeof exports[message.action] === 'function') {
+					exports[message.action](message.params, deliveryTag, message.uuid);
+				} else {
+					log.warn('larvitorder: dataWriter.js - listenToQueue() - intercom.' + listenMethod + '() - Unknown message.action received: "' + message.action + '"');
+				}
+			});
+		}, ready);
+	});
+}
+// Run listenToQueue as soon as all I/O is done, this makes sure the exports.mode can be set
+// by the application before listening commences
+setImmediate(listenToQueue);
+
+// This is ran before each incoming message on the queue is handeled
+function ready(retries, cb) {
+	const	tasks	= [];
+
+	if (typeof retries === 'function') {
+		cb	= retries;
+		retries	= 0;
+	}
+
+	if (typeof cb !== 'function') {
+		cb = function(){};
+	}
+
+	if (retries === undefined) {
+		retries	= 0;
+	}
+
+	if (isReady === true) { cb(); return; }
+
+	if (readyInProgress === true) {
+		eventEmitter.on('ready', cb);
+		return;
+	}
+
+	intercom	= require('larvitutils').instances.intercom;
+
+	if ( ! (intercom instanceof require('larvitamintercom')) && retries < 10) {
+		retries ++;
+		setTimeout(function() {
+			ready(retries, cb);
+		}, 50);
+		return;
+	} else if ( ! (intercom instanceof require('larvitamintercom'))) {
+		log.error('larvitorder: dataWriter.js - ready() - Intercom is not set!');
+		return;
+	}
+
+	readyInProgress = true;
+
+	// We are strictly in need of the intercom!
+	if ( ! (intercom instanceof require('larvitamintercom'))) {
+		const	err	= new Error('larvitutils.instances.intercom is not an instance of Intercom!');
+		log.error('larvitorder: dataWriter.js - ready() - ' + err.message);
+		throw err;
+	}
+
+	if (exports.mode === 'both' || exports.mode === 'slave') {
+		log.verbose('larvitorder: dataWriter.js - ready() - exports.mode: "' + exports.mode + '", so read');
+
+		tasks.push(function(cb) {
+			amsync.mariadb({'exchange': exports.exchangeName + '_dataDump'}, cb);
+		});
+	}
+
+	// Migrate database
+	tasks.push(function(cb) {
+		dbmigration(function(err) {
+			if (err) {
+				log.error('larvitorder: dataWriter.js - ready() - Database error: ' + err.message);
+			}
+
+			cb(err);
+		});
+	});
+
+	async.series(tasks, function(err) {
+		if (err) {
+			return;
+		}
+
+		isReady	= true;
+		eventEmitter.emit('ready');
+
+		if (exports.mode === 'both' || exports.mode === 'master') {
+			runDumpServer(cb);
+		} else {
+			cb();
+		}
+	});
+}
 
 function rmOrder(params, deliveryTag, msgUuid) {
 	const	orderUuid	= params.uuid,
@@ -46,6 +214,43 @@ function rmOrder(params, deliveryTag, msgUuid) {
 	async.series(tasks, function(err) {
 		exports.emitter.emit(msgUuid, err);
 	});
+}
+
+function runDumpServer(cb) {
+	const	options	= {'exchange': exports.exchangeName + '_dataDump'},
+		args	= [];
+
+	if (db.conf.host) {
+		args.push('-h');
+		args.push(db.conf.host);
+	}
+
+	args.push('-u');
+	args.push(db.conf.user);
+
+	if (db.conf.password) {
+		args.push('-p' + db.conf.password);
+	}
+
+	args.push('--single-transaction');
+	args.push('--hex-blob');
+	args.push(db.conf.database);
+
+	// Tables
+	args.push('orders_orderFields');
+	args.push('orders_orders_fields');
+	args.push('orders_rowFields');
+	args.push('orders_rows');
+	args.push('orders_rows_fields');
+
+	options.dataDumpCmd = {
+		'command':	'mysqldump',
+		'args':	args
+	};
+
+	options['Content-Type'] = 'application/sql';
+
+	new amsync.SyncServer(options, cb);
 }
 
 function writeOrder(params, deliveryTag, msgUuid) {
@@ -144,7 +349,7 @@ function writeOrder(params, deliveryTag, msgUuid) {
 
 			// Make sure all rows got an uuid
 			if (row.uuid === undefined) {
-				row.uuid = uuidLib.v1();
+				row.uuid = uuidLib.v4();
 			}
 
 			sql += '(?,?),';
@@ -235,7 +440,14 @@ function writeOrderField(params, deliveryTag, msgUuid) {
 		name	= params.name;
 
 	db.query('INSERT IGNORE INTO orders_orderFields (uuid, name) VALUES(?,?)', [uuid, name], function(err) {
-		exports.emitter.emit(msgUuid, err);
+		if (err) {
+			exports.emitter.emit(msgUuid, err);
+			return;
+		}
+
+		helpers.loadOrderFieldsToCache(function(err) {
+			exports.emitter.emit(msgUuid, err);
+		});
 	});
 }
 
@@ -244,28 +456,21 @@ function writeRowField(params, deliveryTag, msgUuid) {
 		name	= params.name;
 
 	db.query('INSERT IGNORE INTO orders_rowFields (uuid, name) VALUES(?,?)', [uuid, name], function(err) {
-		exports.emitter.emit(msgUuid, err);
+		if (err) {
+			exports.emitter.emit(msgUuid, err);
+			return;
+		}
+
+		helpers.loadRowFieldsToCache(function(err) {
+			exports.emitter.emit(msgUuid, err);
+		});
 	});
 }
 
 exports.emitter	= new EventEmitter();
 exports.exchangeName	= 'larvitorder';
+exports.ready	= ready;
 exports.rmOrder	= rmOrder;
 exports.writeOrder	= writeOrder;
 exports.writeOrderField	= writeOrderField;
 exports.writeRowField	= writeRowField;
-
-intercom.subscribe({'exchange': exports.exchangeName}, function(message, ack, deliveryTag) {
-	ack(); // Ack first, if something goes wrong we log it and handle it manually
-
-	if (typeof message !== 'object') {
-		log.error('larvitorder: dataWriter.js - intercom.subscribe() - Invalid message received, is not an object! deliveryTag: "' + deliveryTag + '"');
-		return;
-	}
-
-	if (typeof exports[message.action] === 'function') {
-		exports[message.action](message.params, deliveryTag, message.uuid);
-	} else {
-		log.warn('larvitorder: dataWriter.js - intercom.subscribe() - Unknown message.action received: "' + message.action + '"');
-	}
-});

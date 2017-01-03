@@ -2,6 +2,7 @@
 
 const	uuidValidate	= require('uuid-validate'),
 	Intercom	= require('larvitamintercom'),
+	orderLib	= require(__dirname + '/../index.js'),
 	uuidLib	= require('node-uuid'),
 	assert	= require('assert'),
 	lUtils	= require('larvitutils'),
@@ -10,13 +11,14 @@ const	uuidValidate	= require('uuid-validate'),
 	db	= require('larvitdb'),
 	fs	= require('fs');
 
-let	noFieldsOrderUuid,
-	orderLib;
+let	noFieldsOrderUuid;
+
+orderLib.dataWriter.mode = 'master';
 
 // Set up winston
 log.remove(log.transports.Console);
-/** /log.add(log.transports.Console, {
-	'level':	'debug',
+/**/log.add(log.transports.Console, {
+	'level':	'warn',
 	'colorize':	true,
 	'timestamp':	true,
 	'json':	false
@@ -105,24 +107,12 @@ before(function(done) {
 		});
 	});
 
-	// Preload caches etc
-	// We do this so the timing of the rest of the tests gets more correct
+	// Load caches
 	tasks.push(function(cb) {
-		const	tasks	= [];
-
-		orderLib	= require(__dirname + '/../index.js');
-
-		tasks.push(function(cb) {
-			const	order	= new orderLib.Order();
-			order.ready(cb);
-		});
-
-		tasks.push(function(cb) {
-			const	orders	= new orderLib.Orders();
-			orders.ready(cb);
-		});
-
-		async.parallel(tasks, cb);
+		orderLib.helpers.loadOrderFieldsToCache(cb);
+	});
+	tasks.push(function(cb) {
+		orderLib.helpers.loadRowFieldsToCache(cb);
 	});
 
 	async.series(tasks, done);

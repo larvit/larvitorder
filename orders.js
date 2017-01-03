@@ -2,7 +2,6 @@
 
 const	EventEmitter	= require('events').EventEmitter,
 	eventEmitter	= new EventEmitter(),
-	dbmigration	= require('larvitdbmigration')({'tableName': 'orders_db_version', 'migrationScriptsPath': __dirname + '/dbmigration'}),
 	uuidLib	= require('node-uuid'),
 	async	= require('async'),
 	db	= require('larvitdb');
@@ -21,18 +20,6 @@ function ready(cb) {
 	}
 
 	readyInProgress = true;
-
-	// Migrate database
-	tasks.push(function(cb) {
-		dbmigration(function(err) {
-			if (err) {
-				log.error('larvitorder: orders.js: Database error: ' + err.message);
-				return;
-			}
-
-			cb();
-		});
-	});
 
 	async.series(tasks, function() {
 		isReady	= true;
