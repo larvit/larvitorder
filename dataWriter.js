@@ -230,6 +230,7 @@ function runDumpServer(cb) {
 	args.push(db.conf.database);
 
 	// Tables
+	args.push('orders_db_version');
 	args.push('orders_orderFields');
 	args.push('orders_orders_fields');
 	args.push('orders_rowFields');
