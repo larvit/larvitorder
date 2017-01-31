@@ -248,7 +248,7 @@ function runDumpServer(cb) {
 	new amsync.SyncServer(options, cb);
 }
 
-function writeOrder(params, deliveryTag, msgUuid) {
+function writeOrder(params, deliveryTag, msgUuid, cb) {
 	const	orderFields	= params.fields,
 		orderRows	= params.rows,
 		orderUuid	= params.uuid,
@@ -258,6 +258,10 @@ function writeOrder(params, deliveryTag, msgUuid) {
 
 	let	fieldUuidsByName,
 		rowFieldUuidsByName;
+
+	if (typeof cb !== 'function') {
+		cb = function() {};
+	}
 
 	if (lUtils.formatUuid(orderUuid) === false || orderUuidBuf === false) {
 		const err = new Error('Invalid orderUuid: "' + orderUuid + '"');
