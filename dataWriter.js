@@ -431,6 +431,7 @@ function writeOrder(params, deliveryTag, msgUuid, cb) {
 
 	async.series(tasks, function(err) {
 		exports.emitter.emit(msgUuid, err);
+		cb(err);
 	});
 }
 
