@@ -21,7 +21,7 @@ function ready(cb) {
 
 	readyInProgress = true;
 
-	async.series(tasks, function() {
+	async.series(tasks, function () {
 		isReady	= true;
 		eventEmitter.emit('ready');
 		cb();
@@ -37,7 +37,7 @@ function Orders() {
  *
  * @param func cb(err, orders, totalHits) - orders being an array and totalHits being a number
  */
-Orders.prototype.get = function(cb) {
+Orders.prototype.get = function (cb) {
 	const	tasks	= [],
 		that	= this;
 
@@ -48,7 +48,7 @@ Orders.prototype.get = function(cb) {
 	tasks.push(ready);
 
 	// Get basic orders
-	tasks.push(function(cb) {
+	tasks.push(function (cb) {
 		const dbFields = [];
 
 		let	sql	= ' FROM orders WHERE 1',
@@ -120,11 +120,11 @@ Orders.prototype.get = function(cb) {
 			}
 		}
 
-		ready(function() {
+		ready(function () {
 			const	tasks	= [];
 
-			tasks.push(function(cb) {
-				db.query(sql, dbFields, function(err, rows) {
+			tasks.push(function (cb) {
+				db.query(sql, dbFields, function (err, rows) {
 					if (err) { cb(err); return; }
 
 					for (let i = 0; rows[i] !== undefined; i ++) {
@@ -138,8 +138,8 @@ Orders.prototype.get = function(cb) {
 				});
 			});
 
-			tasks.push(function(cb) {
-				db.query(hitsSql, dbFields, function(err, rows) {
+			tasks.push(function (cb) {
+				db.query(hitsSql, dbFields, function (err, rows) {
 					if (err) { cb(err); return; }
 
 					hits	= rows[0].hits;
@@ -153,7 +153,7 @@ Orders.prototype.get = function(cb) {
 	});
 
 	// Get fields
-	tasks.push(function(cb) {
+	tasks.push(function (cb) {
 		const dbFields = [];
 
 		let sql;
@@ -184,7 +184,7 @@ Orders.prototype.get = function(cb) {
 
 		sql = sql.substring(0, sql.length - 1) + ')\n';
 
-		db.query(sql, dbFields, function(err, rows) {
+		db.query(sql, dbFields, function (err, rows) {
 			if (err) { cb(err); return; }
 
 			for (let i = 0; rows[i] !== undefined; i ++) {
@@ -208,7 +208,7 @@ Orders.prototype.get = function(cb) {
 	});
 
 	// Get rows
-	tasks.push(function(cb) {
+	tasks.push(function (cb) {
 		const dbFields = [];
 
 		let sql;
@@ -239,7 +239,7 @@ Orders.prototype.get = function(cb) {
 
 		sql = sql.substring(0, sql.length - 1) + ')';
 
-		db.query(sql, dbFields, function(err, rows) {
+		db.query(sql, dbFields, function (err, rows) {
 			if (err) { cb(err); return; }
 
 			for (let i = 0; rows[i] !== undefined; i ++) {
@@ -271,7 +271,7 @@ Orders.prototype.get = function(cb) {
 		});
 	});
 
-	async.series(tasks, function(err) {
+	async.series(tasks, function (err) {
 		if (err) { cb(err); return; }
 
 		cb(null, orders, hits);

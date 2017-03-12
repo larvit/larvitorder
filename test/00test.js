@@ -24,12 +24,12 @@ log.remove(log.transports.Console);
 	'json':	false
 });/**/
 
-before(function(done) {
+before(function (done) {
 	this.timeout(10000);
 	const	tasks	= [];
 
 	// Run DB Setup
-	tasks.push(function(cb) {
+	tasks.push(function (cb) {
 		let confFile;
 
 		if (process.env.DBCONFFILE === undefined) {
@@ -41,12 +41,12 @@ before(function(done) {
 		log.verbose('DB config file: "' + confFile + '"');
 
 		// First look for absolute path
-		fs.stat(confFile, function(err) {
+		fs.stat(confFile, function (err) {
 			if (err) {
 
 				// Then look for this string in the config folder
 				confFile = __dirname + '/../config/' + confFile;
-				fs.stat(confFile, function(err) {
+				fs.stat(confFile, function (err) {
 					if (err) throw err;
 					log.verbose('DB config: ' + JSON.stringify(require(confFile)));
 					db.setup(require(confFile), cb);
@@ -61,8 +61,8 @@ before(function(done) {
 	});
 
 	// Check for empty db
-	tasks.push(function(cb) {
-		db.query('SHOW TABLES', function(err, rows) {
+	tasks.push(function (cb) {
+		db.query('SHOW TABLES', function (err, rows) {
 			if (err) throw err;
 
 			if (rows.length) {
@@ -74,7 +74,7 @@ before(function(done) {
 	});
 
 	// Setup intercom
-	tasks.push(function(cb) {
+	tasks.push(function (cb) {
 		let confFile;
 
 		if (process.env.INTCONFFILE === undefined) {
@@ -86,12 +86,12 @@ before(function(done) {
 		log.verbose('Intercom config file: "' + confFile + '"');
 
 		// First look for absolute path
-		fs.stat(confFile, function(err) {
+		fs.stat(confFile, function (err) {
 			if (err) {
 
 				// Then look for this string in the config folder
 				confFile = __dirname + '/../config/' + confFile;
-				fs.stat(confFile, function(err) {
+				fs.stat(confFile, function (err) {
 					if (err) throw err;
 					log.verbose('Intercom config: ' + JSON.stringify(require(confFile)));
 					lUtils.instances.intercom = new Intercom(require(confFile).default);
@@ -107,25 +107,25 @@ before(function(done) {
 		});
 	});
 
-	tasks.push(function(cb) {
+	tasks.push(function (cb) {
 		orderLib.dataWriter.ready(cb);
 	});
 
 	// Load caches
-	tasks.push(function(cb) {
+	tasks.push(function (cb) {
 		orderLib.helpers.loadOrderFieldsToCache(cb);
 	});
-	tasks.push(function(cb) {
+	tasks.push(function (cb) {
 		orderLib.helpers.loadRowFieldsToCache(cb);
 	});
 
 	async.series(tasks, done);
 });
 
-describe('Order', function() {
+describe('Order', function () {
 	let	orderUuid;
 
-	it('should instantiate a new plain order object', function(done) {
+	it('should instantiate a new plain order object', function (done) {
 		const order = new orderLib.Order();
 
 		assert.deepEqual(toString.call(order),	'[object Object]');
@@ -137,7 +137,7 @@ describe('Order', function() {
 		done();
 	});
 
-	it('should instantiate a new plain order object, with object as option', function(done) {
+	it('should instantiate a new plain order object, with object as option', function (done) {
 		const order = new orderLib.Order({});
 
 		assert.deepEqual(toString.call(order),	'[object Object]');
@@ -149,10 +149,10 @@ describe('Order', function() {
 		done();
 	});
 
-	it('should instantiate a new plain order object, with custom uuid', function(done) {
+	it('should instantiate a new plain order object, with custom uuid', function (done) {
 		const order = new orderLib.Order('7ce6ebde-b9a8-11e6-a4a6-cec0c932ce01');
 
-		order.loadFromDb(function(err) {
+		order.loadFromDb(function (err) {
 			if (err) throw err;
 
 			assert.deepEqual(toString.call(order),	'[object Object]');
@@ -166,7 +166,7 @@ describe('Order', function() {
 		});
 	});
 
-	it('should save an order', function(done) {
+	it('should save an order', function (done) {
 		function createOrder(cb) {
 			const order = new orderLib.Order();
 
@@ -182,8 +182,8 @@ describe('Order', function() {
 			const tasks = [];
 
 			// Check fields
-			tasks.push(function(cb) {
-				db.query('SELECT * FROM orders_orderFields', function(err, rows) {
+			tasks.push(function (cb) {
+				db.query('SELECT * FROM orders_orderFields', function (err, rows) {
 					if (err) throw err;
 
 					assert.deepEqual(rows.length,	3);
@@ -198,8 +198,8 @@ describe('Order', function() {
 			});
 
 			// Check order fields
-			tasks.push(function(cb) {
-				db.query('SELECT * FROM orders_orders_fields', function(err, rows) {
+			tasks.push(function (cb) {
+				db.query('SELECT * FROM orders_orders_fields', function (err, rows) {
 					if (err) throw err;
 
 					assert.deepEqual(rows.length,	4);
@@ -218,8 +218,8 @@ describe('Order', function() {
 			});
 
 			// Check rowfields
-			tasks.push(function(cb) {
-				db.query('SELECT * FROM orders_rowFields ORDER BY name', function(err, rows) {
+			tasks.push(function (cb) {
+				db.query('SELECT * FROM orders_rowFields ORDER BY name', function (err, rows) {
 					if (err) throw err;
 
 					assert.deepEqual(rows.length,	3);
@@ -233,8 +233,8 @@ describe('Order', function() {
 				});
 			});
 
-			tasks.push(function(cb) {
-				db.query('SELECT * FROM orders_rows', function(err, rows) {
+			tasks.push(function (cb) {
+				db.query('SELECT * FROM orders_rows', function (err, rows) {
 					if (err) throw err;
 
 					assert.deepEqual(rows.length,	2);
@@ -243,8 +243,8 @@ describe('Order', function() {
 				});
 			});
 
-			tasks.push(function(cb) {
-				db.query('SELECT rowIntValue, rowStrValue FROM orders_rows_fields', function(err, rows) {
+			tasks.push(function (cb) {
+				db.query('SELECT rowIntValue, rowStrValue FROM orders_rows_fields', function (err, rows) {
 					let matchedRows = 0;
 
 					const testRows = [
@@ -280,13 +280,13 @@ describe('Order', function() {
 			async.parallel(tasks, cb);
 		}
 
-		async.series([createOrder, checkOrder], function(err) {
+		async.series([createOrder, checkOrder], function (err) {
 			if (err) throw err;
 			done();
 		});
 	});
 
-	it('should save an order without fields', function(done) {
+	it('should save an order without fields', function (done) {
 		function createOrder(cb) {
 			const order = new orderLib.Order();
 
@@ -300,8 +300,8 @@ describe('Order', function() {
 			const tasks = [];
 
 			// Check order fields
-			tasks.push(function(cb) {
-				db.query('SELECT * FROM orders_orders_fields WHERE orderUuid = ?', [lUtils.uuidToBuffer(noFieldsOrderUuid)], function(err, rows) {
+			tasks.push(function (cb) {
+				db.query('SELECT * FROM orders_orders_fields WHERE orderUuid = ?', [lUtils.uuidToBuffer(noFieldsOrderUuid)], function (err, rows) {
 					if (err) throw err;
 
 					assert.deepEqual(rows.length,	0);
@@ -310,8 +310,8 @@ describe('Order', function() {
 				});
 			});
 
-			tasks.push(function(cb) {
-				db.query('SELECT * FROM orders_rows WHERE orderUuid = ?', [lUtils.uuidToBuffer(noFieldsOrderUuid)], function(err, rows) {
+			tasks.push(function (cb) {
+				db.query('SELECT * FROM orders_rows WHERE orderUuid = ?', [lUtils.uuidToBuffer(noFieldsOrderUuid)], function (err, rows) {
 					if (err) throw err;
 
 					assert.deepEqual(rows.length,	2);
@@ -320,10 +320,10 @@ describe('Order', function() {
 				});
 			});
 
-			tasks.push(function(cb) {
+			tasks.push(function (cb) {
 				const	sql	= 'SELECT rowIntValue, rowStrValue FROM orders_rows_fields WHERE rowUuid IN (SELECT rowUuid FROM orders_rows WHERE orderUuid = ?)';
 
-				db.query(sql, [lUtils.uuidToBuffer(noFieldsOrderUuid)], function(err, rows) {
+				db.query(sql, [lUtils.uuidToBuffer(noFieldsOrderUuid)], function (err, rows) {
 					let matchedRows = 0;
 
 					const testRows = [
@@ -359,16 +359,16 @@ describe('Order', function() {
 			async.parallel(tasks, cb);
 		}
 
-		async.series([createOrder, checkOrder], function(err) {
+		async.series([createOrder, checkOrder], function (err) {
 			if (err) throw err;
 			done();
 		});
 	});
 
-	it('should load saved order from db', function(done) {
+	it('should load saved order from db', function (done) {
 		const order = new orderLib.Order(orderUuid);
 
-		order.loadFromDb(function(err) {
+		order.loadFromDb(function (err) {
 			const testRows = [
 				{ 'price':	[399],	'name':	['plutt']	},
 				{ 'price':	[34],	'tags':	['foo', 'bar']	}
@@ -402,18 +402,18 @@ describe('Order', function() {
 		});
 	});
 
-	it('should alter an order already saved to db', function(done) {
+	it('should alter an order already saved to db', function (done) {
 		const	tasks	= [];
 
-		tasks.push(function(cb) {
+		tasks.push(function (cb) {
 			const	order	= new orderLib.Order(orderUuid);
 
-			order.loadFromDb(function(err) {
+			order.loadFromDb(function (err) {
 				if (err) throw err;
 
 				order.fields.boll = ['foo'];
 
-				order.save(function(err) {
+				order.save(function (err) {
 					if (err) throw err;
 
 					assert.deepEqual(order.uuid,	orderUuid);
@@ -427,10 +427,10 @@ describe('Order', function() {
 			});
 		});
 
-		tasks.push(function(cb) {
+		tasks.push(function (cb) {
 			const	order	= new orderLib.Order(orderUuid);
 
-			order.loadFromDb(function(err) {
+			order.loadFromDb(function (err) {
 				if (err) throw err;
 
 				assert.deepEqual(order.uuid,	orderUuid);
@@ -448,7 +448,7 @@ describe('Order', function() {
 		async.series(tasks, done);
 	});
 
-	it('should remove an order', function(done) {
+	it('should remove an order', function (done) {
 		const	tasks	= [];
 
 		let	orders,
@@ -484,52 +484,52 @@ describe('Order', function() {
 		}
 
 		// Check order tables before.
-		tasks.push(function(cb) {
+		tasks.push(function (cb) {
 			const	subtasks	= [];
 
 			// Get orders
-			subtasks.push(function(cb) {
-				getOrders(function(err, result) {
+			subtasks.push(function (cb) {
+				getOrders(function (err, result) {
 					orders = result;
 					cb(err);
 				});
 			});
 
 			// Get order fields
-			subtasks.push(function(cb) {
-				getOrderFields(function(err, result) {
+			subtasks.push(function (cb) {
+				getOrderFields(function (err, result) {
 					orders_orderFields	= result;
 					cb(err);
 				});
 			});
 
 			// Get order field values
-			subtasks.push(function(cb) {
-				getOrderFieldValues(function(err, result) {
+			subtasks.push(function (cb) {
+				getOrderFieldValues(function (err, result) {
 					orders_orders_fields	= result;
 					cb(err);
 				});
 			});
 
 			// Get order rows
-			subtasks.push(function(cb) {
-				getOrderRows(function(err, result) {
+			subtasks.push(function (cb) {
+				getOrderRows(function (err, result) {
 					orders_rows	= result;
 					cb(err);
 				});
 			});
 
 			//Get row fields
-			subtasks.push(function(cb) {
-				getOrderRowFields(function(err, result) {
+			subtasks.push(function (cb) {
+				getOrderRowFields(function (err, result) {
 					orders_rowFields	= result;
 					cb(err);
 				});
 			});
 
 			// Get row field values
-			subtasks.push(function(cb) {
-				getOrderRowFieldValues(function(err, result) {
+			subtasks.push(function (cb) {
+				getOrderRowFieldValues(function (err, result) {
 					orders_rows_fields	= result;
 					cb(err);
 				});
@@ -539,7 +539,7 @@ describe('Order', function() {
 		});
 
 		// Create an order to remove later.
-		tasks.push(function(cb) {
+		tasks.push(function (cb) {
 			const order = new orderLib.Order();
 
 			orderUuid = order.uuid;
@@ -551,58 +551,58 @@ describe('Order', function() {
 		});
 
 		// Remove order
-		tasks.push(function(cb) {
+		tasks.push(function (cb) {
 			const order = new orderLib.Order(orderUuid);
 			order.rm(cb);
 		});
 
 		// Check if database is identical after the order removed
-		tasks.push(function(cb) {
+		tasks.push(function (cb) {
 			const	subtasks	= [];
 
 			// Check orders
-			subtasks.push(function(cb) {
-				getOrders(function(err, result) {
+			subtasks.push(function (cb) {
+				getOrders(function (err, result) {
 					assert.deepEqual(orders, result);
 					cb(err);
 				});
 			});
 
 			// Check order fields
-			subtasks.push(function(cb) {
-				getOrderFields(function(err, result) {
+			subtasks.push(function (cb) {
+				getOrderFields(function (err, result) {
 					assert.deepEqual(orders_orderFields, result);
 					cb(err);
 				});
 			});
 
 			// Check order field values
-			subtasks.push(function(cb) {
-				getOrderFieldValues(function(err, result) {
+			subtasks.push(function (cb) {
+				getOrderFieldValues(function (err, result) {
 					assert.deepEqual(orders_orders_fields, result);
 					cb(err);
 				});
 			});
 
 			// Check order rows
-			subtasks.push(function(cb) {
-				getOrderRows(function(err, result) {
+			subtasks.push(function (cb) {
+				getOrderRows(function (err, result) {
 					assert.deepEqual(orders_rows, result);
 					cb(err);
 				});
 			});
 
 			// Check row fields
-			subtasks.push(function(cb) {
-				getOrderRowFields(function(err, result) {
+			subtasks.push(function (cb) {
+				getOrderRowFields(function (err, result) {
 					assert.deepEqual(orders_rowFields, result);
 					cb(err);
 				});
 			});
 
 			// Check row field values
-			subtasks.push(function(cb) {
-				getOrderRowFieldValues(function(err, result) {
+			subtasks.push(function (cb) {
+				getOrderRowFieldValues(function (err, result) {
 					assert.deepEqual(orders_rows_fields, result);
 					cb(err);
 				});
@@ -611,21 +611,21 @@ describe('Order', function() {
 			async.series(subtasks, cb);
 		});
 
-		async.series(tasks, function(err) {
+		async.series(tasks, function (err) {
 			if (err) throw err;
 			done();
 		});
 	});
 });
 
-describe('Orders', function() {
+describe('Orders', function () {
 	let	dbUuids	= [];
 
 	// Since we've created one order above, it should turn up here
-	it('should get a list of orders', function(done) {
+	it('should get a list of orders', function (done) {
 		const orders = new orderLib.Orders();
 
-		orders.get(function(err, orderList, orderHits) {
+		orders.get(function (err, orderList, orderHits) {
 			if (err) throw err;
 			assert.deepEqual(typeof orderList,	'object');
 			assert.deepEqual(Object.keys(orderList).length,	2);
@@ -640,10 +640,10 @@ describe('Orders', function() {
 		});
 	});
 
-	it('should add a few more orders', function(done) {
+	it('should add a few more orders', function (done) {
 		const tasks = [];
 
-		tasks.push(function(cb) {
+		tasks.push(function (cb) {
 			const order = new orderLib.Order();
 
 			order.fields	= {'firstname': 'Anna', 'lastname': ['Dahl']};
@@ -652,7 +652,7 @@ describe('Orders', function() {
 			order.save(cb);
 		});
 
-		tasks.push(function(cb) {
+		tasks.push(function (cb) {
 			const order = new orderLib.Order();
 
 			order.fields	= {'firstname': 'Anna', 'lastname': 'Dahl', 'active': 'true'};
@@ -664,10 +664,10 @@ describe('Orders', function() {
 		async.parallel(tasks, done);
 	});
 
-	it('should now get 4 orders', function(done) {
+	it('should now get 4 orders', function (done) {
 		const orders = new orderLib.Orders();
 
-		orders.get(function(err, orderList, orderHits) {
+		orders.get(function (err, orderList, orderHits) {
 			if (err) throw err;
 			assert.deepEqual(typeof orderList,	'object');
 			assert.deepEqual(Object.keys(orderList).length,	4);
@@ -682,14 +682,14 @@ describe('Orders', function() {
 		});
 	});
 
-	it('should get orders by uuids', function(done) {
+	it('should get orders by uuids', function (done) {
 		const tasks = [];
 
 		// Get all uuids in db
-		tasks.push(function(cb) {
+		tasks.push(function (cb) {
 			const orders = new orderLib.Orders();
 
-			orders.get(function(err, orderList) {
+			orders.get(function (err, orderList) {
 				if (err) throw err;
 
 				dbUuids = Object.keys(orderList);
@@ -699,12 +699,12 @@ describe('Orders', function() {
 		});
 
 		// Get by first uuid
-		tasks.push(function(cb) {
+		tasks.push(function (cb) {
 			const orders = new orderLib.Orders();
 
 			orders.uuids = dbUuids[0];
 
-			orders.get(function(err, orderList, orderHits) {
+			orders.get(function (err, orderList, orderHits) {
 				if (err) throw err;
 				assert.deepEqual(typeof orderList,	'object');
 				assert.deepEqual(Object.keys(orderList).length,	1);
@@ -718,12 +718,12 @@ describe('Orders', function() {
 		});
 
 		// Get 0 results for wrong uuids
-		tasks.push(function(cb) {
+		tasks.push(function (cb) {
 			const orders = new orderLib.Orders();
 
 			orders.uuids = uuidLib.v1();
 
-			orders.get(function(err, orderList, orderHits) {
+			orders.get(function (err, orderList, orderHits) {
 				if (err) throw err;
 				assert.deepEqual(typeof orderList,	'object');
 				assert.deepEqual(Object.keys(orderList).length,	0);
@@ -734,12 +734,12 @@ describe('Orders', function() {
 		});
 
 		// Get 0 results for no uuids
-		tasks.push(function(cb) {
+		tasks.push(function (cb) {
 			const orders = new orderLib.Orders();
 
 			orders.uuids = [];
 
-			orders.get(function(err, orderList, orderHits) {
+			orders.get(function (err, orderList, orderHits) {
 				if (err) throw err;
 				assert.deepEqual(typeof orderList,	'object');
 				assert.deepEqual(Object.keys(orderList).length,	0);
@@ -750,12 +750,12 @@ describe('Orders', function() {
 		});
 
 		// get 2 results for two uuids
-		tasks.push(function(cb) {
+		tasks.push(function (cb) {
 			const orders = new orderLib.Orders();
 
 			orders.uuids = [dbUuids[0], dbUuids[2]];
 
-			orders.get(function(err, orderList, orderHits) {
+			orders.get(function (err, orderList, orderHits) {
 				if (err) throw err;
 				assert.deepEqual(typeof orderList,	'object');
 				assert.deepEqual(Object.keys(orderList).length,	2);
@@ -776,12 +776,12 @@ describe('Orders', function() {
 		async.series(tasks, done);
 	});
 
-	it('should get orders with limits', function(done) {
+	it('should get orders with limits', function (done) {
 		const orders = new orderLib.Orders();
 
 		orders.limit = 2;
 
-		orders.get(function(err, orderList, orderHits) {
+		orders.get(function (err, orderList, orderHits) {
 			if (err) throw err;
 			assert.deepEqual(typeof orderList,	'object');
 			assert.deepEqual(Object.keys(orderList).length,	2);
@@ -791,13 +791,13 @@ describe('Orders', function() {
 		});
 	});
 
-	it('should get orders with limit and offset', function(done) {
+	it('should get orders with limit and offset', function (done) {
 		const orders = new orderLib.Orders();
 
 		orders.limit	= 2;
 		orders.offset	= 3;
 
-		orders.get(function(err, orderList, orderHits) {
+		orders.get(function (err, orderList, orderHits) {
 			if (err) throw err;
 			assert.deepEqual(typeof orderList,	'object');
 
@@ -809,12 +809,12 @@ describe('Orders', function() {
 		});
 	});
 
-	it('should get firstname and lastname from all orders', function(done) {
+	it('should get firstname and lastname from all orders', function (done) {
 		const orders = new orderLib.Orders();
 
 		orders.returnFields = ['firstname', 'lastname'];
 
-		orders.get(function(err, orderList) {
+		orders.get(function (err, orderList) {
 			if (err) throw err;
 			assert.deepEqual(typeof orderList,	'object');
 			assert.deepEqual(Object.keys(orderList).length,	4);
@@ -838,12 +838,12 @@ describe('Orders', function() {
 		});
 	});
 
-	it('should get orders with rows', function(done) {
+	it('should get orders with rows', function (done) {
 		const orders = new orderLib.Orders();
 
 		orders.returnRowFields = ['price', 'name'];
 
-		orders.get(function(err, orderList) {
+		orders.get(function (err, orderList) {
 			if (err) throw err;
 			assert.deepEqual(typeof orderList,	'object');
 			assert.deepEqual(Object.keys(orderList).length,	4);
@@ -868,12 +868,12 @@ describe('Orders', function() {
 		});
 	});
 
-	it('should get orders filtered by field content and value', function(done) {
+	it('should get orders filtered by field content and value', function (done) {
 		const orders = new orderLib.Orders();
 
 		orders.matchAllFields = {'active': 'true'};
 
-		orders.get(function(err, orderList) {
+		orders.get(function (err, orderList) {
 			if (err) throw err;
 			assert.deepEqual(typeof orderList, 'object');
 
@@ -884,12 +884,12 @@ describe('Orders', function() {
 		});
 	});
 
-	it('should get orders filtered by multiple fields contents and values', function(done) {
+	it('should get orders filtered by multiple fields contents and values', function (done) {
 		const orders = new orderLib.Orders();
 
 		orders.matchAllFields = {'firstname': 'Anna', 'active': 'true'};
 
-		orders.get(function(err, orderList) {
+		orders.get(function (err, orderList) {
 			if (err) throw err;
 			assert.deepEqual(typeof orderList,	'object');
 
@@ -900,12 +900,12 @@ describe('Orders', function() {
 		});
 	});
 
-	it('should get orders filtered by row content', function(done) {
+	it('should get orders filtered by row content', function (done) {
 		const orders = new orderLib.Orders();
 
 		orders.matchAllRowFields = {'price': 50};
 
-		orders.get(function(err, orderList) {
+		orders.get(function (err, orderList) {
 			if (err) throw err;
 			assert.deepEqual(typeof orderList,	'object');
 
@@ -917,6 +917,6 @@ describe('Orders', function() {
 	});
 });
 
-after(function(done) {
+after(function (done) {
 	db.removeAllTables(done);
 });

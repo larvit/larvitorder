@@ -44,7 +44,7 @@ const	orderLib	= require('larvitorder'),
 order.fields	= {'firstname': 'Günter', 'lastname': ['Edelweiss', 'Schloffs']};
 order.rows	= [{'price': 399, 'name': 'Screw'}, {'price': 34, 'name': 'teh_foo', 'tags': ['foo', 'bar']}];
 
-order.save(function(err) {
+order.save(function (err) {
 	if (err) throw err;
 });
 ```
@@ -55,7 +55,7 @@ order.save(function(err) {
 const	orderLib	= require('larvitorder'),
 	order	= new orderLib.Order('uuid-on-existing-order-in-db');
 
-order.loadFromDb(function(err) {
+order.loadFromDb(function (err) {
 	if (err) throw err;
 
 	// Now order.fields and order.rows is loaded from database
@@ -68,7 +68,7 @@ order.loadFromDb(function(err) {
 const	orderLib	= require('larvitorder'),
 	order	= new orderLib.Order('uuid-on-existing-order-in-db');
 
-order.rm(function(err) {
+order.rm(function (err) {
 	if (err) throw err;
 
 	// order is now removed from DB
@@ -81,7 +81,7 @@ order.rm(function(err) {
 const	orderLib	= require('larvitorder'),
 	orders	= new orderLib.Orders();
 
-orders.get(function(err, orderList) {
+orders.get(function (err, orderList) {
 	if (err) throw err;
 
 	// orderList is now an array of objects
@@ -107,7 +107,7 @@ orders.returnFields	= ['firstname', 'lastname', 'status'];	// Only return the or
 // Return order row fields
 orders.returnRowFields	= ['productName', 'price'];	// Only return the order row fields listed. IMPORTANT! Will return no order row fields if not supplied! Because performance.
 
-orders.get(function(err, orderList) {
+orders.get(function (err, orderList) {
 	if (err) throw err;
 
 	// orderList is now an array of objects

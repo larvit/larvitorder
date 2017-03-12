@@ -2,7 +2,7 @@
 
 const	EventEmitter	= require('events').EventEmitter,
 	eventEmitter	= new EventEmitter(),
-	dbmigration	= require('larvitdbmigration')({'tableName': 'orders_db_version', 'migrationScriptsPath': __dirname + '/dbmigration'}),
+	DbMigration	= require('larvitdbmigration'),
 	helpers	= require(__dirname + '/helpers.js'),
 	uuidLib	= require('uuid'),
 	lUtils	= require('larvitutils'),
@@ -26,7 +26,7 @@ function listenToQueue(retries, cb) {
 	}
 
 	if (typeof cb !== 'function') {
-		cb = function(){};
+		cb = function (){};
 	}
 
 	if (retries === undefined) {
@@ -52,7 +52,7 @@ function listenToQueue(retries, cb) {
 
 	if ( ! (intercom instanceof require('larvitamintercom')) && retries < 10) {
 		retries ++;
-		setTimeout(function() {
+		setTimeout(function () {
 			listenToQueue(retries, cb);
 		}, 50);
 		return;
@@ -63,14 +63,14 @@ function listenToQueue(retries, cb) {
 
 	log.info('larvitorder: dataWriter.js - listenToQueue() - listenMethod: ' + listenMethod);
 
-	intercom.ready(function(err) {
+	intercom.ready(function (err) {
 		if (err) {
 			log.error('larvitorder: dataWriter.js - listenToQueue() - intercom.ready() err: ' + err.message);
 			return;
 		}
 
-		intercom[listenMethod](options, function(message, ack, deliveryTag) {
-			exports.ready(function(err) {
+		intercom[listenMethod](options, function (message, ack, deliveryTag) {
+			exports.ready(function (err) {
 				ack(err); // Ack first, if something goes wrong we log it and handle it manually
 
 				if (err) {
@@ -106,7 +106,7 @@ function ready(retries, cb) {
 	}
 
 	if (typeof cb !== 'function') {
-		cb = function(){};
+		cb = function (){};
 	}
 
 	if (retries === undefined) {
@@ -124,7 +124,7 @@ function ready(retries, cb) {
 
 	if ( ! (intercom instanceof require('larvitamintercom')) && retries < 10) {
 		retries ++;
-		setTimeout(function() {
+		setTimeout(function () {
 			ready(retries, cb);
 		}, 50);
 		return;
@@ -138,7 +138,7 @@ function ready(retries, cb) {
 	if (exports.mode === 'both' || exports.mode === 'slave') {
 		log.verbose('larvitorder: dataWriter.js - ready() - exports.mode: "' + exports.mode + '", so read');
 
-		tasks.push(function(cb) {
+		tasks.push(function (cb) {
 			amsync.mariadb({'exchange': exports.exchangeName + '_dataDump'}, cb);
 		});
 	}
@@ -148,8 +148,18 @@ function ready(retries, cb) {
 	}
 
 	// Migrate database
-	tasks.push(function(cb) {
-		dbmigration(function(err) {
+	tasks.push(function (cb) {
+		const	options	= {};
+
+		let	dbMigration;
+
+		options.dbType	= 'larvitdb';
+		options.dbDriver	= db;
+		options.tableName	= 'orders_db_version';
+		options.migrationScriptsPath	= __dirname + '/dbmigration';
+		dbMigration	= new DbMigration(options);
+
+		dbMigration.run(function (err) {
 			if (err) {
 				log.error('larvitorder: dataWriter.js - ready() - Database error: ' + err.message);
 			}
@@ -158,7 +168,7 @@ function ready(retries, cb) {
 		});
 	});
 
-	async.series(tasks, function(err) {
+	async.series(tasks, function (err) {
 		if (err) {
 			return;
 		}
@@ -180,12 +190,12 @@ function rmOrder(params, deliveryTag, msgUuid) {
 		tasks	= [];
 
 	// Delete field data
-	tasks.push(function(cb) {
+	tasks.push(function (cb) {
 		db.query('DELETE FROM orders_orders_fields WHERE orderUuid = ?', [orderUuidBuf], cb);
 	});
 
 	// Delete row field data
-	tasks.push(function(cb) {
+	tasks.push(function (cb) {
 		const	dbFields	= [orderUuidBuf],
 			sql	= 'DELETE FROM orders_rows_fields WHERE rowUuid IN (SELECT rowUuid FROM orders_rows WHERE orderUuid = ?)';
 
@@ -193,7 +203,7 @@ function rmOrder(params, deliveryTag, msgUuid) {
 	});
 
 	// Delete rows
-	tasks.push(function(cb) {
+	tasks.push(function (cb) {
 		const	dbFields	= [orderUuidBuf],
 			sql	= 'DELETE FROM orders_rows WHERE orderUuid = ?';
 
@@ -201,14 +211,14 @@ function rmOrder(params, deliveryTag, msgUuid) {
 	});
 
 	// Delete order
-	tasks.push(function(cb) {
+	tasks.push(function (cb) {
 		const	dbFields	= [orderUuidBuf],
 			sql	= 'DELETE FROM orders WHERE uuid = ?';
 
 		db.query(sql, dbFields, cb);
 	});
 
-	async.series(tasks, function(err) {
+	async.series(tasks, function (err) {
 		exports.emitter.emit(msgUuid, err);
 	});
 }
@@ -264,7 +274,7 @@ function writeOrder(params, deliveryTag, msgUuid, cb) {
 		rowFieldUuidsByName;
 
 	if (typeof cb !== 'function') {
-		cb = function() {};
+		cb = function () {};
 	}
 
 	if (lUtils.formatUuid(orderUuid) === false || orderUuidBuf === false) {
@@ -275,19 +285,19 @@ function writeOrder(params, deliveryTag, msgUuid, cb) {
 	}
 
 	// Make sure the base order row exists
-	tasks.push(function(cb) {
+	tasks.push(function (cb) {
 		const	sql	= 'INSERT IGNORE INTO orders (uuid, created) VALUES(?,?)';
 
 		db.query(sql, [orderUuidBuf, created], cb);
 	});
 
 	// Clean out old field data
-	tasks.push(function(cb) {
+	tasks.push(function (cb) {
 		db.query('DELETE FROM orders_orders_fields WHERE orderUuid = ?', [orderUuidBuf], cb);
 	});
 
 	// Clean out old row field data
-	tasks.push(function(cb) {
+	tasks.push(function (cb) {
 		const	dbFields	= [orderUuidBuf],
 			sql	= 'DELETE FROM orders_rows_fields WHERE rowUuid IN (SELECT rowUuid FROM orders_rows WHERE orderUuid = ?)';
 
@@ -295,7 +305,7 @@ function writeOrder(params, deliveryTag, msgUuid, cb) {
 	});
 
 	// Clean out old rows
-	tasks.push(function(cb) {
+	tasks.push(function (cb) {
 		const	dbFields	= [orderUuidBuf],
 			sql	= 'DELETE FROM orders_rows WHERE orderUuid = ?';
 
@@ -305,15 +315,15 @@ function writeOrder(params, deliveryTag, msgUuid, cb) {
 	// By now we have a clean database, lets insert stuff!
 
 	// Get all field ids
-	tasks.push(function(cb) {
-		helpers.getOrderFieldUuids(Object.keys(orderFields), function(err, result) {
+	tasks.push(function (cb) {
+		helpers.getOrderFieldUuids(Object.keys(orderFields), function (err, result) {
 			fieldUuidsByName = result;
 			cb(err);
 		});
 	});
 
 	// Insert fields
-	tasks.push(function(cb) {
+	tasks.push(function (cb) {
 		const	dbFields	= [];
 
 		let	sql	= 'INSERT INTO orders_orders_fields (orderUuid, fieldUuid, fieldValue) VALUES';
@@ -342,7 +352,7 @@ function writeOrder(params, deliveryTag, msgUuid, cb) {
 	});
 
 	// Insert rows
-	tasks.push(function(cb) {
+	tasks.push(function (cb) {
 		const	dbFields	= [];
 
 		let	sql	= 'INSERT INTO orders_rows (rowUuid, orderUuid) VALUES';
@@ -370,7 +380,7 @@ function writeOrder(params, deliveryTag, msgUuid, cb) {
 	});
 
 	// Get all row field uuids
-	tasks.push(function(cb) {
+	tasks.push(function (cb) {
 		const	rowFieldNames	= [];
 
 		for (let i = 0; orderRows[i] !== undefined; i ++) {
@@ -383,14 +393,14 @@ function writeOrder(params, deliveryTag, msgUuid, cb) {
 			}
 		}
 
-		helpers.getRowFieldUuids(rowFieldNames, function(err, result) {
+		helpers.getRowFieldUuids(rowFieldNames, function (err, result) {
 			rowFieldUuidsByName = result;
 			cb(err);
 		});
 	});
 
 	// Insert row fields
-	tasks.push(function(cb) {
+	tasks.push(function (cb) {
 		const	dbFields	= [];
 
 		let	sql	= 'INSERT INTO orders_rows_fields (rowUuid, rowFieldUuid, rowIntValue, rowStrValue) VALUES';
@@ -433,7 +443,7 @@ function writeOrder(params, deliveryTag, msgUuid, cb) {
 		db.query(sql, dbFields, cb);
 	});
 
-	async.series(tasks, function(err) {
+	async.series(tasks, function (err) {
 		exports.emitter.emit(msgUuid, err);
 		cb(err);
 	});
@@ -443,13 +453,13 @@ function writeOrderField(params, deliveryTag, msgUuid) {
 	const	uuid	= params.uuid,
 		name	= params.name;
 
-	db.query('INSERT IGNORE INTO orders_orderFields (uuid, name) VALUES(?,?)', [uuid, name], function(err) {
+	db.query('INSERT IGNORE INTO orders_orderFields (uuid, name) VALUES(?,?)', [uuid, name], function (err) {
 		if (err) {
 			exports.emitter.emit(msgUuid, err);
 			return;
 		}
 
-		helpers.loadOrderFieldsToCache(function(err) {
+		helpers.loadOrderFieldsToCache(function (err) {
 			exports.emitter.emit(msgUuid, err);
 		});
 	});
@@ -459,13 +469,13 @@ function writeRowField(params, deliveryTag, msgUuid) {
 	const	uuid	= params.uuid,
 		name	= params.name;
 
-	db.query('INSERT IGNORE INTO orders_rowFields (uuid, name) VALUES(?,?)', [uuid, name], function(err) {
+	db.query('INSERT IGNORE INTO orders_rowFields (uuid, name) VALUES(?,?)', [uuid, name], function (err) {
 		if (err) {
 			exports.emitter.emit(msgUuid, err);
 			return;
 		}
 
-		helpers.loadRowFieldsToCache(function(err) {
+		helpers.loadRowFieldsToCache(function (err) {
 			exports.emitter.emit(msgUuid, err);
 		});
 	});

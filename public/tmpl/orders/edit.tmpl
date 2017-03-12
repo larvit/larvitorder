@@ -15,7 +15,7 @@
 	</div>
 
 	<h2>Fields</h2>
-	<% _.forEach(obj.order.fields, function(fieldValues, fieldName) { %>
+	<% _.forEach(obj.order.fields, function (fieldValues, fieldName) { %>
 		<% for (var i = 0; fieldValues[i] !== undefined; i ++) { %>
 			<div class="row">
 				<div class="six columns">
@@ -51,7 +51,7 @@
 
 		<h3>Row <%= rowUuid %></h3>
 		<% if (rowUuid === undefined) { rowUuid = 'new_' + i; } %>
-		<% _.forEach(row, function(rowFieldValues, rowFieldName) { %>
+		<% _.forEach(row, function (rowFieldValues, rowFieldName) { %>
 			<% if (rowFieldName !== 'uuid') { %>
 				<% for (var i2 = 0; rowFieldValues[i2] !== undefined; i2 ++) { %>
 					<div class="row">

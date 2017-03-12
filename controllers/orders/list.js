@@ -3,7 +3,7 @@
 const	orderLib	= require(__dirname + '/../../index.js'),
 	async	= require('async');
 
-exports.run = function(req, res, cb) {
+exports.run = function (req, res, cb) {
 	const	tasks	= [],
 		data	= {'global': res.globalData};
 
@@ -19,7 +19,7 @@ exports.run = function(req, res, cb) {
 	data.pagination.urlParsed	= data.global.urlParsed;
 	data.pagination.elementsPerPage	= 100;
 
-	tasks.push(function(cb) {
+	tasks.push(function (cb) {
 		const	orders	= new orderLib.Orders();
 
 		orders.returnFields	= ['status'];
@@ -34,21 +34,21 @@ exports.run = function(req, res, cb) {
 			orders.matchAllFields = {'status': data.global.urlParsed.query.filterStatus};
 		}
 
-		orders.get(function(err, result, totalElements) {
+		orders.get(function (err, result, totalElements) {
 			data.orders	= result;
 			data.pagination.totalElements	= totalElements;
 			cb(err);
 		});
 	});
 
-	tasks.push(function(cb) {
-		orderLib.helpers.getFieldValues('status', function(err, result) {
+	tasks.push(function (cb) {
+		orderLib.helpers.getFieldValues('status', function (err, result) {
 			data.statuses	= result;
 			cb(err, result);
 		});
 	});
 
-	async.series(tasks, function(err) {
+	async.series(tasks, function (err) {
 		cb(err, req, res, data);
 	});
 };

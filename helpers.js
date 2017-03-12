@@ -18,23 +18,23 @@ function getFieldValues(fieldName, cb) {
 	const	tasks	= [],
 		names	= [];
 
-	tasks.push(function(cb) {
+	tasks.push(function (cb) {
 		dataWriter.ready(cb);
 	});
 
-	tasks.push(function(cb) {
+	tasks.push(function (cb) {
 		intercom	= require('larvitutils').instances.intercom;
 		cb();
 	});
 
-	tasks.push(function(cb) {
+	tasks.push(function (cb) {
 		let	sql	= 'SELECT DISTINCT fieldValue\n';
 
 		sql += 'FROM orders_orders_fields\n';
 		sql += 'WHERE fieldUuid = (SELECT uuid FROM orders_orderFields WHERE name = ?)\n';
 		sql += 'ORDER BY fieldValue;';
 
-		db.query(sql, [fieldName], function(err, rows) {
+		db.query(sql, [fieldName], function (err, rows) {
 			if (err) { cb(err); return; }
 
 			for (let i = 0; rows[i] !== undefined; i ++) {
@@ -45,7 +45,7 @@ function getFieldValues(fieldName, cb) {
 		});
 	});
 
-	async.series(tasks, function(err) {
+	async.series(tasks, function (err) {
 		cb(err, names);
 	});
 }
@@ -62,16 +62,16 @@ function getOrderFieldUuid(fieldName, cb) {
 
 	// If we get down here, the field does not exist, create it and rerun
 
-	tasks.push(function(cb) {
+	tasks.push(function (cb) {
 		dataWriter.ready(cb);
 	});
 
-	tasks.push(function(cb) {
+	tasks.push(function (cb) {
 		intercom	= require('larvitutils').instances.intercom;
 		cb();
 	});
 
-	tasks.push(function(cb) {
+	tasks.push(function (cb) {
 		const	options	= {'exchange': dataWriter.exchangeName},
 			message	= {};
 
@@ -81,10 +81,10 @@ function getOrderFieldUuid(fieldName, cb) {
 		message.params.uuid	= uuidLib.v1();
 		message.params.name	= fieldName;
 
-		intercom.send(message, options, function(err, msgUuid) {
+		intercom.send(message, options, function (err, msgUuid) {
 			if (err) { cb(err); return; }
 
-			dataWriter.emitter.once(msgUuid, function(err) {
+			dataWriter.emitter.once(msgUuid, function (err) {
 				if (err) { cb(err); return; }
 
 				loadOrderFieldsToCache(cb);
@@ -92,7 +92,7 @@ function getOrderFieldUuid(fieldName, cb) {
 		});
 	});
 
-	async.series(tasks, function(err) {
+	async.series(tasks, function (err) {
 		if (err) { cb(err); return; }
 
 		getOrderFieldUuid(fieldName, cb);
@@ -112,8 +112,8 @@ function getOrderFieldUuids(fieldNames, cb) {
 	for (let i = 0; fieldNames[i] !== undefined; i ++) {
 		const	fieldName = fieldNames[i];
 
-		tasks.push(function(cb) {
-			getOrderFieldUuid(fieldName, function(err, fieldUuid) {
+		tasks.push(function (cb) {
+			getOrderFieldUuid(fieldName, function (err, fieldUuid) {
 				if (err) { cb(err); return; }
 
 				fieldUuidsByName[fieldName] = fieldUuid;
@@ -122,7 +122,7 @@ function getOrderFieldUuids(fieldNames, cb) {
 		});
 	}
 
-	async.parallel(tasks, function(err) {
+	async.parallel(tasks, function (err) {
 		if (err) { cb(err); return; }
 
 		cb(null, fieldUuidsByName);
@@ -148,16 +148,16 @@ function getRowFieldUuid(rowFieldName, cb) {
 
 	// If we get down here, the field does not exist, create it and rerun
 
-	tasks.push(function(cb) {
+	tasks.push(function (cb) {
 		dataWriter.ready(cb);
 	});
 
-	tasks.push(function(cb) {
+	tasks.push(function (cb) {
 		intercom	= require('larvitutils').instances.intercom;
 		cb();
 	});
 
-	tasks.push(function(cb) {
+	tasks.push(function (cb) {
 		const	options	= {'exchange': dataWriter.exchangeName},
 			message	= {};
 
@@ -167,9 +167,9 @@ function getRowFieldUuid(rowFieldName, cb) {
 		message.params.uuid	= uuidLib.v1();
 		message.params.name	= rowFieldName;
 
-		intercom.send(message, options, function(err, msgUuid) {
+		intercom.send(message, options, function (err, msgUuid) {
 			if (err) { cb(err); return; }
-			dataWriter.emitter.once(msgUuid, function(err) {
+			dataWriter.emitter.once(msgUuid, function (err) {
 				if (err) { cb(err); return; }
 
 				loadRowFieldsToCache(cb);
@@ -177,7 +177,7 @@ function getRowFieldUuid(rowFieldName, cb) {
 		});
 	});
 
-	async.series(tasks, function(err) {
+	async.series(tasks, function (err) {
 		if (err) { cb(err); return; }
 
 		getRowFieldUuid(rowFieldName, cb);
@@ -199,8 +199,8 @@ function getRowFieldUuids(rowFieldNames, cb) {
 
 		if (rowFieldName === 'uuid') continue; // Ignore uuid
 
-		tasks.push(function(cb) {
-			getRowFieldUuid(rowFieldName, function(err, fieldUuid) {
+		tasks.push(function (cb) {
+			getRowFieldUuid(rowFieldName, function (err, fieldUuid) {
 				if (err) { cb(err); return; }
 
 				rowFieldUuidsByName[rowFieldName] = fieldUuid;
@@ -209,7 +209,7 @@ function getRowFieldUuids(rowFieldNames, cb) {
 		});
 	}
 
-	async.parallel(tasks, function(err) {
+	async.parallel(tasks, function (err) {
 		if (err) { cb(err); return; }
 
 		cb(null, rowFieldUuidsByName);
@@ -217,7 +217,7 @@ function getRowFieldUuids(rowFieldNames, cb) {
 };
 
 function loadOrderFieldsToCache(cb) {
-	db.query('SELECT * FROM orders_orderFields ORDER BY name;', function(err, rows) {
+	db.query('SELECT * FROM orders_orderFields ORDER BY name;', function (err, rows) {
 		if (err) {
 			log.error('larvitorder: helpers.js - loadOrderFieldsToCache() - Database error: ' + err.message);
 			return;
@@ -236,7 +236,7 @@ function loadOrderFieldsToCache(cb) {
 }
 
 function loadRowFieldsToCache(cb) {
-	db.query('SELECT * FROM orders_rowFields ORDER BY name;', function(err, rows) {
+	db.query('SELECT * FROM orders_rowFields ORDER BY name;', function (err, rows) {
 		if (err) {
 			log.error('larvitorder: helpers.js - loadRowFieldsToCache() - Database error: ' + err.message);
 			return;

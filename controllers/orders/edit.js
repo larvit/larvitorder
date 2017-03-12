@@ -4,7 +4,7 @@ const	orderLib	= require(__dirname + '/../../index.js'),
 	async	= require('async'),
 	log	= require('winston');
 
-exports.run = function(req, res, cb) {
+exports.run = function (req, res, cb) {
 	const	tasks	= [],
 		data	= {'global': res.globalData};
 
@@ -17,14 +17,14 @@ exports.run = function(req, res, cb) {
 
 	data.global.menuControllerName = 'orders';
 
-	tasks.push(function(cb) {
+	tasks.push(function (cb) {
 		data.order = new orderLib.Order(data.global.urlParsed.query.uuid);
 
 		data.order.loadFromDb(cb);
 	});
 
 	if (data.global.formFields.save !== undefined) {
-		tasks.push(function(cb) {
+		tasks.push(function (cb) {
 			data.order.fields	= {};
 			data.order.rows	= [];
 
@@ -66,7 +66,7 @@ exports.run = function(req, res, cb) {
 				data.order.rows.push(row);
 			}
 
-			data.order.save(function(err) {
+			data.order.save(function (err) {
 				if (err) { cb(err); return; }
 
 				if (data.order.uuid !== undefined && data.global.urlParsed.query.uuid === undefined) {
@@ -84,9 +84,9 @@ exports.run = function(req, res, cb) {
 	}
 
 	if (data.global.formFields.rmOrder !== undefined) {
-		tasks.push(function(cb) {
+		tasks.push(function (cb) {
 			log.verbose('larvitorder: ./controllers/orders/edit.js: run() - Removing order, uuid: "' + data.order.uuid + '"');
-			data.order.rm(function(err) {
+			data.order.rm(function (err) {
 				if (err) { cb(err); return; }
 
 				req.session.data.nextCallData	= {'global': {'messages': ['Order removed: ' + data.order.uuid]}};
@@ -97,7 +97,7 @@ exports.run = function(req, res, cb) {
 		});
 	}
 
-	async.series(tasks, function(err) {
+	async.series(tasks, function (err) {
 		cb(err, req, res, data);
 	});
 };

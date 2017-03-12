@@ -4,21 +4,21 @@ const	uuidLib	= require('uuid'),
 	async	= require('async'),
 	db	= require('larvitdb');
 
-exports = module.exports = function(cb) {
+exports = module.exports = function (cb) {
 	const	tasks	= [],
 		sqls	= [];
 
 	// Add uuid column on orders_rowFields and orders_orderFields
-	tasks.push(function(cb) {
+	tasks.push(function (cb) {
 		db.query('ALTER TABLE `orders_rowFields` ADD `uuid` binary(16) NOT NULL FIRST;', cb);
 	});
-	tasks.push(function(cb) {
+	tasks.push(function (cb) {
 		db.query('ALTER TABLE `orders_orderFields` ADD `uuid` binary(16) NOT NULL AFTER `id`;', cb);
 	});
 
 	// Assign uuid values to orders_rowFields
-	tasks.push(function(cb) {
-		db.query('SELECT * FROM orders_rowFields', function(err, rows) {
+	tasks.push(function (cb) {
+		db.query('SELECT * FROM orders_rowFields', function (err, rows) {
 			const	tasks	= [];
 
 			if (err) { cb(err); return; }
@@ -26,7 +26,7 @@ exports = module.exports = function(cb) {
 			for (let i = 0; rows[i] !== undefined; i ++) {
 				const	row = rows[i];
 
-				tasks.push(function(cb) {
+				tasks.push(function (cb) {
 					db.query('UPDATE orders_rowFields SET uuid = ? WHERE id = ?', [uuidLib.v1(), row.id], cb);
 				});
 			}
@@ -36,8 +36,8 @@ exports = module.exports = function(cb) {
 	});
 
 	// Assign uuid values to orders_orderFields
-	tasks.push(function(cb) {
-		db.query('SELECT * FROM orders_orderFields', function(err, rows) {
+	tasks.push(function (cb) {
+		db.query('SELECT * FROM orders_orderFields', function (err, rows) {
 			const	tasks	= [];
 
 			if (err) { cb(err); return; }
@@ -45,7 +45,7 @@ exports = module.exports = function(cb) {
 			for (let i = 0; rows[i] !== undefined; i ++) {
 				const	row = rows[i];
 
-				tasks.push(function(cb) {
+				tasks.push(function (cb) {
 					db.query('UPDATE orders_orderFields SET uuid = ? WHERE id = ?', [uuidLib.v1(), row.id], cb);
 				});
 			}
@@ -75,7 +75,7 @@ exports = module.exports = function(cb) {
 	for (let i = 0; sqls[i] !== undefined; i ++) {
 		const	sql = sqls[i];
 
-		tasks.push(function(cb) {
+		tasks.push(function (cb) {
 			db.query(sql, cb);
 		});
 	}

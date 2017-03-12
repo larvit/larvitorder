@@ -6,7 +6,7 @@
 			<label for="filterStatus">Filter by status</label>
 			<select class="u-full-width" name="filterStatus">
 				<option style="font-style: italic;" value="">No filter</option>
-				<% _.forEach(obj.statuses, function(status) { %>
+				<% _.forEach(obj.statuses, function (status) { %>
 					<option value="<%= status %>"<% if (status === obj.global.urlParsed.query.filterStatus) { print(' selected="selected"'); } %>><%= status %></option>
 				<% }); %>
 			</select>
@@ -27,7 +27,7 @@
 		</tr>
 	</thead>
 	<tbody>
-		<% _.forEach(obj.orders, function(order, orderUuid) { %>
+		<% _.forEach(obj.orders, function (order, orderUuid) { %>
 			<tr>
 				<td><a href="/orders/edit?uuid=<%= orderUuid %>"><%= orderUuid %></a></td>
 				<td><%= order.created %></td>

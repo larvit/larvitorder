@@ -26,12 +26,12 @@ function ready(cb) {
 
 	readyInProgress = true;
 
-	tasks.push(function(cb) {
+	tasks.push(function (cb) {
 		dataWriter.ready(cb);
 	});
 
 	// Load intercom. This must be done after the datawriter is ready
-	tasks.push(function(cb) {
+	tasks.push(function (cb) {
 		intercom	= require('larvitutils').instances.intercom;
 		cb();
 	});
@@ -42,7 +42,7 @@ function ready(cb) {
 	// Load row fields
 	tasks.push(helpers.loadRowFieldsToCache);
 
-	async.series(tasks, function() {
+	async.series(tasks, function () {
 		isReady	= true;
 		eventEmitter.emit('ready');
 		cb();
@@ -83,16 +83,16 @@ function Order(options) {
 	}
 }
 
-Order.prototype.loadFromDb = function(cb) {
+Order.prototype.loadFromDb = function (cb) {
 	const	tasks	= [],
 		that	= this;
 
 	tasks.push(ready);
 
 	// Get basic order data
-	tasks.push(function(cb) {
+	tasks.push(function (cb) {
 		log.debug('larvitorder: getOrder() - Getting order: ' + that.uuid);
-		db.query('SELECT * FROM orders WHERE uuid = ?', [lUtils.uuidToBuffer(that.uuid)], function(err, rows) {
+		db.query('SELECT * FROM orders WHERE uuid = ?', [lUtils.uuidToBuffer(that.uuid)], function (err, rows) {
 			if (err) { cb(err); return; }
 
 			if (rows.length) {
@@ -104,16 +104,16 @@ Order.prototype.loadFromDb = function(cb) {
 	});
 
 	// Get fields
-	tasks.push(function(cb) {
-		that.getOrderFields(function(err, fields) {
+	tasks.push(function (cb) {
+		that.getOrderFields(function (err, fields) {
 			that.fields = fields;
 			cb();
 		});
 	});
 
 	// Get rows
-	tasks.push(function(cb) {
-		that.getOrderRows(function(err, rows) {
+	tasks.push(function (cb) {
+		that.getOrderRows(function (err, rows) {
 			that.rows = rows;
 			cb();
 		});
@@ -122,7 +122,7 @@ Order.prototype.loadFromDb = function(cb) {
 	async.series(tasks, cb);
 };
 
-Order.prototype.getOrderFields = function(cb) {
+Order.prototype.getOrderFields = function (cb) {
 	const	fields	= {},
 		that	= this;
 
@@ -133,8 +133,8 @@ Order.prototype.getOrderFields = function(cb) {
 	sql += '		ON orders_orders_fields.fieldUuid = orders_orderFields.uuid\n';
 	sql += 'WHERE orders_orders_fields.orderUuid = ?';
 
-	ready(function() {
-		db.query(sql, [lUtils.uuidToBuffer(that.uuid)], function(err, data) {
+	ready(function () {
+		db.query(sql, [lUtils.uuidToBuffer(that.uuid)], function (err, data) {
 			if (err) { cb(err); return; }
 
 			for (let i = 0; data.length > i; i ++) {
@@ -149,7 +149,7 @@ Order.prototype.getOrderFields = function(cb) {
 	});
 };
 
-Order.prototype.getOrderRows = function(cb) {
+Order.prototype.getOrderRows = function (cb) {
 	const	sorter	= [],
 		rows	= [],
 		that	= this;
@@ -164,8 +164,8 @@ Order.prototype.getOrderRows = function(cb) {
 	sql += '		ON orders_rowFields.uuid = orders_rows_fields.rowFieldUuid\n';
 	sql += 'WHERE orders_rows.orderUuid = ?';
 
-	ready(function() {
-		db.query(sql, [lUtils.uuidToBuffer(that.uuid)], function(err, data) {
+	ready(function () {
+		db.query(sql, [lUtils.uuidToBuffer(that.uuid)], function (err, data) {
 			if (err) { cb(err); return; }
 
 			for (let i = 0; data.length > i; i ++) {
@@ -210,7 +210,7 @@ Order.prototype.getOrderFieldUuids	= helpers.getOrderFieldUuids;
 Order.prototype.getRowFieldUuid	= helpers.getRowFieldUuid;
 Order.prototype.getRowFieldUuids	= helpers.getRowFieldUuids;
 
-Order.prototype.rm = function(cb) {
+Order.prototype.rm = function (cb) {
 	const	options	= {'exchange': dataWriter.exchangeName},
 		message	= {},
 		that	= this;
@@ -220,7 +220,7 @@ Order.prototype.rm = function(cb) {
 
 	message.params.uuid	= that.uuid;
 
-	intercom.send(message, options, function(err, msgUuid) {
+	intercom.send(message, options, function (err, msgUuid) {
 		if (err) { cb(err); return; }
 
 		dataWriter.emitter.once(msgUuid, cb);
@@ -228,14 +228,14 @@ Order.prototype.rm = function(cb) {
 };
 
 // Saving the order object to the database.
-Order.prototype.save = function(cb) {
+Order.prototype.save = function (cb) {
 	const	tasks	= [],
 		that	= this;
 
 	// Await database readiness
 	tasks.push(ready);
 
-	tasks.push(function(cb) {
+	tasks.push(function (cb) {
 		const	options	= {'exchange': dataWriter.exchangeName},
 			message	= {};
 
@@ -247,14 +247,14 @@ Order.prototype.save = function(cb) {
 		message.params.fields	= that.fields;
 		message.params.rows	= that.rows;
 
-		intercom.send(message, options, function(err, msgUuid) {
+		intercom.send(message, options, function (err, msgUuid) {
 			if (err) { cb(err); return; }
 
 			dataWriter.emitter.once(msgUuid, cb);
 		});
 	});
 
-	tasks.push(function(cb) {
+	tasks.push(function (cb) {
 		that.loadFromDb(cb);
 	});
 
