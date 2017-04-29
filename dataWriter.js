@@ -42,7 +42,7 @@ function listenToQueue(retries, cb) {
 	} else if (exports.mode === 'slave' || exports.mode === 'noSync') {
 		listenMethod = 'subscribe';
 	} else {
-		const	err	= new Error('Invalid exports.mode. Must be either "master", "slave" or noSync');
+		const	err	= new Error('Invalid exports.mode. Must be either "master", "slave" or "noSync"');
 		log.error('larvitorder: dataWriter.js - listenToQueue() - ' + err.message);
 		cb(err);
 		return;
