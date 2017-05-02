@@ -75,36 +75,8 @@ before(function (done) {
 
 	// Setup intercom
 	tasks.push(function (cb) {
-		let confFile;
-
-		if (process.env.INTCONFFILE === undefined) {
-			confFile = __dirname + '/../config/amqp_test.json';
-		} else {
-			confFile = process.env.INTCONFFILE;
-		}
-
-		log.verbose('Intercom config file: "' + confFile + '"');
-
-		// First look for absolute path
-		fs.stat(confFile, function (err) {
-			if (err) {
-
-				// Then look for this string in the config folder
-				confFile = __dirname + '/../config/' + confFile;
-				fs.stat(confFile, function (err) {
-					if (err) throw err;
-					log.verbose('Intercom config: ' + JSON.stringify(require(confFile)));
-					lUtils.instances.intercom = new Intercom(require(confFile).default);
-					lUtils.instances.intercom.on('ready', cb);
-				});
-
-				return;
-			}
-
-			log.verbose('Intercom config: ' + JSON.stringify(require(confFile)));
-			lUtils.instances.intercom = new Intercom(require(confFile).default);
-			lUtils.instances.intercom.on('ready', cb);
-		});
+		lUtils.instances.intercom = new Intercom('loopback interface');
+		lUtils.instances.intercom.on('ready', cb);
 	});
 
 	tasks.push(function (cb) {

@@ -12,7 +12,7 @@ let	readyInProgress	= false,
 function ready(cb) {
 	const	tasks	= [];
 
-	if (isReady === true) { cb(); return; }
+	if (isReady === true) return cb();
 
 	if (readyInProgress === true) {
 		eventEmitter.on('ready', cb);
@@ -125,7 +125,7 @@ Orders.prototype.get = function (cb) {
 
 			tasks.push(function (cb) {
 				db.query(sql, dbFields, function (err, rows) {
-					if (err) { cb(err); return; }
+					if (err) return cb(err);
 
 					for (let i = 0; rows[i] !== undefined; i ++) {
 						rows[i].uuid	= lUtils.formatUuid(rows[i].uuid);
@@ -140,7 +140,7 @@ Orders.prototype.get = function (cb) {
 
 			tasks.push(function (cb) {
 				db.query(hitsSql, dbFields, function (err, rows) {
-					if (err) { cb(err); return; }
+					if (err) return cb(err);
 
 					hits	= rows[0].hits;
 
@@ -158,10 +158,7 @@ Orders.prototype.get = function (cb) {
 
 		let sql;
 
-		if ( ! that.returnFields || Object.keys(orders).length === 0) {
-			cb();
-			return;
-		}
+		if ( ! that.returnFields || Object.keys(orders).length === 0) return cb();
 
 		sql =  'SELECT orderUuid, name AS fieldName, fieldValue\n';
 		sql += 'FROM orders_orders_fields JOIN orders_orderFields ON fieldUuid = uuid\n';
@@ -185,7 +182,7 @@ Orders.prototype.get = function (cb) {
 		sql = sql.substring(0, sql.length - 1) + ')\n';
 
 		db.query(sql, dbFields, function (err, rows) {
-			if (err) { cb(err); return; }
+			if (err) return cb(err);
 
 			for (let i = 0; rows[i] !== undefined; i ++) {
 				const row = rows[i];
@@ -213,10 +210,7 @@ Orders.prototype.get = function (cb) {
 
 		let sql;
 
-		if (that.returnRowFields === undefined || Object.keys(orders).length === 0) {
-			cb();
-			return;
-		}
+		if (that.returnRowFields === undefined || Object.keys(orders).length === 0) return cb();
 
 		sql  = 'SELECT r.orderUuid, r.rowUuid, f.name AS fieldName, rf.rowIntValue, rf.rowStrValue\n';
 		sql += 'FROM orders_rows r\n';
@@ -240,7 +234,7 @@ Orders.prototype.get = function (cb) {
 		sql = sql.substring(0, sql.length - 1) + ')';
 
 		db.query(sql, dbFields, function (err, rows) {
-			if (err) { cb(err); return; }
+			if (err) return cb(err);
 
 			for (let i = 0; rows[i] !== undefined; i ++) {
 				const row = rows[i];
@@ -272,7 +266,7 @@ Orders.prototype.get = function (cb) {
 	});
 
 	async.series(tasks, function (err) {
-		if (err) { cb(err); return; }
+		if (err) return cb(err);
 
 		cb(null, orders, hits);
 	});

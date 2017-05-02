@@ -1,6 +1,7 @@
 'use strict';
 
-const	dataWriter	= require(__dirname + '/dataWriter.js'),
+const	topLogPrefix	= 'larvitorder: helpers.js: ',
+	dataWriter	= require(__dirname + '/dataWriter.js'),
 	uuidLib	= require('uuid'),
 	async	= require('async'),
 	log	= require('winston'),
@@ -35,7 +36,7 @@ function getFieldValues(fieldName, cb) {
 		sql += 'ORDER BY fieldValue;';
 
 		db.query(sql, [fieldName], function (err, rows) {
-			if (err) { cb(err); return; }
+			if (err) return cb(err);
 
 			for (let i = 0; rows[i] !== undefined; i ++) {
 				names.push(rows[i].fieldValue);
@@ -82,10 +83,10 @@ function getOrderFieldUuid(fieldName, cb) {
 		message.params.name	= fieldName;
 
 		intercom.send(message, options, function (err, msgUuid) {
-			if (err) { cb(err); return; }
+			if (err) return cb(err);
 
 			dataWriter.emitter.once(msgUuid, function (err) {
-				if (err) { cb(err); return; }
+				if (err) return cb(err);
 
 				loadOrderFieldsToCache(cb);
 			});
@@ -93,7 +94,7 @@ function getOrderFieldUuid(fieldName, cb) {
 	});
 
 	async.series(tasks, function (err) {
-		if (err) { cb(err); return; }
+		if (err) return cb(err);
 
 		getOrderFieldUuid(fieldName, cb);
 	});
@@ -114,7 +115,7 @@ function getOrderFieldUuids(fieldNames, cb) {
 
 		tasks.push(function (cb) {
 			getOrderFieldUuid(fieldName, function (err, fieldUuid) {
-				if (err) { cb(err); return; }
+				if (err) return cb(err);
 
 				fieldUuidsByName[fieldName] = fieldUuid;
 				cb();
@@ -123,26 +124,25 @@ function getOrderFieldUuids(fieldNames, cb) {
 	}
 
 	async.parallel(tasks, function (err) {
-		if (err) { cb(err); return; }
+		if (err) return cb(err);
 
 		cb(null, fieldUuidsByName);
 	});
 };
 
 function getRowFieldUuid(rowFieldName, cb) {
-	const	tasks	= [];
+	const	logPrefix	= topLogPrefix + 'getRowFieldUuid() - ',
+		tasks	= [];
 
 	if (rowFieldName === 'uuid') {
 		const	err	= new Error('Row field "uuid" is reserved and have no uuid');
-		log.warn('larvitorder: helpers.js - getRowFieldUuid() - ' + err.message);
-		cb(err);
-		return;
+		log.warn(logPrefix + '' + err.message);
+		return cb(err);
 	}
 
 	for (let i = 0; exports.rowFields[i] !== undefined; i ++) {
 		if (exports.rowFields[i].name === rowFieldName) {
-			cb(null, exports.rowFields[i].uuid);
-			return;
+			return cb(null, exports.rowFields[i].uuid);
 		}
 	}
 
@@ -168,9 +168,9 @@ function getRowFieldUuid(rowFieldName, cb) {
 		message.params.name	= rowFieldName;
 
 		intercom.send(message, options, function (err, msgUuid) {
-			if (err) { cb(err); return; }
+			if (err) return cb(err);
 			dataWriter.emitter.once(msgUuid, function (err) {
-				if (err) { cb(err); return; }
+				if (err) return cb(err);
 
 				loadRowFieldsToCache(cb);
 			});
@@ -178,7 +178,7 @@ function getRowFieldUuid(rowFieldName, cb) {
 	});
 
 	async.series(tasks, function (err) {
-		if (err) { cb(err); return; }
+		if (err) return cb(err);
 
 		getRowFieldUuid(rowFieldName, cb);
 	});
@@ -201,7 +201,7 @@ function getRowFieldUuids(rowFieldNames, cb) {
 
 		tasks.push(function (cb) {
 			getRowFieldUuid(rowFieldName, function (err, fieldUuid) {
-				if (err) { cb(err); return; }
+				if (err) return cb(err);
 
 				rowFieldUuidsByName[rowFieldName] = fieldUuid;
 				cb();
@@ -210,7 +210,7 @@ function getRowFieldUuids(rowFieldNames, cb) {
 	}
 
 	async.parallel(tasks, function (err) {
-		if (err) { cb(err); return; }
+		if (err) return cb(err);
 
 		cb(null, rowFieldUuidsByName);
 	});
@@ -218,10 +218,7 @@ function getRowFieldUuids(rowFieldNames, cb) {
 
 function loadOrderFieldsToCache(cb) {
 	db.query('SELECT * FROM orders_orderFields ORDER BY name;', function (err, rows) {
-		if (err) {
-			log.error('larvitorder: helpers.js - loadOrderFieldsToCache() - Database error: ' + err.message);
-			return;
-		}
+		if (err) return;
 
 		// Empty the previous cache
 		exports.orderFields.length = 0;
@@ -237,10 +234,7 @@ function loadOrderFieldsToCache(cb) {
 
 function loadRowFieldsToCache(cb) {
 	db.query('SELECT * FROM orders_rowFields ORDER BY name;', function (err, rows) {
-		if (err) {
-			log.error('larvitorder: helpers.js - loadRowFieldsToCache() - Database error: ' + err.message);
-			return;
-		}
+		if (err) return;
 
 		// Empty the previous cache
 		exports.rowFields.length = 0;

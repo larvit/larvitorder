@@ -2,6 +2,7 @@
 
 const	EventEmitter	= require('events').EventEmitter,
 	eventEmitter	= new EventEmitter(),
+	topLogPrefix	= 'larvitorder: order.js: ',
 	dataWriter	= require(__dirname + '/dataWriter.js'),
 	helpers	= require(__dirname + '/helpers.js'),
 	uuidLib	= require('uuid'),
@@ -17,7 +18,7 @@ let	readyInProgress	= false,
 function ready(cb) {
 	const	tasks	= [];
 
-	if (isReady === true) { cb(); return; }
+	if (isReady === true) return cb();
 
 	if (readyInProgress === true) {
 		eventEmitter.on('ready', cb);
@@ -50,6 +51,8 @@ function ready(cb) {
 }
 
 function Order(options) {
+	const	logPrefix	= topLogPrefix + 'Order() - ';
+
 	if (options === undefined) {
 		options = {};
 	}
@@ -58,9 +61,12 @@ function Order(options) {
 	if (typeof options === 'string') {
 		this.uuid	= options;
 		options	= {};
-	} else {
+		log.debug(logPrefix + 'Using uuid: "' + this.uuid + '"');
+	} else if (options.uuid === undefined) {
 		this.uuid	= uuidLib.v1();
-		log.verbose('larvitorder: New Order - Creating Order with uuid: ' + this.uuid);
+		log.verbose(logPrefix + 'New Order - Creating Order with uuid: ' + this.uuid);
+	} else {
+		log.debug(logPrefix + 'Using uuid: "' + this.uuid + '"');
 	}
 
 	this.created	= new Date();
@@ -84,16 +90,17 @@ function Order(options) {
 }
 
 Order.prototype.loadFromDb = function (cb) {
-	const	tasks	= [],
+	const	logPrefix	= topLogPrefix + 'Order.prototype.loadFromDb() - uuid: "' + this.uuid + '" - ',
+		tasks	= [],
 		that	= this;
 
 	tasks.push(ready);
 
 	// Get basic order data
 	tasks.push(function (cb) {
-		log.debug('larvitorder: getOrder() - Getting order: ' + that.uuid);
+		log.debug(logPrefix + 'Getting basic order data');
 		db.query('SELECT * FROM orders WHERE uuid = ?', [lUtils.uuidToBuffer(that.uuid)], function (err, rows) {
-			if (err) { cb(err); return; }
+			if (err) return cb(err);
 
 			if (rows.length) {
 				that.uuid	= lUtils.formatUuid(rows[0].uuid);
@@ -135,7 +142,7 @@ Order.prototype.getOrderFields = function (cb) {
 
 	ready(function () {
 		db.query(sql, [lUtils.uuidToBuffer(that.uuid)], function (err, data) {
-			if (err) { cb(err); return; }
+			if (err) return cb(err);
 
 			for (let i = 0; data.length > i; i ++) {
 				if (fields[data[i].name] !== undefined) {
@@ -166,7 +173,7 @@ Order.prototype.getOrderRows = function (cb) {
 
 	ready(function () {
 		db.query(sql, [lUtils.uuidToBuffer(that.uuid)], function (err, data) {
-			if (err) { cb(err); return; }
+			if (err) return cb(err);
 
 			for (let i = 0; data.length > i; i ++) {
 				let value;
@@ -221,7 +228,7 @@ Order.prototype.rm = function (cb) {
 	message.params.uuid	= that.uuid;
 
 	intercom.send(message, options, function (err, msgUuid) {
-		if (err) { cb(err); return; }
+		if (err) return cb(err);
 
 		dataWriter.emitter.once(msgUuid, cb);
 	});
@@ -248,7 +255,7 @@ Order.prototype.save = function (cb) {
 		message.params.rows	= that.rows;
 
 		intercom.send(message, options, function (err, msgUuid) {
-			if (err) { cb(err); return; }
+			if (err) return cb(err);
 
 			dataWriter.emitter.once(msgUuid, cb);
 		});

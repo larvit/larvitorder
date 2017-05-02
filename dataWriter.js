@@ -2,6 +2,7 @@
 
 const	EventEmitter	= require('events').EventEmitter,
 	eventEmitter	= new EventEmitter(),
+	topLogPrefix	= 'larvitorder: dataWriter.js: ',
 	DbMigration	= require('larvitdbmigration'),
 	helpers	= require(__dirname + '/helpers.js'),
 	uuidLib	= require('uuid'),
@@ -16,7 +17,8 @@ let	readyInProgress	= false,
 	intercom;
 
 function listenToQueue(retries, cb) {
-	const	options	= {'exchange': exports.exchangeName};
+	const	logPrefix	= topLogPrefix + 'listenToQueue() - ',
+		options	= {'exchange': exports.exchangeName};
 
 	let	listenMethod;
 
@@ -43,9 +45,8 @@ function listenToQueue(retries, cb) {
 		listenMethod = 'subscribe';
 	} else {
 		const	err	= new Error('Invalid exports.mode. Must be either "master", "slave" or "noSync"');
-		log.error('larvitorder: dataWriter.js - listenToQueue() - ' + err.message);
-		cb(err);
-		return;
+		log.error(logPrefix + err.message);
+		return cb(err);
 	}
 
 	intercom	= require('larvitutils').instances.intercom;
@@ -57,15 +58,15 @@ function listenToQueue(retries, cb) {
 		}, 50);
 		return;
 	} else if ( ! (intercom instanceof require('larvitamintercom'))) {
-		log.error('larvitorder: dataWriter.js - listenToQueue() - Intercom is not set!');
+		log.error(logPrefix + 'Intercom is not set!');
 		return;
 	}
 
-	log.info('larvitorder: dataWriter.js - listenToQueue() - listenMethod: ' + listenMethod);
+	log.info(logPrefix + 'listenMethod: ' + listenMethod);
 
 	intercom.ready(function (err) {
 		if (err) {
-			log.error('larvitorder: dataWriter.js - listenToQueue() - intercom.ready() err: ' + err.message);
+			log.error(logPrefix + 'intercom.ready() err: ' + err.message);
 			return;
 		}
 
@@ -74,19 +75,19 @@ function listenToQueue(retries, cb) {
 				ack(err); // Ack first, if something goes wrong we log it and handle it manually
 
 				if (err) {
-					log.error('larvitorder: dataWriter.js - listenToQueue() - intercom.' + listenMethod + '() - exports.ready() returned err: ' + err.message);
+					log.error(logPrefix + 'intercom.' + listenMethod + '() - exports.ready() returned err: ' + err.message);
 					return;
 				}
 
 				if (typeof message !== 'object') {
-					log.error('larvitorder: dataWriter.js - listenToQueue() - intercom.' + listenMethod + '() - Invalid message received, is not an object! deliveryTag: "' + deliveryTag + '"');
+					log.error(logPrefix + 'intercom.' + listenMethod + '() - Invalid message received, is not an object! deliveryTag: "' + deliveryTag + '"');
 					return;
 				}
 
 				if (typeof exports[message.action] === 'function') {
 					exports[message.action](message.params, deliveryTag, message.uuid);
 				} else {
-					log.warn('larvitorder: dataWriter.js - listenToQueue() - intercom.' + listenMethod + '() - Unknown message.action received: "' + message.action + '"');
+					log.warn(logPrefix + 'intercom.' + listenMethod + '() - Unknown message.action received: "' + message.action + '"');
 				}
 			});
 		}, ready);
@@ -98,7 +99,8 @@ setImmediate(listenToQueue);
 
 // This is ran before each incoming message on the queue is handeled
 function ready(retries, cb) {
-	const	tasks	= [];
+	const	logPrefix	= topLogPrefix + 'ready() - ',
+		tasks	= [];
 
 	if (typeof retries === 'function') {
 		cb	= retries;
@@ -129,14 +131,14 @@ function ready(retries, cb) {
 		}, 50);
 		return;
 	} else if ( ! (intercom instanceof require('larvitamintercom'))) {
-		log.error('larvitorder: dataWriter.js - ready() - Intercom is not set!');
+		log.error(logPrefix + 'Intercom is not set!');
 		return;
 	}
 
 	readyInProgress = true;
 
 	if (exports.mode === 'both' || exports.mode === 'slave') {
-		log.verbose('larvitorder: dataWriter.js - ready() - exports.mode: "' + exports.mode + '", so read');
+		log.verbose(logPrefix + 'exports.mode: "' + exports.mode + '", so read');
 
 		tasks.push(function (cb) {
 			amsync.mariadb({'exchange': exports.exchangeName + '_dataDump'}, cb);
@@ -157,7 +159,7 @@ function ready(retries, cb) {
 
 		dbMigration.run(function (err) {
 			if (err) {
-				log.error('larvitorder: dataWriter.js - ready() - Database error: ' + err.message);
+				log.error(logPrefix + 'Database error: ' + err.message);
 			}
 
 			cb(err);
@@ -165,9 +167,7 @@ function ready(retries, cb) {
 	});
 
 	async.series(tasks, function (err) {
-		if (err) {
-			return;
-		}
+		if (err) return;
 
 		isReady	= true;
 		eventEmitter.emit('ready');
@@ -260,6 +260,7 @@ function runDumpServer(cb) {
 
 function writeOrder(params, deliveryTag, msgUuid, cb) {
 	const	orderFields	= params.fields,
+		logPrefix	= topLogPrefix + 'writeOrder() - ',
 		orderRows	= params.rows,
 		orderUuid	= params.uuid,
 		orderUuidBuf	= lUtils.uuidToBuffer(orderUuid),
@@ -275,7 +276,7 @@ function writeOrder(params, deliveryTag, msgUuid, cb) {
 
 	if (lUtils.formatUuid(orderUuid) === false || orderUuidBuf === false) {
 		const err = new Error('Invalid orderUuid: "' + orderUuid + '"');
-		log.error('larvitorder: ./dataWriter.js - writeOrder() - ' + err.message);
+		log.error(logPrefix + err.message);
 		exports.emitter.emit(orderUuid, err);
 		return;
 	}
@@ -429,10 +430,7 @@ function writeOrder(params, deliveryTag, msgUuid, cb) {
 			}
 		}
 
-		if (dbFields.length === 0) {
-			cb();
-			return;
-		}
+		if (dbFields.length === 0) return cb();
 
 		sql = sql.substring(0, sql.length - 1) + ';';
 

@@ -5,7 +5,6 @@ env:
 
 node_js:
   - 4
-  - 5
   - 6
   - 7
 
@@ -28,7 +27,6 @@ before_script:
 
 services:
   - mysql
-  - rabbitmq
 
 addons:
   apt:
@@ -37,4 +35,4 @@ addons:
     packages:
     - g++-4.8
 
-script: DBCONFFILE=db_travis.json INTCONFFILE=amqp_travis.json npm test
+script: DBCONFFILE=db_travis.json npm test
