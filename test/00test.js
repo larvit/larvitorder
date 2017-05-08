@@ -138,6 +138,24 @@ describe('Order', function () {
 		});
 	});
 
+	it('should instantiate a new plain order object, with custom uuid via object option', function (done) {
+		const	orderUuid	= '50035cee-3403-11e7-a919-92ebcb67fe33',
+			order	= new orderLib.Order({'uuid': orderUuid});
+
+		order.loadFromDb(function (err) {
+			if (err) throw err;
+
+			assert.deepEqual(toString.call(order),	'[object Object]');
+			assert.deepEqual(uuidValidate(order.uuid, 1),	true);
+			assert.deepEqual(order.uuid,	orderUuid);
+			assert.deepEqual(toString.call(order.created),	'[object Date]');
+			assert.deepEqual(order.rows instanceof Array,	true);
+			assert.deepEqual(order.rows.length,	0);
+
+			done();
+		});
+	});
+
 	it('should save an order', function (done) {
 		function createOrder(cb) {
 			const order = new orderLib.Order();

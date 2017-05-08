@@ -59,17 +59,28 @@ function Order(options) {
 
 	// If options is a string, assume it is an uuid
 	if (typeof options === 'string') {
-		this.uuid	= options;
-		options	= {};
-		log.debug(logPrefix + 'Using uuid: "' + this.uuid + '"');
-	} else if (options.uuid === undefined) {
-		this.uuid	= uuidLib.v1();
-		log.verbose(logPrefix + 'New Order - Creating Order with uuid: ' + this.uuid);
-	} else {
-		log.debug(logPrefix + 'Using uuid: "' + this.uuid + '"');
+		options = {'uuid': options};
 	}
 
-	this.created	= new Date();
+	if (options.uuid === undefined) {
+		options.uuid	= uuidLib.v1();
+		log.verbose(logPrefix + 'New Order - Creating Order with uuid: ' + options.uuid);
+	} else {
+		log.verbose(logPrefix + 'Instanciating order with uuid: ' + options.uuid);
+	}
+
+	this.uuid	= options.uuid;
+
+	if (options.created !== undefined) {
+		this.created	= options.created;
+	} else {
+		this.created	= new Date();
+	}
+
+	if ( ! (this.created instanceof Date)) {
+		throw new Error('created is not an instance of Date');
+	}
+
 	this.fields	= options.fields;
 	this.ready	= ready; // To expose to the outside world
 	this.rows	= options.rows;
