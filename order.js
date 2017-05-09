@@ -51,7 +51,11 @@ function ready(cb) {
 }
 
 function Order(options) {
-	const	logPrefix	= topLogPrefix + 'Order() - ';
+	return this.init(options);
+}
+
+Order.prototype.init = function (options) {
+	const	logPrefix	= topLogPrefix + 'Order.prototype.init() - ';
 
 	if (options === undefined) {
 		options = {};
@@ -98,7 +102,7 @@ function Order(options) {
 			this.rows[i].uuid = uuidLib.v1();
 		}
 	}
-}
+};
 
 Order.prototype.loadFromDb = function (cb) {
 	const	logPrefix	= topLogPrefix + 'Order.prototype.loadFromDb() - uuid: "' + this.uuid + '" - ',

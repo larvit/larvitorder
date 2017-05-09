@@ -367,10 +367,7 @@ function writeOrder(params, deliveryTag, msgUuid, cb) {
 			dbFields.push(orderUuidBuf);
 		}
 
-		if (dbFields.length === 0) {
-			cb();
-			return;
-		}
+		if (dbFields.length === 0) return cb();
 
 		sql = sql.substring(0, sql.length - 1);
 		db.query(sql, dbFields, cb);
@@ -406,6 +403,8 @@ function writeOrder(params, deliveryTag, msgUuid, cb) {
 			const	row	= orderRows[i];
 
 			for (const rowFieldName of Object.keys(row)) {
+				const	rowUuidBuff	= lUtils.uuidToBuffer(row.uuid);
+
 				if (rowFieldName === 'uuid') continue;
 
 				if ( ! (row[rowFieldName] instanceof Array)) {
@@ -416,7 +415,7 @@ function writeOrder(params, deliveryTag, msgUuid, cb) {
 					const rowFieldValue = row[rowFieldName][i];
 
 					sql += '(?,?,?,?),';
-					dbFields.push(lUtils.uuidToBuffer(row.uuid));
+					dbFields.push(rowUuidBuff);
 					dbFields.push(rowFieldUuidsByName[rowFieldName]);
 
 					if (typeof rowFieldValue === 'number' && (rowFieldValue % 1) === 0) {
@@ -434,7 +433,17 @@ function writeOrder(params, deliveryTag, msgUuid, cb) {
 
 		sql = sql.substring(0, sql.length - 1) + ';';
 
-		db.query(sql, dbFields, cb);
+		db.query(sql, dbFields, function (err) {
+			if (err) {
+				try {
+					log.error(logPrefix + 'Full order params: ' + JSON.stringify(params));
+				} catch (err) {
+					log.error(logPrefix + 'Could not log proder params: ' + err.message);
+				}
+			}
+
+			cb(err);
+		});
 	});
 
 	async.series(tasks, function (err) {
