@@ -122,6 +122,8 @@ function ready(retries, cb) {
 		return;
 	}
 
+	readyInProgress = true;
+
 	intercom	= require('larvitutils').instances.intercom;
 
 	if ( ! (intercom instanceof require('larvitamintercom')) && retries < 10) {
@@ -134,8 +136,6 @@ function ready(retries, cb) {
 		log.error(logPrefix + 'Intercom is not set!');
 		return;
 	}
-
-	readyInProgress = true;
 
 	if (exports.mode === 'both' || exports.mode === 'slave') {
 		log.verbose(logPrefix + 'exports.mode: "' + exports.mode + '", so read');
