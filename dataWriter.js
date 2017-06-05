@@ -267,8 +267,9 @@ function writeOrder(params, deliveryTag, msgUuid, cb) {
 		created	= params.created,
 		tasks	= [];
 
-	let	fieldUuidsByName,
-		rowFieldUuidsByName;
+	let	rowFieldUuidsByName,
+		fieldUuidsByName,
+		dbCon;
 
 	if (typeof cb !== 'function') {
 		cb = function () {};
@@ -281,36 +282,6 @@ function writeOrder(params, deliveryTag, msgUuid, cb) {
 		return;
 	}
 
-	// Make sure the base order row exists
-	tasks.push(function (cb) {
-		const	sql	= 'INSERT IGNORE INTO orders (uuid, created) VALUES(?,?)';
-
-		db.query(sql, [orderUuidBuf, created], cb);
-	});
-
-	// Clean out old field data
-	tasks.push(function (cb) {
-		db.query('DELETE FROM orders_orders_fields WHERE orderUuid = ?', [orderUuidBuf], cb);
-	});
-
-	// Clean out old row field data
-	tasks.push(function (cb) {
-		const	dbFields	= [orderUuidBuf],
-			sql	= 'DELETE FROM orders_rows_fields WHERE rowUuid IN (SELECT rowUuid FROM orders_rows WHERE orderUuid = ?)';
-
-		db.query(sql, dbFields, cb);
-	});
-
-	// Clean out old rows
-	tasks.push(function (cb) {
-		const	dbFields	= [orderUuidBuf],
-			sql	= 'DELETE FROM orders_rows WHERE orderUuid = ?';
-
-		db.query(sql, dbFields, cb);
-	});
-
-	// By now we have a clean database, lets insert stuff!
-
 	// Get all field ids
 	tasks.push(function (cb) {
 		helpers.getOrderFieldUuids(Object.keys(orderFields), function (err, result) {
@@ -318,6 +289,64 @@ function writeOrder(params, deliveryTag, msgUuid, cb) {
 			cb(err);
 		});
 	});
+
+	// Get all row field uuids
+	tasks.push(function (cb) {
+		const	rowFieldNames	= [];
+
+		for (let i = 0; orderRows[i] !== undefined; i ++) {
+			const	row	= orderRows[i];
+
+			for (const rowFieldName of Object.keys(row)) {
+				if (rowFieldNames.indexOf(rowFieldName) === - 1) {
+					rowFieldNames.push(rowFieldName);
+				}
+			}
+		}
+
+		helpers.getRowFieldUuids(rowFieldNames, function (err, result) {
+			rowFieldUuidsByName = result;
+			cb(err);
+		});
+	});
+
+	// Get a database connection
+	tasks.push(function (cb) {
+		db.getConnection(function(err, result) {
+			dbCon	= result;
+			cb(err);
+		});
+	});
+
+	// Make sure the base order row exists
+	tasks.push(function (cb) {
+		const	sql	= 'INSERT IGNORE INTO orders (uuid, created) VALUES(?,?)';
+
+		dbCon.query(sql, [orderUuidBuf, created], cb);
+	});
+
+	// Clean out old field data
+	tasks.push(function (cb) {
+		dbCon.query('DELETE FROM orders_orders_fields WHERE orderUuid = ?', [orderUuidBuf], cb);
+	});
+
+	// Clean out old row field data
+	tasks.push(function (cb) {
+		const	dbFields	= [orderUuidBuf],
+			sql	= 'DELETE FROM orders_rows_fields WHERE rowUuid IN (SELECT rowUuid FROM orders_rows WHERE orderUuid = ?)';
+
+		dbCon.query(sql, dbFields, cb);
+	});
+
+	// Clean out old rows
+	tasks.push(function (cb) {
+		const	dbFields	= [orderUuidBuf],
+			sql	= 'DELETE FROM orders_rows WHERE orderUuid = ?';
+
+		dbCon.query(sql, dbFields, cb);
+	});
+
+	// By now we have a clean database, lets insert stuff!
 
 	// Insert fields
 	tasks.push(function (cb) {
@@ -345,7 +374,7 @@ function writeOrder(params, deliveryTag, msgUuid, cb) {
 		}
 
 		sql = sql.substring(0, sql.length - 1) + ';';
-		db.query(sql, dbFields, cb);
+		dbCon.query(sql, dbFields, cb);
 	});
 
 	// Insert rows
@@ -370,27 +399,7 @@ function writeOrder(params, deliveryTag, msgUuid, cb) {
 		if (dbFields.length === 0) return cb();
 
 		sql = sql.substring(0, sql.length - 1);
-		db.query(sql, dbFields, cb);
-	});
-
-	// Get all row field uuids
-	tasks.push(function (cb) {
-		const	rowFieldNames	= [];
-
-		for (let i = 0; orderRows[i] !== undefined; i ++) {
-			const	row	= orderRows[i];
-
-			for (const rowFieldName of Object.keys(row)) {
-				if (rowFieldNames.indexOf(rowFieldName) === - 1) {
-					rowFieldNames.push(rowFieldName);
-				}
-			}
-		}
-
-		helpers.getRowFieldUuids(rowFieldNames, function (err, result) {
-			rowFieldUuidsByName = result;
-			cb(err);
-		});
+		dbCon.query(sql, dbFields, cb);
 	});
 
 	// Insert row fields
@@ -433,7 +442,7 @@ function writeOrder(params, deliveryTag, msgUuid, cb) {
 
 		sql = sql.substring(0, sql.length - 1) + ';';
 
-		db.query(sql, dbFields, function (err) {
+		dbCon.query(sql, dbFields, function (err) {
 			if (err) {
 				try {
 					log.error(logPrefix + 'Full order params: ' + JSON.stringify(params));
@@ -447,8 +456,37 @@ function writeOrder(params, deliveryTag, msgUuid, cb) {
 	});
 
 	async.series(tasks, function (err) {
+		if (dbCon) {
+			if (err) {
+				return dbCon.rollback(function (rollErr) {
+					if (rollErr) {
+						log.error(logPrefix + 'Could not rollback: ' + rollErr.message);
+					}
+					exports.emitter.emit(msgUuid, err);
+					return cb(err);
+				});
+			}
+
+			dbCon.commit(function (err) {
+				if (err) {
+					return dbCon.rollback(function (rollErr) {
+						if (rollErr) {
+							log.error(logPrefix + 'Could not rollback: ' + rollErr.message);
+						}
+						exports.emitter.emit(msgUuid, err);
+						return cb(err);
+					});
+				}
+
+				exports.emitter.emit(msgUuid, null);
+				return cb();
+			});
+
+			return;
+		}
+
 		exports.emitter.emit(msgUuid, err);
-		cb(err);
+		return cb(err);
 	});
 }
 
