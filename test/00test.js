@@ -154,7 +154,7 @@ describe('Order', function () {
 
 			done();
 		});
-	});
+	}); 
 
 	it('should save an order', function (done) {
 		function createOrder(cb) {
@@ -904,6 +904,25 @@ describe('Orders', function () {
 
 			done();
 		});
+	});
+});
+
+describe('Edge cases', function () {
+
+	it('should save an order 12 times', function (done) {
+		const tasks = [],
+			order = new orderLib.Order();
+
+		order.fields	= {'firstname': 'Migal', 'lastname': ['Göransson', 'Kollektiv'], 'active': 'true'};
+		order.rows	= [{'price': 399, 'name': 'plutt'}, {'price': 34, 'tags': ['foo', 'bar']}];
+
+		for (let i = 0; i < 12; i ++) {
+			tasks.push(function (cb) {
+				order.save(cb);
+			});
+		}
+
+		async.series(tasks, done);
 	});
 });
 
