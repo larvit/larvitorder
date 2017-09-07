@@ -312,7 +312,7 @@ function writeOrder(params, deliveryTag, msgUuid, cb) {
 
 	// Get a database connection
 	tasks.push(function (cb) {
-		db.getConnection(function(err, result) {
+		db.pool.getConnection(function(err, result) {
 			dbCon	= result;
 			cb(err);
 		});
@@ -463,6 +463,7 @@ function writeOrder(params, deliveryTag, msgUuid, cb) {
 						log.error(logPrefix + 'Could not rollback: ' + rollErr.message);
 					}
 					exports.emitter.emit(msgUuid, err);
+					dbCon.release();
 					return cb(err);
 				});
 			}
@@ -474,11 +475,13 @@ function writeOrder(params, deliveryTag, msgUuid, cb) {
 							log.error(logPrefix + 'Could not rollback: ' + rollErr.message);
 						}
 						exports.emitter.emit(msgUuid, err);
+						dbCon.release();
 						return cb(err);
 					});
 				}
 
 				exports.emitter.emit(msgUuid, null);
+				dbCon.release();
 				return cb();
 			});
 
