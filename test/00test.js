@@ -154,7 +154,7 @@ describe('Order', function () {
 
 			done();
 		});
-	}); 
+	});
 
 	it('should save an order', function (done) {
 		function createOrder(cb) {
@@ -908,7 +908,6 @@ describe('Orders', function () {
 });
 
 describe('Edge cases', function () {
-
 	it('should save an order 12 times', function (done) {
 		const tasks = [],
 			order = new orderLib.Order();
@@ -921,6 +920,18 @@ describe('Edge cases', function () {
 				order.save(cb);
 			});
 		}
+
+		tasks.push(function (cb) {
+			const	sql	= 'SELECT of.*, f.name AS fieldName FROM orders_orders_fields of JOIN orders_orderFields f ON f.uuid = of.fieldUuid WHERE orderUuid = ?';
+
+			db.query(sql, lUtils.uuidToBuffer(order.uuid), function (err, rows) {
+				if (err) throw err;
+
+				// Check the amount of saved order fields.
+				assert.strictEqual(rows.length,	4);
+				cb();
+			});
+		});
 
 		async.series(tasks, done);
 	});
