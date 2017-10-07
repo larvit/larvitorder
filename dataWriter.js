@@ -4,6 +4,7 @@ const	EventEmitter	= require('events').EventEmitter,
 	eventEmitter	= new EventEmitter(),
 	topLogPrefix	= 'larvitorder: dataWriter.js: ',
 	DbMigration	= require('larvitdbmigration'),
+	Intercom	= require('larvitamintercom'),
 	helpers	= require(__dirname + '/helpers.js'),
 	uuidLib	= require('uuid'),
 	lUtils	= require('larvitutils'),
@@ -49,15 +50,15 @@ function listenToQueue(retries, cb) {
 		return cb(err);
 	}
 
-	intercom	= require('larvitutils').instances.intercom;
+	intercom	= lUtils.instances.intercom;
 
-	if ( ! (intercom instanceof require('larvitamintercom')) && retries < 10) {
+	if ( ! (intercom instanceof Intercom) && retries < 10) {
 		retries ++;
 		setTimeout(function () {
 			listenToQueue(retries, cb);
 		}, 50);
 		return;
-	} else if ( ! (intercom instanceof require('larvitamintercom'))) {
+	} else if ( ! (intercom instanceof Intercom)) {
 		log.error(logPrefix + 'Intercom is not set!');
 		return;
 	}
@@ -122,15 +123,15 @@ function ready(retries, cb) {
 		return;
 	}
 
-	intercom	= require('larvitutils').instances.intercom;
+	intercom	= lUtils.instances.intercom;
 
-	if ( ! (intercom instanceof require('larvitamintercom')) && retries < 10) {
+	if ( ! (intercom instanceof Intercom) && retries < 10) {
 		retries ++;
 		setTimeout(function () {
 			ready(retries, cb);
 		}, 50);
 		return;
-	} else if ( ! (intercom instanceof require('larvitamintercom'))) {
+	} else if ( ! (intercom instanceof Intercom)) {
 		log.error(logPrefix + 'Intercom is not set!');
 		return;
 	}
