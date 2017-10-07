@@ -445,6 +445,7 @@ function writeOrder(params, deliveryTag, msgUuid, cb) {
 		dbCon.query(sql, dbFields, function (err) {
 			if (err) {
 				try {
+					log.error(logPrefix + 'db err: ' + err.message);
 					log.error(logPrefix + 'Full order params: ' + JSON.stringify(params));
 				} catch (err) {
 					log.error(logPrefix + 'Could not log proder params: ' + err.message);
