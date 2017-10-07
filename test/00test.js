@@ -1,7 +1,6 @@
 'use strict';
 
 const	uuidValidate	= require('uuid-validate'),
-	Intercom	= require('larvitamintercom'),
 	orderLib	= require(__dirname + '/../index.js'),
 	uuidLib	= require('uuid'),
 	assert	= require('assert'),
@@ -12,8 +11,6 @@ const	uuidValidate	= require('uuid-validate'),
 	fs	= require('fs');
 
 let	noFieldsOrderUuid;
-
-orderLib.dataWriter.mode = 'master';
 
 // Set up winston
 log.remove(log.transports.Console);
@@ -71,12 +68,6 @@ before(function (done) {
 
 			cb();
 		});
-	});
-
-	// Setup intercom
-	tasks.push(function (cb) {
-		lUtils.instances.intercom = new Intercom('loopback interface');
-		lUtils.instances.intercom.on('ready', cb);
 	});
 
 	tasks.push(function (cb) {

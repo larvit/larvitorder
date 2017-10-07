@@ -14,12 +14,12 @@ const	EventEmitter	= require('events').EventEmitter,
 	db	= require('larvitdb');
 
 let	readyInProgress	= false,
-	isReady	= false,
-	intercom;
+	isReady	= false;
 
 function listenToQueue(retries, cb) {
 	const	logPrefix	= topLogPrefix + 'listenToQueue() - ',
-		options	= {'exchange': exports.exchangeName};
+		options	= {'exchange': exports.exchangeName},
+		tasks	= [];
 
 	let	listenMethod;
 
@@ -36,67 +36,120 @@ function listenToQueue(retries, cb) {
 		retries = 0;
 	}
 
-	if (exports.mode === 'master') {
-		listenMethod	= 'consume';
-		options.exclusive	= true;	// It is important no other client tries to sneak
-				// out messages from us, and we want "consume"
-				// since we want the queue to persist even if this
-				// minion goes offline.
-	} else if (exports.mode === 'slave' || exports.mode === 'noSync') {
-		listenMethod = 'subscribe';
-	} else {
-		const	err	= new Error('Invalid exports.mode. Must be either "master", "slave" or "noSync"');
-		log.error(logPrefix + err.message);
-		return cb(err);
-	}
+	tasks.push(checkIntercom);
+	tasks.push(checkMode);
 
-	intercom	= lUtils.instances.intercom;
-
-	if ( ! (intercom instanceof Intercom) && retries < 10) {
-		retries ++;
-		setTimeout(function () {
-			listenToQueue(retries, cb);
-		}, 50);
-		return;
-	} else if ( ! (intercom instanceof Intercom)) {
-		log.error(logPrefix + 'Intercom is not set!');
-		return;
-	}
-
-	log.info(logPrefix + 'listenMethod: ' + listenMethod);
-
-	intercom.ready(function (err) {
-		if (err) {
-			log.error(logPrefix + 'intercom.ready() err: ' + err.message);
-			return;
+	tasks.push(function (cb) {
+		if (exports.mode === 'master') {
+			listenMethod	= 'consume';
+			options.exclusive	= true;	// It is important no other client tries to sneak
+					// out messages from us, and we want "consume"
+					// since we want the queue to persist even if this
+					// minion goes offline.
+		} else if (exports.mode === 'slave' || exports.mode === 'noSync') {
+			listenMethod = 'subscribe';
 		}
 
-		intercom[listenMethod](options, function (message, ack, deliveryTag) {
-			exports.ready(function (err) {
-				ack(err); // Ack first, if something goes wrong we log it and handle it manually
+		log.info(logPrefix + 'listenMethod: ' + listenMethod);
 
-				if (err) {
-					log.error(logPrefix + 'intercom.' + listenMethod + '() - exports.ready() returned err: ' + err.message);
-					return;
-				}
+		cb();
+	});
 
-				if (typeof message !== 'object') {
-					log.error(logPrefix + 'intercom.' + listenMethod + '() - Invalid message received, is not an object! deliveryTag: "' + deliveryTag + '"');
-					return;
-				}
+	async.series(tasks, function (err) {
+		if (err) throw err;
 
-				if (typeof exports[message.action] === 'function') {
-					exports[message.action](message.params, deliveryTag, message.uuid);
-				} else {
-					log.warn(logPrefix + 'intercom.' + listenMethod + '() - Unknown message.action received: "' + message.action + '"');
-				}
-			});
-		}, ready);
+		exports.intercom.ready(function (err) {
+			if (err) {
+				log.error(logPrefix + 'intercom.ready() err: ' + err.message);
+				return;
+			}
+
+			exports.intercom[listenMethod](options, function (message, ack, deliveryTag) {
+				exports.ready(function (err) {
+					ack(err); // Ack first, if something goes wrong we log it and handle it manually
+
+					if (err) {
+						log.error(logPrefix + 'intercom.' + listenMethod + '() - exports.ready() returned err: ' + err.message);
+						return;
+					}
+
+					if (typeof message !== 'object') {
+						log.error(logPrefix + 'intercom.' + listenMethod + '() - Invalid message received, is not an object! deliveryTag: "' + deliveryTag + '"');
+						return;
+					}
+
+					if (typeof exports[message.action] === 'function') {
+						exports[message.action](message.params, deliveryTag, message.uuid);
+					} else {
+						log.warn(logPrefix + 'intercom.' + listenMethod + '() - Unknown message.action received: "' + message.action + '"');
+					}
+				});
+			}, ready);
+		});
 	});
 }
-// Run listenToQueue as soon as all I/O is done, this makes sure the exports.mode can be set
-// by the application before listening commences
-setImmediate(listenToQueue);
+listenToQueue();
+
+function checkIntercom(firstRun, cb) {
+	const	logPrefix	= topLogPrefix + 'checkIntercom() - ';
+
+	if (typeof firstRun === 'function') {
+		cb	= firstRun;
+		firstRun	= true;
+	} else if (firstRun === undefined) {
+		firstRun	= true;
+		cb	= function () {};
+	}
+
+	if (exports.intercom instanceof Intercom) {
+		log.debug(logPrefix + 'exports.intercom is set, no modification needed');
+	} else if (lUtils.instances.intercom instanceof Intercom) {
+		log.info(logPrefix + 'Using larvitutils.instances.intercom as Intercom');
+		exports.intercom	= lUtils.instances.intercom;
+	} else if (firstRun === false) {
+		log.warn(logPrefix + 'Neither exports.intercom nor larvitutils.instances.intercom is an instance of Intercom. Fallback to create our own loopback interface.');
+		exports.intercom	= new Intercom('loopback interface');
+	} else {
+		// Give the app 50ms to sort this shit out before we use the fallback fallback
+		setTimeout(function () {
+			checkIntercom(false, cb);
+		}, 50);
+		return;
+	}
+
+	cb();
+}
+
+function checkMode(firstRun, cb) {
+	const	logPrefix	= topLogPrefix + 'checkMode() - ';
+
+	if (typeof firstRun === 'function') {
+		cb	= firstRun;
+		firstRun	= true;
+	} else if (firstRun === undefined) {
+		firstRun	= true;
+		cb	= function () {};
+	}
+
+	// Mode
+	if (exports.mode === 'slave' || exports.mode === 'master' || exports.mode === 'noSync') {
+		log.debug(logPrefix + 'exports.mode is set, no modification needed');
+	} else if (lUtils.instances.dataWriterMode !== undefined) {
+		log.info(logPrefix + 'Using larvitutils.instances.dataWriterMode as mode');
+		exports.mode	= lUtils.instances.dataWriterMode;
+	} else if (firstRun === false) {
+		log.warn(logPrefix + 'Neither exports.mode nor larvitutils.instances.dataWriterMode is set to a valid string. Falling back to noSync.');
+		exports.mode	= 'noSync';
+	} else {
+		// Give the app 50ms to sort this shit out before we use the fallback fallback
+		setTimeout(function () {
+			checkMode(false, cb);
+		}, 50);
+		return;
+	}
+
+	cb();
+}
 
 // This is ran before each incoming message on the queue is handeled
 function ready(retries, cb) {
@@ -123,28 +176,10 @@ function ready(retries, cb) {
 		return;
 	}
 
-	intercom	= lUtils.instances.intercom;
-
-	if ( ! (intercom instanceof Intercom) && retries < 10) {
-		retries ++;
-		setTimeout(function () {
-			ready(retries, cb);
-		}, 50);
-		return;
-	} else if ( ! (intercom instanceof Intercom)) {
-		log.error(logPrefix + 'Intercom is not set!');
-		return;
-	}
-
 	readyInProgress = true;
 
-	if (exports.mode === 'both' || exports.mode === 'slave') {
-		log.verbose(logPrefix + 'exports.mode: "' + exports.mode + '", so read');
-
-		tasks.push(function (cb) {
-			amsync.mariadb({'exchange': exports.exchangeName + '_dataDump'}, cb);
-		});
-	}
+	tasks.push(checkIntercom);
+	tasks.push(checkMode);
 
 	// Migrate database
 	tasks.push(function (cb) {
@@ -173,7 +208,7 @@ function ready(retries, cb) {
 		isReady	= true;
 		eventEmitter.emit('ready');
 
-		if (exports.mode === 'both' || exports.mode === 'master') {
+		if (exports.mode === 'master') {
 			runDumpServer(cb);
 		} else {
 			cb();
@@ -271,7 +306,7 @@ function writeOrder(params, deliveryTag, msgUuid, cb) {
 	let	rowFieldUuidsByName,
 		fieldUuidsByName,
 		dbCon;
-
+console.log('blllluh');
 	if (typeof cb !== 'function') {
 		cb = function () {};
 	}
