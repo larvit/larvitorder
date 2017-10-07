@@ -41,6 +41,14 @@ npm i --save larvitorder
 const	orderLib	= require('larvitorder'),
 	order	= new orderLib.Order();
 
+// Setting queue mode for cluster use.
+// master:	data master, other applications running on the same queue handler will pull data from this application
+// slave:	data slave, this application requires another data master to pull data from before starting up
+// noSync:	Never sync nothing. Good for if some other application is writing to the same data store. Usually
+//	combined with the queue handler running in loopback mode, so two applications do not write to the same datastore
+//	for the same event
+orderLib.dataWriter.mode = 'master';
+
 order.fields	= {'firstname': 'Günter', 'lastname': ['Edelweiss', 'Schloffs']};
 order.rows	= [{'price': 399, 'name': 'Screw'}, {'price': 34, 'name': 'teh_foo', 'tags': ['foo', 'bar']}];
 
