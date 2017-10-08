@@ -88,7 +88,7 @@ function listenToQueue(retries, cb) {
 		});
 	});
 }
-listenToQueue();
+setImmediate(listenToQueue);
 
 function checkIntercom(firstRun, cb) {
 	const	logPrefix	= topLogPrefix + 'checkIntercom() - ';
@@ -306,7 +306,7 @@ function writeOrder(params, deliveryTag, msgUuid, cb) {
 	let	rowFieldUuidsByName,
 		fieldUuidsByName,
 		dbCon;
-console.log('blllluh');
+
 	if (typeof cb !== 'function') {
 		cb = function () {};
 	}

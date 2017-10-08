@@ -7,8 +7,6 @@ const	topLogPrefix	= 'larvitorder: helpers.js: ',
 	log	= require('winston'),
 	db	= require('larvitdb');
 
-let	intercom;
-
 /**
  * Get all values on a field
  *
@@ -21,11 +19,6 @@ function getFieldValues(fieldName, cb) {
 
 	tasks.push(function (cb) {
 		dataWriter.ready(cb);
-	});
-
-	tasks.push(function (cb) {
-		intercom	= require('larvitutils').instances.intercom;
-		cb();
 	});
 
 	tasks.push(function (cb) {
@@ -68,11 +61,6 @@ function getOrderFieldUuid(fieldName, cb) {
 	});
 
 	tasks.push(function (cb) {
-		intercom	= require('larvitutils').instances.intercom;
-		cb();
-	});
-
-	tasks.push(function (cb) {
 		const	options	= {'exchange': dataWriter.exchangeName},
 			message	= {};
 
@@ -82,9 +70,8 @@ function getOrderFieldUuid(fieldName, cb) {
 		message.params.uuid	= uuidLib.v1();
 		message.params.name	= fieldName;
 
-		intercom.send(message, options, function (err, msgUuid) {
+		dataWriter.intercom.send(message, options, function (err, msgUuid) {
 			if (err) return cb(err);
-
 			dataWriter.emitter.once(msgUuid, function (err) {
 				if (err) return cb(err);
 
@@ -153,11 +140,6 @@ function getRowFieldUuid(rowFieldName, cb) {
 	});
 
 	tasks.push(function (cb) {
-		intercom	= require('larvitutils').instances.intercom;
-		cb();
-	});
-
-	tasks.push(function (cb) {
 		const	options	= {'exchange': dataWriter.exchangeName},
 			message	= {};
 
@@ -167,7 +149,7 @@ function getRowFieldUuid(rowFieldName, cb) {
 		message.params.uuid	= uuidLib.v1();
 		message.params.name	= rowFieldName;
 
-		intercom.send(message, options, function (err, msgUuid) {
+		dataWriter.intercom.send(message, options, function (err, msgUuid) {
 			if (err) return cb(err);
 			dataWriter.emitter.once(msgUuid, function (err) {
 				if (err) return cb(err);

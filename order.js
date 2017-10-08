@@ -268,7 +268,6 @@ Order.prototype.save = function (cb) {
 	});
 
 	tasks.push(function (cb) {
-		console.log('bloffs');
 		that.loadFromDb(cb);
 	});
 
