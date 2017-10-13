@@ -1,12 +1,13 @@
 {
   "name": "larvitorder",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Generic order system",
   "main": "index.js",
   "dependencies": {
     "async": "^2.1.4",
+    "check-object-key": "^0.1.2",
     "larvitamintercom": "^0.2.0",
-    "larvitamsync": "^0.3.0",
+    "larvitamsync": "^0.5.1",
     "larvitdb": "^1.0.0",
     "larvitdbmigration": "^2.0.0",
     "larvitutils": "^1.1.0",
@@ -16,9 +17,9 @@
     "winston-daily-rotate-file": "^1.4.0"
   },
   "devDependencies": {
-    "eslint": "^3.12.2",
-    "mocha": "^3.2.0",
-    "mocha-eslint": "^3.0.1"
+    "eslint": "^4.8.0",
+    "mocha": "^4.0.1",
+    "mocha-eslint": "^4.1.0"
   },
   "scripts": {
     "test": "mocha"

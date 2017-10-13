@@ -1,7 +1,7 @@
 'use strict';
 
 const	uuidValidate	= require('uuid-validate'),
-	orderLib	= require(__dirname + '/../index.js'),
+	Intercom	= require('larvitamintercom'),
 	uuidLib	= require('uuid'),
 	assert	= require('assert'),
 	lUtils	= require('larvitutils'),
@@ -10,12 +10,13 @@ const	uuidValidate	= require('uuid-validate'),
 	db	= require('larvitdb'),
 	fs	= require('fs');
 
-let	noFieldsOrderUuid;
+let	noFieldsOrderUuid,
+	orderLib;
 
 // Set up winston
 log.remove(log.transports.Console);
 /**/log.add(log.transports.Console, {
-	'level':	'error',
+	'level':	'warn',
 	'colorize':	true,
 	'timestamp':	true,
 	'json':	false
@@ -68,6 +69,17 @@ before(function (done) {
 
 			cb();
 		});
+	});
+
+	// Load libs
+	tasks.push(function (cb) {
+		orderLib	= require(__dirname + '/../index.js');
+
+		// Set mode and intercom
+		orderLib.dataWriter.intercom	= new Intercom('loopback interface');
+		orderLib.dataWriter.mode	= 'noSync';
+
+		cb();
 	});
 
 	tasks.push(function (cb) {
