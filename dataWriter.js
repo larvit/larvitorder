@@ -166,7 +166,10 @@ function ready(retries, cb) {
 	tasks.push(function (cb) {
 		if (exports.mode === 'slave') {
 			log.verbose(logPrefix + 'exports.mode: "' + exports.mode + '", so read');
-			amsync.mariadb({'exchange': exports.exchangeName + '_dataDump'}, cb);
+			amsync.mariadb({
+				'exchange':	exports.exchangeName + '_dataDump',
+				'intercom':	exports.intercom
+			}, cb);
 		} else {
 			cb();
 		}
