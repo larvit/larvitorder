@@ -313,10 +313,10 @@ function writeOrder(params, deliveryTag, msgUuid, cb) {
 		return;
 	}
 
-	// Get all field ids
+	// Get all field uuids
 	tasks.push(function (cb) {
 		helpers.getOrderFieldUuids(Object.keys(orderFields), function (err, result) {
-			fieldUuidsByName = result;
+			fieldUuidsByName	= result;
 			cb(err);
 		});
 	});
@@ -347,6 +347,11 @@ function writeOrder(params, deliveryTag, msgUuid, cb) {
 			dbCon	= result;
 			cb(err);
 		});
+	});
+
+	// Lock tables
+	tasks.push(function (cb) {
+		dbCon.query('LOCK TABLES orders WRITE, orders_orders_fields WRITE, orders_rows_fields WRITE, orders_rows WRITE', cb);
 	});
 
 	// Make sure the base order row exists
@@ -399,10 +404,7 @@ function writeOrder(params, deliveryTag, msgUuid, cb) {
 			}
 		}
 
-		if (dbFields.length === 0) {
-			cb();
-			return;
-		}
+		if (dbFields.length === 0) return cb();
 
 		sql = sql.substring(0, sql.length - 1) + ';';
 		dbCon.query(sql, dbFields, cb);
@@ -487,39 +489,15 @@ function writeOrder(params, deliveryTag, msgUuid, cb) {
 		});
 	});
 
+	// Unlock tables
+	tasks.push(function (cb) {
+		dbCon.query('UNLOCK TABLES', cb);
+	});
+
 	async.series(tasks, function (err) {
 		if (dbCon) {
-			if (err) {
-				return dbCon.rollback(function (rollErr) {
-					if (rollErr) {
-						log.error(logPrefix + 'Could not rollback: ' + rollErr.message);
-					}
-					exports.emitter.emit(msgUuid, err);
-					dbCon.release();
-					return cb(err);
-				});
-			}
-
-			dbCon.commit(function (err) {
-				if (err) {
-					return dbCon.rollback(function (rollErr) {
-						if (rollErr) {
-							log.error(logPrefix + 'Could not rollback: ' + rollErr.message);
-						}
-						exports.emitter.emit(msgUuid, err);
-						dbCon.release();
-						return cb(err);
-					});
-				}
-
-				exports.emitter.emit(msgUuid, null);
-				dbCon.release();
-				return cb();
-			});
-
-			return;
+			dbCon.release();
 		}
-
 		exports.emitter.emit(msgUuid, err);
 		return cb(err);
 	});
