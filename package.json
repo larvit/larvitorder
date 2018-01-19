@@ -1,6 +1,6 @@
 {
   "name": "larvitorder",
-  "version": "0.6.4",
+  "version": "0.6.5",
   "description": "Generic order system",
   "main": "index.js",
   "dependencies": {

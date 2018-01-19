@@ -73,6 +73,23 @@ Orders.prototype.get = function (cb) {
 			}
 		}
 
+		if (that.q !== undefined) {
+			sql += ' AND (\n';
+			sql += '		(\n';
+			sql += '   			uuid IN (SELECT DISTINCT orderUuid FROM orders_orders_fields WHERE fieldValue LIKE ?)\n';
+			sql += '		)\n';
+			dbFields.push('%' + that.q + '%');
+
+			sql += ' 	OR uuid IN (\n';
+			sql += '		SELECT DISTINCT orderUuid\n';
+			sql += '		FROM orders_rows WHERE rowUuid IN (\n';
+			sql += '			SELECT rowUuid FROM orders_rows_fields WHERE rowStrValue LIKE ?\n';
+			sql += '		)\n';
+			sql += '	)\n';
+			sql += ' )\n';
+			dbFields.push('%' + that.q + '%');
+		}
+
 		if (that.matchAllFields !== undefined) {
 			for (let fieldName in that.matchAllFields) {
 				sql += '	AND orders.uuid IN (\n';

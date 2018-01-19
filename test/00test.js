@@ -908,6 +908,36 @@ describe('Orders', function () {
 			done();
 		});
 	});
+
+	it('should get by query on order fields', function (done) {
+		const orders = new orderLib.Orders();
+
+		orders.q = 'Anna';
+
+		orders.get(function (err, orderList) {
+			if (err) throw err;
+			assert.deepEqual(typeof orderList,	'object');
+
+			assert.deepEqual(Object.keys(orderList).length,	2);
+
+			done();
+		});
+	});
+
+	it('should get by query on order row fields', function (done) {
+		const orders = new orderLib.Orders();
+
+		orders.q = 'svamp';
+
+		orders.get(function (err, orderList) {
+			if (err) throw err;
+			assert.deepEqual(typeof orderList,	'object');
+
+			assert.deepEqual(Object.keys(orderList).length,	1);
+
+			done();
+		});
+	});
 });
 
 describe('Edge cases', function () {
