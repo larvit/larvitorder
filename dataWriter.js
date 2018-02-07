@@ -227,6 +227,12 @@ function rmOrder(params, deliveryTag, msgUuid) {
 		orderUuidBuf	= lUtils.uuidToBuffer(orderUuid),
 		tasks	= [];
 
+	if (orderUuidBuf === false) {
+		const err = new Error('Invalid order uuid');
+		log.warn(topLogPrefix + 'rmOrder() - ' + err.message);
+		return exports.emitter.emit(msgUuid, err);
+	}
+
 	// Delete field data
 	tasks.push(function (cb) {
 		db.query('DELETE FROM orders_orders_fields WHERE orderUuid = ?', [orderUuidBuf], cb);
@@ -436,13 +442,21 @@ function writeOrder(params, deliveryTag, msgUuid, cb) {
 		for (let i = 0; orderRows[i] !== undefined; i ++) {
 			const row = orderRows[i];
 
+			let buffer;
+
 			// Make sure all rows got an uuid
 			if (row.uuid === undefined) {
 				row.uuid = uuidLib.v4();
 			}
 
+			buffer = lUtils.uuidToBuffer(row.uuid);
+
+			if (buffer === false) {
+				return cb(new Error('Invalid row uuid'));
+			}
+
 			sql += '(?,?),';
-			dbFields.push(lUtils.uuidToBuffer(row.uuid));
+			dbFields.push(buffer);
 			dbFields.push(orderUuidBuf);
 		}
 
@@ -463,6 +477,10 @@ function writeOrder(params, deliveryTag, msgUuid, cb) {
 
 			for (const rowFieldName of Object.keys(row)) {
 				const	rowUuidBuff	= lUtils.uuidToBuffer(row.uuid);
+
+				if (rowUuidBuff === false) {
+					return cb(new Error('Invalid row uuid'));
+				}
 
 				if (rowFieldName === 'uuid') continue;
 

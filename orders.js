@@ -65,8 +65,14 @@ Orders.prototype.get = function (cb) {
 				sql += '	AND uuid IN (';
 
 				for (let i = 0; that.uuids[i] !== undefined; i ++) {
+					const buffer = lUtils.uuidToBuffer(that.uuids[i]);
+
+					if (buffer === false) {
+						return cb(new Error('Invalid order uuid supplied'));
+					}
+
 					sql += '?,';
-					dbFields.push(lUtils.uuidToBuffer(that.uuids[i]));
+					dbFields.push(buffer);
 				}
 
 				sql = sql.substring(0, sql.length - 1) + ')';
@@ -183,8 +189,14 @@ Orders.prototype.get = function (cb) {
 		sql += '	orderUuid IN (';
 
 		for (let orderUuid in orders) {
+			const buffer = lUtils.uuidToBuffer(orderUuid);
+
+			if (buffer === false) {
+				return cb(new Error('Invalid order uuid supplied'));
+			}
+
 			sql += '?,';
-			dbFields.push(lUtils.uuidToBuffer(orderUuid));
+			dbFields.push(buffer);
 		}
 
 		sql = sql.substring(0, sql.length - 1) + ')\n';
@@ -236,8 +248,14 @@ Orders.prototype.get = function (cb) {
 		sql += 'WHERE r.orderUuid IN (';
 
 		for (let orderUuid in orders) {
+			const buffer = lUtils.uuidToBuffer(orderUuid);
+
+			if (buffer === false) {
+				return cb(new Error('Invalid order uuid supplied'));
+			}
+
 			sql += '?,';
-			dbFields.push(lUtils.uuidToBuffer(orderUuid));
+			dbFields.push(buffer);
 		}
 
 		sql = sql.substring(0, sql.length - 1) + ')';

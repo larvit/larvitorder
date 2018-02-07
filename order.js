@@ -100,14 +100,21 @@ Order.prototype.init = function (options) {
 Order.prototype.loadFromDb = function (cb) {
 	const	logPrefix	= topLogPrefix + 'Order.prototype.loadFromDb() - uuid: "' + this.uuid + '" - ',
 		tasks	= [],
-		that	= this;
+		that	= this,
+		uuidBuffer	= lUtils.uuidToBuffer(that.uuid);
+
+	if (uuidBuffer === false) {
+		const e = new Error('Invalid order uuid');
+		log.warn(logPrefix + e.message);
+		return cb(e);
+	}
 
 	tasks.push(ready);
 
 	// Get basic order data
 	tasks.push(function (cb) {
 		log.debug(logPrefix + 'Getting basic order data');
-		db.query('SELECT * FROM orders WHERE uuid = ?', [lUtils.uuidToBuffer(that.uuid)], function (err, rows) {
+		db.query('SELECT * FROM orders WHERE uuid = ?', [uuidBuffer], function (err, rows) {
 			if (err) return cb(err);
 
 			if (rows.length) {
@@ -139,7 +146,14 @@ Order.prototype.loadFromDb = function (cb) {
 
 Order.prototype.getOrderFields = function (cb) {
 	const	fields	= {},
-		that	= this;
+		that	= this,
+		uuidBuffer	= lUtils.uuidToBuffer(that.uuid);
+
+	if (uuidBuffer === false) {
+		const e = new Error('Invalid order uuid');
+		log.warn(topLogPrefix + 'getOrderFields() - ' + e.message);
+		return cb(e);
+	}
 
 	let sql = '';
 	sql += 'SELECT orders_orderFields.name AS name, orders_orders_fields.fieldValue AS value\n';
@@ -149,7 +163,7 @@ Order.prototype.getOrderFields = function (cb) {
 	sql += 'WHERE orders_orders_fields.orderUuid = ?';
 
 	ready(function () {
-		db.query(sql, [lUtils.uuidToBuffer(that.uuid)], function (err, data) {
+		db.query(sql, [uuidBuffer], function (err, data) {
 			if (err) return cb(err);
 
 			for (let i = 0; data.length > i; i ++) {
@@ -167,7 +181,14 @@ Order.prototype.getOrderFields = function (cb) {
 Order.prototype.getOrderRows = function (cb) {
 	const	sorter	= [],
 		rows	= [],
-		that	= this;
+		that	= this,
+		uuidBuffer	= lUtils.uuidToBuffer(that.uuid);
+
+	if (uuidBuffer === false) {
+		const e = new Error('Invalid order uuid');
+		log.warn(topLogPrefix + 'getOrderFields() - ' + e.message);
+		return cb(e);
+	}
 
 	let sql = '';
 
@@ -180,7 +201,7 @@ Order.prototype.getOrderRows = function (cb) {
 	sql += 'WHERE orders_rows.orderUuid = ?';
 
 	ready(function () {
-		db.query(sql, [lUtils.uuidToBuffer(that.uuid)], function (err, data) {
+		db.query(sql, [uuidBuffer], function (err, data) {
 			if (err) return cb(err);
 
 			for (let i = 0; data.length > i; i ++) {
