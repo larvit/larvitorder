@@ -143,17 +143,6 @@ function ready(retries, cb) {
 	tasks.push(function (cb) {
 		checkKey({
 			'obj':	exports,
-			'objectKey':	'options',
-			'default':	{}
-		}, function (err, warning) {
-			if (warning) log.warn(logPrefix + warning);
-			cb(err);
-		});
-	});
-
-	tasks.push(function (cb) {
-		checkKey({
-			'obj':	exports,
 			'objectKey':	'mode',
 			'validValues':	['master', 'slave', 'noSync'],
 			'default':	'noSync'
@@ -269,10 +258,10 @@ function rmOrder(params, deliveryTag, msgUuid) {
 
 function runDumpServer(cb) {
 	const	options	= {
-			'exchange': exports.exchangeName + '_dataDump',
-			'host': that.options.amsync ? that.options.amsync.host : null,
-			'minPort': that.options.amsync ? that.options.amsync.minPort : null,
-			'maxPort': that.options.amsync ? that.options.amsync.maxPort : null
+			'exchange':	exports.exchangeName + '_dataDump',
+			'host':	that.options.amsync	? that.options.amsync.host	: null,
+			'minPort':	that.options.amsync	? that.options.amsync.minPort	: null,
+			'maxPort':	that.options.amsync	? that.options.amsync.maxPort	: null
 		},
 		args	= [];
 

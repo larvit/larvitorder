@@ -23,17 +23,18 @@ log.remove(log.transports.Console);
 });/**/
 
 before(function (done) {
-	this.timeout(10000);
 	const	tasks	= [];
+
+	this.timeout(10000);
 
 	// Run DB Setup
 	tasks.push(function (cb) {
-		let confFile;
+		let	confFile;
 
 		if (process.env.DBCONFFILE === undefined) {
-			confFile = __dirname + '/../config/db_test.json';
+			confFile	= __dirname + '/../config/db_test.json';
 		} else {
-			confFile = process.env.DBCONFFILE;
+			confFile	= process.env.DBCONFFILE;
 		}
 
 		log.verbose('DB config file: "' + confFile + '"');
@@ -103,11 +104,11 @@ describe('Order', function () {
 	it('should instantiate a new plain order object', function (done) {
 		const order = new orderLib.Order();
 
-		assert.deepEqual(toString.call(order),	'[object Object]');
-		assert.deepEqual(uuidValidate(order.uuid, 1),	true);
-		assert.deepEqual(toString.call(order.created),	'[object Date]');
-		assert.deepEqual(order.rows instanceof Array,	true);
-		assert.deepEqual(order.rows.length,	0);
+		assert.strictEqual(toString.call(order),	'[object Object]');
+		assert.strictEqual(uuidValidate(order.uuid, 1),	true);
+		assert.strictEqual(toString.call(order.created),	'[object Date]');
+		assert.strictEqual(order.rows instanceof Array,	true);
+		assert.strictEqual(order.rows.length,	0);
 
 		done();
 	});
@@ -115,11 +116,11 @@ describe('Order', function () {
 	it('should instantiate a new plain order object, with object as option', function (done) {
 		const order = new orderLib.Order({});
 
-		assert.deepEqual(toString.call(order),	'[object Object]');
-		assert.deepEqual(uuidValidate(order.uuid, 1),	true);
-		assert.deepEqual(toString.call(order.created),	'[object Date]');
-		assert.deepEqual(order.rows instanceof Array,	true);
-		assert.deepEqual(order.rows.length,	0);
+		assert.strictEqual(toString.call(order),	'[object Object]');
+		assert.strictEqual(uuidValidate(order.uuid, 1),	true);
+		assert.strictEqual(toString.call(order.created),	'[object Date]');
+		assert.strictEqual(order.rows instanceof Array,	true);
+		assert.strictEqual(order.rows.length,	0);
 
 		done();
 	});
@@ -130,12 +131,12 @@ describe('Order', function () {
 		order.loadFromDb(function (err) {
 			if (err) throw err;
 
-			assert.deepEqual(toString.call(order),	'[object Object]');
-			assert.deepEqual(uuidValidate(order.uuid, 1),	true);
-			assert.deepEqual(order.uuid,	'7ce6ebde-b9a8-11e6-a4a6-cec0c932ce01');
-			assert.deepEqual(toString.call(order.created),	'[object Date]');
-			assert.deepEqual(order.rows instanceof Array,	true);
-			assert.deepEqual(order.rows.length,	0);
+			assert.strictEqual(toString.call(order),	'[object Object]');
+			assert.strictEqual(uuidValidate(order.uuid, 1),	true);
+			assert.strictEqual(order.uuid,	'7ce6ebde-b9a8-11e6-a4a6-cec0c932ce01');
+			assert.strictEqual(toString.call(order.created),	'[object Date]');
+			assert.strictEqual(order.rows instanceof Array,	true);
+			assert.strictEqual(order.rows.length,	0);
 
 			done();
 		});
@@ -148,12 +149,12 @@ describe('Order', function () {
 		order.loadFromDb(function (err) {
 			if (err) throw err;
 
-			assert.deepEqual(toString.call(order),	'[object Object]');
-			assert.deepEqual(uuidValidate(order.uuid, 1),	true);
-			assert.deepEqual(order.uuid,	orderUuid);
-			assert.deepEqual(toString.call(order.created),	'[object Date]');
-			assert.deepEqual(order.rows instanceof Array,	true);
-			assert.deepEqual(order.rows.length,	0);
+			assert.strictEqual(toString.call(order),	'[object Object]');
+			assert.strictEqual(uuidValidate(order.uuid, 1),	true);
+			assert.strictEqual(order.uuid,	orderUuid);
+			assert.strictEqual(toString.call(order.created),	'[object Date]');
+			assert.strictEqual(order.rows instanceof Array,	true);
+			assert.strictEqual(order.rows.length,	0);
 
 			done();
 		});
@@ -172,18 +173,18 @@ describe('Order', function () {
 		}
 
 		function checkOrder(cb) {
-			const tasks = [];
+			const	tasks	= [];
 
 			// Check fields
 			tasks.push(function (cb) {
 				db.query('SELECT * FROM orders_orderFields', function (err, rows) {
 					if (err) throw err;
 
-					assert.deepEqual(rows.length,	3);
+					assert.strictEqual(rows.length,	3);
 
 					for (let i = 0; rows[i] !== undefined; i ++) {
-						assert.notDeepEqual(rows[i].uuid,	undefined);
-						assert.notDeepEqual(['active', 'firstname', 'lastname'].indexOf(rows[i].name),	- 1);
+						assert.notStrictEqual(rows[i].uuid,	undefined);
+						assert.notStrictEqual(['active', 'firstname', 'lastname'].indexOf(rows[i].name),	- 1);
 					}
 
 					cb(err);
@@ -195,15 +196,15 @@ describe('Order', function () {
 				db.query('SELECT * FROM orders_orders_fields', function (err, rows) {
 					if (err) throw err;
 
-					assert.deepEqual(rows.length,	4);
-					assert.deepEqual(lUtils.formatUuid(rows[0].orderUuid),	orderUuid);
-					assert.deepEqual(lUtils.formatUuid(rows[1].orderUuid),	orderUuid);
-					assert.deepEqual(lUtils.formatUuid(rows[2].orderUuid),	orderUuid);
-					assert.deepEqual(lUtils.formatUuid(rows[3].orderUuid),	orderUuid);
+					assert.strictEqual(rows.length,	4);
+					assert.strictEqual(lUtils.formatUuid(rows[0].orderUuid),	orderUuid);
+					assert.strictEqual(lUtils.formatUuid(rows[1].orderUuid),	orderUuid);
+					assert.strictEqual(lUtils.formatUuid(rows[2].orderUuid),	orderUuid);
+					assert.strictEqual(lUtils.formatUuid(rows[3].orderUuid),	orderUuid);
 
 					for (let i = 0; rows[i] !== undefined; i ++) {
-						assert.notDeepEqual(lUtils.formatUuid(rows[i].fieldUuid),	false);
-						assert.notDeepEqual(['Migal', 'Göransson', 'Kollektiv', 'true'].indexOf(rows[i].fieldValue),	- 1);
+						assert.notStrictEqual(lUtils.formatUuid(rows[i].fieldUuid),	false);
+						assert.notStrictEqual(['Migal', 'Göransson', 'Kollektiv', 'true'].indexOf(rows[i].fieldValue),	- 1);
 					}
 
 					cb(err);
@@ -215,11 +216,11 @@ describe('Order', function () {
 				db.query('SELECT * FROM orders_rowFields ORDER BY name', function (err, rows) {
 					if (err) throw err;
 
-					assert.deepEqual(rows.length,	3);
+					assert.strictEqual(rows.length,	4);
 
 					for (let i = 0; rows[i] !== undefined; i ++) {
-						assert.notDeepEqual(lUtils.formatUuid(rows[i].uuid),	false);
-						assert.notDeepEqual(['price', 'name', 'tags'].indexOf(rows[i].name),	- 1);
+						assert.notStrictEqual(lUtils.formatUuid(rows[i].uuid),	false);
+						assert.notStrictEqual(['price', 'name', 'tags', 'sortOrder'].indexOf(rows[i].name),	- 1);
 					}
 
 					cb(err);
@@ -230,7 +231,7 @@ describe('Order', function () {
 				db.query('SELECT * FROM orders_rows', function (err, rows) {
 					if (err) throw err;
 
-					assert.deepEqual(rows.length,	2);
+					assert.strictEqual(rows.length,	2);
 
 					cb(err);
 				});
@@ -238,33 +239,35 @@ describe('Order', function () {
 
 			tasks.push(function (cb) {
 				db.query('SELECT rowIntValue, rowStrValue FROM orders_rows_fields', function (err, rows) {
-					let matchedRows = 0;
-
 					const testRows = [
-						{ 'rowIntValue':	399,	'rowStrValue':	null	},
-						{ 'rowIntValue':	null,	'rowStrValue':	'plutt'	},
-						{ 'rowIntValue':	34,	'rowStrValue':	null	},
-						{ 'rowIntValue':	null,	'rowStrValue':	'foo'	},
-						{ 'rowIntValue':	null,	'rowStrValue':	'bar'	}
+						{'rowIntValue':	399,	'rowStrValue':	null	},
+						{'rowIntValue':	null,	'rowStrValue':	'plutt'	},
+						{'rowIntValue':	34,	'rowStrValue':	null	},
+						{'rowIntValue':	null,	'rowStrValue':	'foo'	},
+						{'rowIntValue':	null,	'rowStrValue':	'bar'	},
+						{'rowIntValue':	0,	'rowStrValue':	null	},
+						{'rowIntValue':	1,	'rowStrValue':	null	}
 					];
+
+					let matchedRows = 0;
 
 					if (err) throw err;
 
-					assert.deepEqual(rows.length,	5);
+					assert.strictEqual(rows.length,	testRows.length);
 
 					// We do this weirdness because we do not know in what order the rows are saved
 					// in the database
 					for (let i = 0; rows[i] !== undefined; i ++) {
 						for (let i2 = 0; testRows[i2] !== undefined; i2 ++) {
 							if (JSON.stringify(rows[i]) === JSON.stringify(testRows[i2])) {
-								testRows[i2] = {'fjant': 'nu'};
+								testRows[i2]	= {'fjant': 'nu'};
 								matchedRows ++;
 							}
 						}
 					}
 
-					assert.deepEqual(matchedRows,	rows.length);
-					assert.deepEqual(rows.length,	testRows.length);
+					assert.strictEqual(matchedRows,	rows.length);
+					assert.strictEqual(rows.length,	testRows.length);
 
 					cb(err);
 				});
@@ -297,7 +300,7 @@ describe('Order', function () {
 				db.query('SELECT * FROM orders_orders_fields WHERE orderUuid = ?', [lUtils.uuidToBuffer(noFieldsOrderUuid)], function (err, rows) {
 					if (err) throw err;
 
-					assert.deepEqual(rows.length,	0);
+					assert.strictEqual(rows.length,	0);
 
 					cb(err);
 				});
@@ -307,7 +310,7 @@ describe('Order', function () {
 				db.query('SELECT * FROM orders_rows WHERE orderUuid = ?', [lUtils.uuidToBuffer(noFieldsOrderUuid)], function (err, rows) {
 					if (err) throw err;
 
-					assert.deepEqual(rows.length,	2);
+					assert.strictEqual(rows.length,	2);
 
 					cb(err);
 				});
@@ -324,12 +327,14 @@ describe('Order', function () {
 						{ 'rowIntValue':	null,	'rowStrValue':	'plutt'	},
 						{ 'rowIntValue':	34,	'rowStrValue':	null	},
 						{ 'rowIntValue':	null,	'rowStrValue':	'foo'	},
-						{ 'rowIntValue':	null,	'rowStrValue':	'bar'	}
+						{ 'rowIntValue':	null,	'rowStrValue':	'bar'	},
+						{ 'rowIntValue':	0,	'rowStrValue':	null	},
+						{ 'rowIntValue':	1,	'rowStrValue':	null	}
 					];
 
 					if (err) throw err;
 
-					assert.deepEqual(rows.length,	5);
+					assert.strictEqual(rows.length,	testRows.length);
 
 					// We do this weirdness because we do not know in what order the rows are saved
 					// in the database
@@ -342,8 +347,8 @@ describe('Order', function () {
 						}
 					}
 
-					assert.deepEqual(matchedRows,	rows.length);
-					assert.deepEqual(rows.length,	testRows.length);
+					assert.strictEqual(matchedRows,	rows.length);
+					assert.strictEqual(rows.length,	testRows.length);
 
 					cb(err);
 				});
@@ -359,7 +364,7 @@ describe('Order', function () {
 	});
 
 	it('should load saved order from db', function (done) {
-		const order = new orderLib.Order(orderUuid);
+		const	order	= new orderLib.Order(orderUuid);
 
 		order.loadFromDb(function (err) {
 			const testRows = [
@@ -370,10 +375,10 @@ describe('Order', function () {
 			let matchedRows = 0;
 
 			if (err) throw err;
-			assert.deepEqual(order.uuid,	orderUuid);
-			assert.deepEqual(order.fields.firstname[0],	'Migal');
-			assert.deepEqual(order.fields.lastname[0],	'Göransson');
-			assert.deepEqual(order.fields.lastname[1],	'Kollektiv');
+			assert.strictEqual(order.uuid,	orderUuid);
+			assert.strictEqual(order.fields.firstname[0],	'Migal');
+			assert.strictEqual(order.fields.lastname[0],	'Göransson');
+			assert.strictEqual(order.fields.lastname[1],	'Kollektiv');
 
 			// We do this weirdness because we do not know in what order the rows are saved
 			// in the database
@@ -389,7 +394,7 @@ describe('Order', function () {
 				}
 			}
 
-			assert.deepEqual(matchedRows, order.rows.length);
+			assert.strictEqual(matchedRows, order.rows.length);
 
 			done();
 		});
@@ -409,11 +414,11 @@ describe('Order', function () {
 				order.save(function (err) {
 					if (err) throw err;
 
-					assert.deepEqual(order.uuid,	orderUuid);
-					assert.deepEqual(order.fields.firstname[0],	'Migal');
-					assert.deepEqual(order.fields.lastname[0],	'Göransson');
-					assert.deepEqual(order.fields.lastname[1],	'Kollektiv');
-					assert.deepEqual(order.fields.boll[0],	'foo');
+					assert.strictEqual(order.uuid,	orderUuid);
+					assert.strictEqual(order.fields.firstname[0],	'Migal');
+					assert.strictEqual(order.fields.lastname[0],	'Göransson');
+					assert.strictEqual(order.fields.lastname[1],	'Kollektiv');
+					assert.strictEqual(order.fields.boll[0],	'foo');
 
 					cb();
 				});
@@ -426,13 +431,13 @@ describe('Order', function () {
 			order.loadFromDb(function (err) {
 				if (err) throw err;
 
-				assert.deepEqual(order.uuid,	orderUuid);
-				assert.deepEqual(order.fields.firstname[0],	'Migal');
-				assert.deepEqual(order.fields.firstname.length,	1);
-				assert.deepEqual(order.fields.lastname[0],	'Göransson');
-				assert.deepEqual(order.fields.lastname[1],	'Kollektiv');
-				assert.deepEqual(order.fields.lastname.length,	2);
-				assert.deepEqual(order.fields.boll[0],	'foo');
+				assert.strictEqual(order.uuid,	orderUuid);
+				assert.strictEqual(order.fields.firstname[0],	'Migal');
+				assert.strictEqual(order.fields.firstname.length,	1);
+				assert.strictEqual(order.fields.lastname[0],	'Göransson');
+				assert.strictEqual(order.fields.lastname[1],	'Kollektiv');
+				assert.strictEqual(order.fields.lastname.length,	2);
+				assert.strictEqual(order.fields.boll[0],	'foo');
 
 				cb();
 			});
@@ -450,7 +455,6 @@ describe('Order', function () {
 			orders_rows,
 			orders_rowFields,
 			orders_rows_fields;
-
 
 		function getOrders(cb) {
 			db.query('SELECT * FROM orders', cb);
@@ -609,6 +613,72 @@ describe('Order', function () {
 			done();
 		});
 	});
+
+	it('sort order on rows should be maintained', function (done) {
+		const	orderUuid	= uuidLib.v1(),
+			tasks	= [];
+
+		// Create order
+		tasks.push(function (cb) {
+			const	order	= new orderLib.Order(orderUuid);
+
+			order.fields	= {'firstname': 'Migal', 'active': 'true'};
+			order.rows	= [];
+
+			order.rows.push({'price': 399,	'name': 'plutt'	});
+			order.rows.push({'price': 34,	'name': 'stack'	});
+			order.rows.push({'price': 18,	'name': 'boll'	});
+			order.rows.push({'price': 83,	'name': 'krita'	});
+
+			order.save(cb);
+		});
+
+		// Check order after first save, reorder and save again
+		tasks.push(function (cb) {
+			const	order	= new orderLib.Order(orderUuid);
+
+			order.loadFromDb(function (err) {
+				if (err) throw err;
+
+				assert.strictEqual(order.rows[0].price[0],	399);
+				assert.strictEqual(order.rows[1].name[0],	'stack');
+				assert.strictEqual(order.rows[2].name[0],	'boll');
+				assert.strictEqual(order.rows[3].price[0],	83);
+
+				order.rows.sort(function (a, b) {
+					return a.price[0] - b.price[0];
+				});
+
+				order.save(cb);
+			});
+		});
+
+		// Check order after the second save
+		tasks.push(function (cb) {
+			const	order	= new orderLib.Order(orderUuid);
+
+			order.loadFromDb(function (err) {
+				if (err) throw err;
+
+				assert.strictEqual(order.rows[0].price[0],	18);
+				assert.strictEqual(order.rows[1].name[0],	'stack');
+				assert.strictEqual(order.rows[2].name[0],	'krita');
+				assert.strictEqual(order.rows[3].price[0],	399);
+
+				cb();
+			});
+		});
+
+		// Remove order
+		tasks.push(function (cb) {
+			(new orderLib.Order(orderUuid)).rm(cb);
+		});
+
+		async.series(tasks, function (err) {
+			if (err) throw err;
+			done();
+		});
+	});
 });
 
 describe('Orders', function () {
@@ -620,13 +690,13 @@ describe('Orders', function () {
 
 		orders.get(function (err, orderList, orderHits) {
 			if (err) throw err;
-			assert.deepEqual(typeof orderList,	'object');
-			assert.deepEqual(Object.keys(orderList).length,	2);
-			assert.deepEqual(orderHits,	2);
+			assert.strictEqual(typeof orderList,	'object');
+			assert.strictEqual(Object.keys(orderList).length,	2);
+			assert.strictEqual(orderHits,	2);
 
 			for (let uuid in orderList) {
-				assert.deepEqual(uuidValidate(orderList[uuid].uuid, 1),	true);
-				assert.deepEqual(toString.call(orderList[uuid].created),	'[object Date]');
+				assert.strictEqual(uuidValidate(orderList[uuid].uuid, 1),	true);
+				assert.strictEqual(toString.call(orderList[uuid].created),	'[object Date]');
 			}
 
 			done();
@@ -662,13 +732,13 @@ describe('Orders', function () {
 
 		orders.get(function (err, orderList, orderHits) {
 			if (err) throw err;
-			assert.deepEqual(typeof orderList,	'object');
-			assert.deepEqual(Object.keys(orderList).length,	4);
-			assert.deepEqual(orderHits,	4);
+			assert.strictEqual(typeof orderList,	'object');
+			assert.strictEqual(Object.keys(orderList).length,	4);
+			assert.strictEqual(orderHits,	4);
 
 			for (let uuid in orderList) {
-				assert.deepEqual(uuidValidate(orderList[uuid].uuid, 1),	true);
-				assert.deepEqual(toString.call(orderList[uuid].created),	'[object Date]');
+				assert.strictEqual(uuidValidate(orderList[uuid].uuid, 1),	true);
+				assert.strictEqual(toString.call(orderList[uuid].created),	'[object Date]');
 			}
 
 			done();
@@ -699,12 +769,12 @@ describe('Orders', function () {
 
 			orders.get(function (err, orderList, orderHits) {
 				if (err) throw err;
-				assert.deepEqual(typeof orderList,	'object');
-				assert.deepEqual(Object.keys(orderList).length,	1);
-				assert.deepEqual(orderHits,	1);
-				assert.deepEqual(uuidValidate(orderList[dbUuids[0]].uuid, 1),	true);
-				assert.deepEqual(orderList[dbUuids[0]].uuid,	dbUuids[0]);
-				assert.deepEqual(toString.call(orderList[dbUuids[0]].created),	'[object Date]');
+				assert.strictEqual(typeof orderList,	'object');
+				assert.strictEqual(Object.keys(orderList).length,	1);
+				assert.strictEqual(orderHits,	1);
+				assert.strictEqual(uuidValidate(orderList[dbUuids[0]].uuid, 1),	true);
+				assert.strictEqual(orderList[dbUuids[0]].uuid,	dbUuids[0]);
+				assert.strictEqual(toString.call(orderList[dbUuids[0]].created),	'[object Date]');
 
 				cb();
 			});
@@ -718,9 +788,9 @@ describe('Orders', function () {
 
 			orders.get(function (err, orderList, orderHits) {
 				if (err) throw err;
-				assert.deepEqual(typeof orderList,	'object');
-				assert.deepEqual(Object.keys(orderList).length,	0);
-				assert.deepEqual(orderHits,	0);
+				assert.strictEqual(typeof orderList,	'object');
+				assert.strictEqual(Object.keys(orderList).length,	0);
+				assert.strictEqual(orderHits,	0);
 
 				cb();
 			});
@@ -734,9 +804,9 @@ describe('Orders', function () {
 
 			orders.get(function (err, orderList, orderHits) {
 				if (err) throw err;
-				assert.deepEqual(typeof orderList,	'object');
-				assert.deepEqual(Object.keys(orderList).length,	0);
-				assert.deepEqual(orderHits,	0);
+				assert.strictEqual(typeof orderList,	'object');
+				assert.strictEqual(Object.keys(orderList).length,	0);
+				assert.strictEqual(orderHits,	0);
 
 				cb();
 			});
@@ -750,17 +820,17 @@ describe('Orders', function () {
 
 			orders.get(function (err, orderList, orderHits) {
 				if (err) throw err;
-				assert.deepEqual(typeof orderList,	'object');
-				assert.deepEqual(Object.keys(orderList).length,	2);
-				assert.deepEqual(orderHits,	2);
+				assert.strictEqual(typeof orderList,	'object');
+				assert.strictEqual(Object.keys(orderList).length,	2);
+				assert.strictEqual(orderHits,	2);
 
-				assert.deepEqual(uuidValidate(orderList[dbUuids[0]].uuid, 1),	true);
-				assert.deepEqual(orderList[dbUuids[0]].uuid,	dbUuids[0]);
-				assert.deepEqual(toString.call(orderList[dbUuids[0]].created),	'[object Date]');
+				assert.strictEqual(uuidValidate(orderList[dbUuids[0]].uuid, 1),	true);
+				assert.strictEqual(orderList[dbUuids[0]].uuid,	dbUuids[0]);
+				assert.strictEqual(toString.call(orderList[dbUuids[0]].created),	'[object Date]');
 
-				assert.deepEqual(uuidValidate(orderList[dbUuids[2]].uuid, 1),	true);
-				assert.deepEqual(orderList[dbUuids[2]].uuid,	dbUuids[2]);
-				assert.deepEqual(toString.call(orderList[dbUuids[2]].created),	'[object Date]');
+				assert.strictEqual(uuidValidate(orderList[dbUuids[2]].uuid, 1),	true);
+				assert.strictEqual(orderList[dbUuids[2]].uuid,	dbUuids[2]);
+				assert.strictEqual(toString.call(orderList[dbUuids[2]].created),	'[object Date]');
 
 				cb();
 			});
@@ -776,9 +846,9 @@ describe('Orders', function () {
 
 		orders.get(function (err, orderList, orderHits) {
 			if (err) throw err;
-			assert.deepEqual(typeof orderList,	'object');
-			assert.deepEqual(Object.keys(orderList).length,	2);
-			assert.deepEqual(orderHits,	4);
+			assert.strictEqual(typeof orderList,	'object');
+			assert.strictEqual(Object.keys(orderList).length,	2);
+			assert.strictEqual(orderHits,	4);
 
 			done();
 		});
@@ -792,11 +862,11 @@ describe('Orders', function () {
 
 		orders.get(function (err, orderList, orderHits) {
 			if (err) throw err;
-			assert.deepEqual(typeof orderList,	'object');
+			assert.strictEqual(typeof orderList,	'object');
 
 			// Since there are only 4 rows in the database, a single row should be returned
-			assert.deepEqual(Object.keys(orderList).length,	1);
-			assert.deepEqual(orderHits,	4);
+			assert.strictEqual(Object.keys(orderList).length,	1);
+			assert.strictEqual(orderHits,	4);
 
 			done();
 		});
@@ -809,22 +879,22 @@ describe('Orders', function () {
 
 		orders.get(function (err, orderList) {
 			if (err) throw err;
-			assert.deepEqual(typeof orderList,	'object');
-			assert.deepEqual(Object.keys(orderList).length,	4);
+			assert.strictEqual(typeof orderList,	'object');
+			assert.strictEqual(Object.keys(orderList).length,	4);
 
 			for (let orderUuid in orderList) {
 				let order = orderList[orderUuid];
 
 				if (orderUuid !== noFieldsOrderUuid) {
-					assert.deepEqual(order.fields.firstname instanceof Array,	true);
-					assert.deepEqual(order.fields.firstname.length,	1);
-					assert.deepEqual(order.fields.firstname[0].length > 0,	true);
-					assert.deepEqual(order.fields.lastname instanceof Array,	true);
-					assert.deepEqual(order.fields.active instanceof Array,	false);
+					assert.strictEqual(order.fields.firstname instanceof Array,	true);
+					assert.strictEqual(order.fields.firstname.length,	1);
+					assert.strictEqual(order.fields.firstname[0].length > 0,	true);
+					assert.strictEqual(order.fields.lastname instanceof Array,	true);
+					assert.strictEqual(order.fields.active instanceof Array,	false);
 				}
 
-				assert.deepEqual(uuidValidate(order.uuid, 1),	true);
-				assert.deepEqual(toString.call(order.created),	'[object Date]');
+				assert.strictEqual(uuidValidate(order.uuid, 1),	true);
+				assert.strictEqual(toString.call(order.created),	'[object Date]');
 			}
 
 			done();
@@ -838,21 +908,21 @@ describe('Orders', function () {
 
 		orders.get(function (err, orderList) {
 			if (err) throw err;
-			assert.deepEqual(typeof orderList,	'object');
-			assert.deepEqual(Object.keys(orderList).length,	4);
+			assert.strictEqual(typeof orderList,	'object');
+			assert.strictEqual(Object.keys(orderList).length,	4);
 
 			for (let orderUuid in orderList) {
 				const order = orderList[orderUuid];
 
-				assert.deepEqual(typeof order.rows,	'object');
+				assert.strictEqual(typeof order.rows,	'object');
 
 				for (let rowUuid in order.rows) {
 					const row = order.rows[rowUuid];
 
-					assert.deepEqual(typeof row.price[0],	'number');
+					assert.strictEqual(typeof row.price[0],	'number');
 
 					if (row.price[0] !== 34) { // This specific row have no name attribute
-						assert.deepEqual(typeof row.name[0],	'string');
+						assert.strictEqual(typeof row.name[0],	'string');
 					}
 				}
 			}
@@ -868,10 +938,10 @@ describe('Orders', function () {
 
 		orders.get(function (err, orderList) {
 			if (err) throw err;
-			assert.deepEqual(typeof orderList, 'object');
+			assert.strictEqual(typeof orderList, 'object');
 
 			// Only two orders have the active attribute set to true
-			assert.deepEqual(Object.keys(orderList).length,	2);
+			assert.strictEqual(Object.keys(orderList).length,	2);
 
 			done();
 		});
@@ -884,10 +954,10 @@ describe('Orders', function () {
 
 		orders.get(function (err, orderList) {
 			if (err) throw err;
-			assert.deepEqual(typeof orderList,	'object');
+			assert.strictEqual(typeof orderList,	'object');
 
 			// Only one order have the active attribute set to true AND the firstname field set to Anna
-			assert.deepEqual(Object.keys(orderList).length,	1);
+			assert.strictEqual(Object.keys(orderList).length,	1);
 
 			done();
 		});
@@ -900,10 +970,10 @@ describe('Orders', function () {
 
 		orders.get(function (err, orderList) {
 			if (err) throw err;
-			assert.deepEqual(typeof orderList,	'object');
+			assert.strictEqual(typeof orderList,	'object');
 
 			// Two orders have rows with a price of 50
-			assert.deepEqual(Object.keys(orderList).length,	2);
+			assert.strictEqual(Object.keys(orderList).length,	2);
 
 			done();
 		});
@@ -916,9 +986,9 @@ describe('Orders', function () {
 
 		orders.get(function (err, orderList) {
 			if (err) throw err;
-			assert.deepEqual(typeof orderList,	'object');
+			assert.strictEqual(typeof orderList,	'object');
 
-			assert.deepEqual(Object.keys(orderList).length,	2);
+			assert.strictEqual(Object.keys(orderList).length,	2);
 
 			done();
 		});
@@ -931,9 +1001,9 @@ describe('Orders', function () {
 
 		orders.get(function (err, orderList) {
 			if (err) throw err;
-			assert.deepEqual(typeof orderList,	'object');
+			assert.strictEqual(typeof orderList,	'object');
 
-			assert.deepEqual(Object.keys(orderList).length,	1);
+			assert.strictEqual(Object.keys(orderList).length,	1);
 
 			done();
 		});

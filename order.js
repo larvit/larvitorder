@@ -104,9 +104,9 @@ Order.prototype.loadFromDb = function (cb) {
 		uuidBuffer	= lUtils.uuidToBuffer(that.uuid);
 
 	if (uuidBuffer === false) {
-		const e = new Error('Invalid order uuid');
-		log.warn(logPrefix + e.message);
-		return cb(e);
+		const	err	= new Error('Invalid order uuid');
+		log.warn(logPrefix + err.message);
+		return cb(err);
 	}
 
 	tasks.push(ready);
@@ -128,7 +128,7 @@ Order.prototype.loadFromDb = function (cb) {
 	// Get fields
 	tasks.push(function (cb) {
 		that.getOrderFields(function (err, fields) {
-			that.fields = fields;
+			that.fields	= fields;
 			cb();
 		});
 	});
@@ -136,9 +136,15 @@ Order.prototype.loadFromDb = function (cb) {
 	// Get rows
 	tasks.push(function (cb) {
 		that.getOrderRows(function (err, rows) {
-			that.rows = rows;
+			that.rows	= rows;
 			cb();
 		});
+	});
+
+	// Sort rows
+	tasks.push(function (cb) {
+		that.sortRows();
+		cb();
 	});
 
 	async.series(tasks, cb);
@@ -282,6 +288,11 @@ Order.prototype.save = function (cb) {
 		message.params.fields	= that.fields;
 		message.params.rows	= that.rows;
 
+		// Set sortOrder on rows to maintain order independent of storage engine
+		for (let i = 0; message.params.rows[i] !== undefined; i ++) {
+			message.params.rows[i].sortOrder	= i;
+		}
+
 		dataWriter.intercom.send(message, options, function (err, msgUuid) {
 			if (err) return cb(err);
 			dataWriter.emitter.once(msgUuid, cb);
@@ -293,6 +304,30 @@ Order.prototype.save = function (cb) {
 	});
 
 	async.series(tasks, cb);
+};
+
+// Sorting rows on the row field "sortOrder" if it exists
+Order.prototype.sortRows = function sortRows() {
+	const	that	= this;
+
+	if ( ! that.rows || that.rows.length === 0) return;
+
+	that.rows.sort(function (a, b) {
+		const	ax	= Number(Array.isArray(a.sortOrder) ? a.sortOrder[0] : a.sortOrder),
+			bx	= Number(Array.isArray(b.sortOrder) ? b.sortOrder[0] : b.sortOrder);
+
+		if (ax === bx) return 0;
+
+		if (isNaN(ax) && ! isNaN(bx)) return 1;
+		if (isNaN(bx) && ! isNaN(ax)) return - 1;
+
+		return ax - bx;
+	});
+
+	// Remove all sortOrder fields
+	for (let i = 0; that.rows[i] !== undefined; i ++) {
+		delete that.rows[i].sortOrder;
+	}
 };
 
 exports = module.exports = Order;
