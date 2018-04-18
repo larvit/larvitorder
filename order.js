@@ -61,9 +61,9 @@ Order.prototype.init = function (options) {
 
 	if (options.uuid === undefined) {
 		options.uuid	= uuidLib.v1();
-		log.verbose(logPrefix + 'New Order - Creating Order with uuid: ' + options.uuid);
+		log.debug(logPrefix + 'New Order - Creating Order with uuid: ' + options.uuid);
 	} else {
-		log.verbose(logPrefix + 'Instanciating order with uuid: ' + options.uuid);
+		log.debug(logPrefix + 'Instanciating order with uuid: ' + options.uuid);
 	}
 
 	this.uuid	= options.uuid;
