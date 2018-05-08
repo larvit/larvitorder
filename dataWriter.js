@@ -325,6 +325,20 @@ function writeOrder(params, deliveryTag, msgUuid, cb) {
 		return;
 	}
 
+	if (lUtils.formatUuid(orderUuid) === false || orderUuidBuf === false) {
+		const err = new Error('Invalid orderUuid: "' + orderUuid + '"');
+		log.error(logPrefix + err.message);
+		exports.emitter.emit(orderUuid, err);
+		return;
+	}
+
+	if (created && ! created instanceof Date) {
+		const err = new Error('Invalid value of "created". Value must be an instance of Date.');
+		log.warn(logPrefix + err.message);
+		exports.emitter.emit(orderUuid, err);
+		return;
+	}
+
 	// Get all field uuids
 	tasks.push(function (cb) {
 		helpers.getOrderFieldUuids(Object.keys(orderFields), function (err, result) {
