@@ -423,6 +423,9 @@ function writeOrder(params, deliveryTag, msgUuid, cb) {
 
 			for (let i = 0; orderFields[fieldName][i] !== undefined; i ++) {
 				const	fieldValue	= orderFields[fieldName][i];
+
+				if (fieldValue === null || fieldValue === undefined) continue;
+
 				sql += '(?,?,?),';
 				dbFields.push(orderUuidBuf);
 				dbFields.push(fieldUuidsByName[fieldName]);
