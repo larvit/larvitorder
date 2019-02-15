@@ -1,239 +1,234 @@
 'use strict';
 
-const	topLogPrefix	= 'larvitorder: helpers.js: ',
-	dataWriter	= require(__dirname + '/dataWriter.js'),
-	uuidLib	= require('uuid'),
-	async	= require('async'),
-	log	= require('winston'),
-	db	= require('larvitdb');
+const topLogPrefix = 'larvitorder: helpers.js: ';
+const uuidLib = require('uuid');
+const async = require('async');
 
-/**
- * Get all values on a field
- *
- * @param str fieldName
- * @param func cb(err, names) - names being an array of strings
- */
-function getFieldValues(fieldName, cb) {
-	const	tasks	= [],
-		names	= [];
+let orderFields = [];
+let rowFields = [];
 
-	tasks.push(function (cb) {
-		dataWriter.ready(cb);
-	});
+class Helpers {
+	static get orderFields() { return orderFields; }
 
-	tasks.push(function (cb) {
-		let	sql	= 'SELECT DISTINCT fieldValue\n';
+	static get rowFields() { return rowFields; }
 
-		sql += 'FROM orders_orders_fields\n';
-		sql += 'WHERE fieldUuid = (SELECT uuid FROM orders_orderFields WHERE name = ?)\n';
-		sql += 'ORDER BY fieldValue;';
+	constructor(options) {
+		for (const ro of ['db', 'log', 'dataWriter']) {
+			if (!options[ro]) throw new Error('Missing required option "' + ro + '"');
+		}
 
-		db.query(sql, [fieldName], function (err, rows) {
+		for (const key of Object.keys(options)) {
+			this[key] = options[key];
+		}
+	}
+
+	getFieldValues(fieldName, cb) {
+		const tasks = [];
+		const names = [];
+
+		tasks.push(cb => {
+			this.dataWriter.ready(cb);
+		});
+
+		tasks.push(cb => {
+			let sql = 'SELECT DISTINCT fieldValue\n';
+
+			sql += 'FROM orders_orders_fields\n';
+			sql += 'WHERE fieldUuid = (SELECT uuid FROM orders_orderFields WHERE name = ?)\n';
+			sql += 'ORDER BY fieldValue;';
+
+			this.db.query(sql, [fieldName], (err, rows) => {
+				if (err) return cb(err);
+
+				for (let i = 0; rows[i] !== undefined; i++) {
+					names.push(rows[i].fieldValue);
+				}
+
+				cb(null, names);
+			});
+		});
+
+		async.series(tasks, err => {
+			cb(err, names);
+		});
+	}
+
+	getOrderFieldUuid(fieldName, cb) {
+		const tasks = [];
+
+		for (let i = 0; orderFields[i] !== undefined; i++) {
+			if (orderFields[i].name === fieldName) {
+				cb(null, orderFields[i].uuid);
+
+				return;
+			}
+		}
+
+		// If we get down here, the field does not exist, create it and rerun
+
+		tasks.push(cb => {
+			this.dataWriter.ready(cb);
+		});
+
+		tasks.push(cb => {
+			const options = {exchange: this.dataWriter.exchangeName};
+			const message = {};
+
+			message.action = 'writeOrderField';
+			message.params = {};
+
+			message.params.uuid = uuidLib.v1();
+			message.params.name = fieldName;
+
+			this.dataWriter.intercom.send(message, options, (err, msgUuid) => {
+				if (err) return cb(err);
+				this.dataWriter.emitter.once(msgUuid, err => {
+					if (err) return cb(err);
+
+					this.loadOrderFieldsToCache(cb);
+				});
+			});
+		});
+
+		async.series(tasks, err => {
 			if (err) return cb(err);
 
-			for (let i = 0; rows[i] !== undefined; i ++) {
-				names.push(rows[i].fieldValue);
+			this.getOrderFieldUuid(fieldName, cb);
+		});
+	};
+
+	getOrderFieldUuids(fieldNames, cb) {
+		const fieldUuidsByName = {};
+		const tasks = [];
+
+		for (let i = 0; fieldNames[i] !== undefined; i++) {
+			const fieldName = fieldNames[i];
+
+			tasks.push(cb => {
+				this.getOrderFieldUuid(fieldName, function (err, fieldUuid) {
+					if (err) return cb(err);
+
+					fieldUuidsByName[fieldName] = fieldUuid;
+					cb();
+				});
+			});
+		}
+
+		async.parallel(tasks, err => {
+			if (err) return cb(err);
+
+			cb(null, fieldUuidsByName);
+		});
+	};
+
+	getRowFieldUuid(rowFieldName, cb) {
+		const logPrefix = topLogPrefix + 'getRowFieldUuid() - ';
+		const tasks = [];
+
+		if (rowFieldName === 'uuid') {
+			const err = new Error('Row field "uuid" is reserved and have no uuid');
+
+			log.warn(logPrefix + '' + err.message);
+
+			return cb(err);
+		}
+
+		for (let i = 0; rowFields[i] !== undefined; i++) {
+			if (rowFields[i].name === rowFieldName) {
+				return cb(null, rowFields[i].uuid);
+			}
+		}
+
+		// If we get down here, the field does not exist, create it and rerun
+
+		tasks.push(cb => {
+			this.dataWriter.ready(cb);
+		});
+
+		tasks.push(cb => {
+			const options = {exchange: this.dataWriter.exchangeName};
+			const message = {};
+
+			message.action = 'writeRowField';
+			message.params = {};
+
+			message.params.uuid = uuidLib.v1();
+			message.params.name = rowFieldName;
+
+			this.dataWriter.intercom.send(message, options, (err, msgUuid) => {
+				if (err) return cb(err);
+				this.dataWriter.emitter.once(msgUuid, err => {
+					if (err) return cb(err);
+
+					this.loadRowFieldsToCache(cb);
+				});
+			});
+		});
+
+		async.series(tasks, err => {
+			if (err) return cb(err);
+
+			this.getRowFieldUuid(rowFieldName, cb);
+		});
+	};
+
+	getRowFieldUuids(rowFieldNames, cb) {
+		const rowFieldUuidsByName = {};
+		const tasks = [];
+
+		for (let i = 0; rowFieldNames[i] !== undefined; i++) {
+			const rowFieldName = rowFieldNames[i];
+
+			if (rowFieldName === 'uuid') continue; // Ignore uuid
+
+			tasks.push(cb => {
+				this.getRowFieldUuid(rowFieldName, (err, fieldUuid) => {
+					if (err) return cb(err);
+
+					rowFieldUuidsByName[rowFieldName] = fieldUuid;
+					cb();
+				});
+			});
+		}
+
+		async.parallel(tasks, err => {
+			if (err) return cb(err);
+
+			cb(null, rowFieldUuidsByName);
+		});
+	};
+
+	loadOrderFieldsToCache(cb) {
+		this.db.query('SELECT * FROM orders_orderFields ORDER BY name;', (err, rows) => {
+			if (err) return;
+
+			// Empty the previous cache
+			orderFields.length = 0;
+
+			// Load the new values
+			for (let i = 0; rows[i] !== undefined; i++) {
+				orderFields.push(rows[i]);
 			}
 
-			cb(null, names);
+			cb();
 		});
-	});
+	};
 
-	async.series(tasks, function (err) {
-		cb(err, names);
-	});
+	loadRowFieldsToCache(cb) {
+		this.db.query('SELECT * FROM orders_rowFields ORDER BY name;', (err, rows) => {
+			if (err) return;
+
+			// Empty the previous cache
+			rowFields.length = 0;
+
+			// Load the new values
+			for (let i = 0; rows[i] !== undefined; i++) {
+				rowFields.push(rows[i]);
+			}
+
+			cb();
+		});
+	}
 }
 
-function getOrderFieldUuid(fieldName, cb) {
-	const	tasks	= [];
-
-	for (let i = 0; exports.orderFields[i] !== undefined; i ++) {
-		if (exports.orderFields[i].name === fieldName) {
-			cb(null, exports.orderFields[i].uuid);
-			return;
-		}
-	}
-
-	// If we get down here, the field does not exist, create it and rerun
-
-	tasks.push(function (cb) {
-		dataWriter.ready(cb);
-	});
-
-	tasks.push(function (cb) {
-		const	options	= {'exchange': dataWriter.exchangeName},
-			message	= {};
-
-		message.action	= 'writeOrderField';
-		message.params	= {};
-
-		message.params.uuid	= uuidLib.v1();
-		message.params.name	= fieldName;
-
-		dataWriter.intercom.send(message, options, function (err, msgUuid) {
-			if (err) return cb(err);
-			dataWriter.emitter.once(msgUuid, function (err) {
-				if (err) return cb(err);
-
-				loadOrderFieldsToCache(cb);
-			});
-		});
-	});
-
-	async.series(tasks, function (err) {
-		if (err) return cb(err);
-
-		getOrderFieldUuid(fieldName, cb);
-	});
-};
-
-/**
- * Get order field ids by names
- *
- * @param arr	fieldNames array of strings
- * @param func	cb(err, object with names as key and uuids as values)
- */
-function getOrderFieldUuids(fieldNames, cb) {
-	const	fieldUuidsByName	= {},
-		tasks	= [];
-
-	for (let i = 0; fieldNames[i] !== undefined; i ++) {
-		const	fieldName = fieldNames[i];
-
-		tasks.push(function (cb) {
-			getOrderFieldUuid(fieldName, function (err, fieldUuid) {
-				if (err) return cb(err);
-
-				fieldUuidsByName[fieldName] = fieldUuid;
-				cb();
-			});
-		});
-	}
-
-	async.parallel(tasks, function (err) {
-		if (err) return cb(err);
-
-		cb(null, fieldUuidsByName);
-	});
-};
-
-function getRowFieldUuid(rowFieldName, cb) {
-	const	logPrefix	= topLogPrefix + 'getRowFieldUuid() - ',
-		tasks	= [];
-
-	if (rowFieldName === 'uuid') {
-		const	err	= new Error('Row field "uuid" is reserved and have no uuid');
-		log.warn(logPrefix + '' + err.message);
-		return cb(err);
-	}
-
-	for (let i = 0; exports.rowFields[i] !== undefined; i ++) {
-		if (exports.rowFields[i].name === rowFieldName) {
-			return cb(null, exports.rowFields[i].uuid);
-		}
-	}
-
-	// If we get down here, the field does not exist, create it and rerun
-
-	tasks.push(function (cb) {
-		dataWriter.ready(cb);
-	});
-
-	tasks.push(function (cb) {
-		const	options	= {'exchange': dataWriter.exchangeName},
-			message	= {};
-
-		message.action	= 'writeRowField';
-		message.params	= {};
-
-		message.params.uuid	= uuidLib.v1();
-		message.params.name	= rowFieldName;
-
-		dataWriter.intercom.send(message, options, function (err, msgUuid) {
-			if (err) return cb(err);
-			dataWriter.emitter.once(msgUuid, function (err) {
-				if (err) return cb(err);
-
-				loadRowFieldsToCache(cb);
-			});
-		});
-	});
-
-	async.series(tasks, function (err) {
-		if (err) return cb(err);
-
-		getRowFieldUuid(rowFieldName, cb);
-	});
-};
-
-/**
- * Get row field uuids by names
- *
- * @param arr	rowFieldNames array of strings
- * @param func	cb(err, object with names as key and ids as values)
- */
-function getRowFieldUuids(rowFieldNames, cb) {
-	const	rowFieldUuidsByName	= {},
-		tasks	= [];
-
-	for (let i = 0; rowFieldNames[i] !== undefined; i ++) {
-		const	rowFieldName = rowFieldNames[i];
-
-		if (rowFieldName === 'uuid') continue; // Ignore uuid
-
-		tasks.push(function (cb) {
-			getRowFieldUuid(rowFieldName, function (err, fieldUuid) {
-				if (err) return cb(err);
-
-				rowFieldUuidsByName[rowFieldName] = fieldUuid;
-				cb();
-			});
-		});
-	}
-
-	async.parallel(tasks, function (err) {
-		if (err) return cb(err);
-
-		cb(null, rowFieldUuidsByName);
-	});
-};
-
-function loadOrderFieldsToCache(cb) {
-	db.query('SELECT * FROM orders_orderFields ORDER BY name;', function (err, rows) {
-		if (err) return;
-
-		// Empty the previous cache
-		exports.orderFields.length = 0;
-
-		// Load the new values
-		for (let i = 0; rows[i] !== undefined; i ++) {
-			exports.orderFields.push(rows[i]);
-		}
-
-		cb();
-	});
-}
-
-function loadRowFieldsToCache(cb) {
-	db.query('SELECT * FROM orders_rowFields ORDER BY name;', function (err, rows) {
-		if (err) return;
-
-		// Empty the previous cache
-		exports.rowFields.length = 0;
-
-		// Load the new values
-		for (let i = 0; rows[i] !== undefined; i ++) {
-			exports.rowFields.push(rows[i]);
-		}
-
-		cb();
-	});
-}
-
-exports.getFieldValues	= getFieldValues;
-exports.getOrderFieldUuids	= getOrderFieldUuids;
-exports.getRowFieldUuids	= getRowFieldUuids;
-exports.loadOrderFieldsToCache	= loadOrderFieldsToCache;
-exports.loadRowFieldsToCache	= loadRowFieldsToCache;
-exports.orderFields	= [];
-exports.rowFields	= [];
+module.exports = exports = Helpers;

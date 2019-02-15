@@ -1,71 +1,60 @@
+/* eslint-disable no-tabs */
 'use strict';
 
-const	EventEmitter	= require('events').EventEmitter,
-	eventEmitter	= new EventEmitter(),
-	lUtils	= require('larvitutils'),
-	async	= require('async'),
-	db	= require('larvitdb');
+const DataWriter = require('./dataWriter.js');
+const LUtils = require('larvitutils');
+const async = require('async');
 
-let	readyInProgress	= false,
-	isReady	= false;
+function Orders(options) {
+	this.options = options || {};
 
-function ready(cb) {
-	const	tasks	= [];
+	if (!options.db) throw new Error('Missing required option "db"');
 
-	if (isReady === true) return cb();
+	if (!options.log) {
+		const tmpLUtils = new LUtils();
 
-	if (readyInProgress === true) {
-		eventEmitter.on('ready', cb);
-		return;
+		options.log = new tmpLUtils.lUtils.Log();
 	}
 
-	readyInProgress = true;
+	if (!options.lUtils) options.lUtils = new LUtils();
 
-	async.series(tasks, function () {
-		isReady	= true;
-		eventEmitter.emit('ready');
-		cb();
-	});
+	this.options = options;
+
+	for (const key of Object.keys(options)) {
+		this[key] = options[key];
+	}
+
+	this.dataWriter = new DataWriter({log: this.log, db: this.db, mode: this.mode || 'noSync', intercom: this.intercom});
 }
 
-function Orders() {
-	this.ready	= ready;
-}
-
-/**
- * Get orders
- *
- * @param func cb(err, orders, totalHits) - orders being an array and totalHits being a number
- */
 Orders.prototype.get = function (cb) {
-	const	tasks	= [],
-		that	= this;
+	const tasks = [];
+	let orders = {};
 
-	let	orders	= {},
-		hits;
+	let hits;
 
 	// Make sure database is ready
-	tasks.push(ready);
+	tasks.push(cb => { this.dataWriter.ready(cb); });
 
 	// Get basic orders
-	tasks.push(function (cb) {
+	tasks.push(cb => {
 		const dbFields = [];
 
-		let	sql	= ' FROM orders WHERE 1',
-			hitsSql	= '';
+		let sql = ' FROM orders WHERE 1';
+		let hitsSql = '';
 
-		if (that.uuids !== undefined) {
-			if ( ! (that.uuids instanceof Array)) {
-				that.uuids = [that.uuids];
+		if (this.uuids !== undefined) {
+			if (!(this.uuids instanceof Array)) {
+				this.uuids = [this.uuids];
 			}
 
-			if (that.uuids.length === 0) {
+			if (this.uuids.length === 0) {
 				sql += '	AND 0';
 			} else {
 				sql += '	AND uuid IN (';
 
-				for (let i = 0; that.uuids[i] !== undefined; i ++) {
-					const buffer = lUtils.uuidToBuffer(that.uuids[i]);
+				for (let i = 0; this.uuids[i] !== undefined; i++) {
+					const buffer = this.lUtils.uuidToBuffer(this.uuids[i]);
 
 					if (buffer === false) {
 						return cb(new Error('Invalid order uuid supplied'));
@@ -79,12 +68,12 @@ Orders.prototype.get = function (cb) {
 			}
 		}
 
-		if (that.q !== undefined) {
+		if (this.q !== undefined) {
 			sql += ' AND (\n';
 			sql += '		(\n';
 			sql += '   			uuid IN (SELECT DISTINCT orderUuid FROM orders_orders_fields WHERE fieldValue LIKE ?)\n';
 			sql += '		)\n';
-			dbFields.push('%' + that.q + '%');
+			dbFields.push('%' + this.q + '%');
 
 			sql += ' 	OR uuid IN (\n';
 			sql += '		SELECT DISTINCT orderUuid\n';
@@ -93,11 +82,11 @@ Orders.prototype.get = function (cb) {
 			sql += '		)\n';
 			sql += '	)\n';
 			sql += ' )\n';
-			dbFields.push('%' + that.q + '%');
+			dbFields.push('%' + this.q + '%');
 		}
 
-		if (that.matchAllFields !== undefined) {
-			for (let fieldName in that.matchAllFields) {
+		if (this.matchAllFields !== undefined) {
+			for (let fieldName in this.matchAllFields) {
 				sql += '	AND orders.uuid IN (\n';
 				sql += '		SELECT DISTINCT orderUuid\n';
 				sql += '		FROM orders_orders_fields\n';
@@ -105,19 +94,19 @@ Orders.prototype.get = function (cb) {
 				sql += ')';
 
 				dbFields.push(fieldName);
-				dbFields.push(that.matchAllFields[fieldName]);
+				dbFields.push(this.matchAllFields[fieldName]);
 			}
 		}
 
-		if (that.matchAllRowFields !== undefined) {
-			for (let rowFieldName in that.matchAllRowFields) {
+		if (this.matchAllRowFields !== undefined) {
+			for (let rowFieldName in this.matchAllRowFields) {
 				sql += '	AND orders.uuid IN (\n';
 				sql += '		SELECT DISTINCT orderUuid\n';
 				sql += '		FROM orders_rows\n';
 				sql += '		WHERE rowUuid IN (\n';
 				sql += '			SELECT rowUuid FROM orders_rows_fields WHERE rowFieldUuid = (SELECT uuid FROM orders_rowFields WHERE name = ?) AND ';
 
-				if (parseInt(that.matchAllRowFields[rowFieldName]) === that.matchAllRowFields[rowFieldName]) {
+				if (parseInt(this.matchAllRowFields[rowFieldName]) === this.matchAllRowFields[rowFieldName]) {
 					sql += 'rowIntValue = ?\n';
 				} else {
 					sql += 'rowStrValue = ?\n';
@@ -127,69 +116,67 @@ Orders.prototype.get = function (cb) {
 				sql += '	)';
 
 				dbFields.push(rowFieldName);
-				dbFields.push(that.matchAllRowFields[rowFieldName]);
+				dbFields.push(this.matchAllRowFields[rowFieldName]);
 			}
 		}
 
 		sql += '	ORDER BY created DESC';
 
-		hitsSql	= 'SELECT COUNT(*) AS hits' + sql;
-		sql	= 'SELECT *' + sql;
+		hitsSql = 'SELECT COUNT(*) AS hits' + sql;
+		sql = 'SELECT *' + sql;
 
-		if (that.limit) {
-			sql += ' LIMIT ' + parseInt(that.limit);
-			if (that.offset) {
-				sql += ' OFFSET ' + parseInt(that.offset);
+		if (this.limit) {
+			sql += ' LIMIT ' + parseInt(this.limit);
+			if (this.offset) {
+				sql += ' OFFSET ' + parseInt(this.offset);
 			}
 		}
 
-		ready(function () {
-			const	tasks	= [];
+		const tasks = [];
 
-			tasks.push(function (cb) {
-				db.query(sql, dbFields, function (err, rows) {
-					if (err) return cb(err);
+		tasks.push(cb => {
+			this.db.query(sql, dbFields, (err, rows) => {
+				if (err) return cb(err);
 
-					for (let i = 0; rows[i] !== undefined; i ++) {
-						rows[i].uuid	= lUtils.formatUuid(rows[i].uuid);
-						orders[rows[i].uuid]	= {};
-						orders[rows[i].uuid].uuid	= rows[i].uuid;
-						orders[rows[i].uuid].created	= rows[i].created;
-					}
+				for (let i = 0; rows[i] !== undefined; i++) {
+					rows[i].uuid = this.lUtils.formatUuid(rows[i].uuid);
+					orders[rows[i].uuid] = {};
+					orders[rows[i].uuid].uuid = rows[i].uuid;
+					orders[rows[i].uuid].created = rows[i].created;
+				}
 
-					cb();
-				});
+				cb();
 			});
-
-			tasks.push(function (cb) {
-				db.query(hitsSql, dbFields, function (err, rows) {
-					if (err) return cb(err);
-
-					hits	= rows[0].hits;
-
-					cb();
-				});
-			});
-
-			async.parallel(tasks, cb);
 		});
+
+		tasks.push(cb => {
+			this.db.query(hitsSql, dbFields, (err, rows) => {
+				if (err) return cb(err);
+
+				hits = rows[0].hits;
+
+				cb();
+			});
+		});
+
+		async.parallel(tasks, cb);
 	});
 
 	// Get fields
-	tasks.push(function (cb) {
+	tasks.push(cb => {
 		const dbFields = [];
 
 		let sql;
 
-		if ( ! that.returnFields || Object.keys(orders).length === 0) return cb();
+		if (!this.returnFields || Object.keys(orders).length === 0) return cb();
 
-		sql =  'SELECT orderUuid, name AS fieldName, fieldValue\n';
+		sql = 'SELECT orderUuid, name AS fieldName, fieldValue\n';
 		sql += 'FROM orders_orders_fields JOIN orders_orderFields ON fieldUuid = uuid\n';
 		sql += 'WHERE\n';
 		sql += '	orderUuid IN (';
 
 		for (let orderUuid in orders) {
-			const buffer = lUtils.uuidToBuffer(orderUuid);
+			const buffer = this.lUtils.uuidToBuffer(orderUuid);
 
 			if (buffer === false) {
 				return cb(new Error('Invalid order uuid supplied'));
@@ -203,20 +190,20 @@ Orders.prototype.get = function (cb) {
 
 		sql += '	AND name IN (';
 
-		for (let i = 0; that.returnFields[i] !== undefined; i ++) {
+		for (let i = 0; this.returnFields[i] !== undefined; i++) {
 			sql += '?,';
-			dbFields.push(that.returnFields[i]);
+			dbFields.push(this.returnFields[i]);
 		}
 
 		sql = sql.substring(0, sql.length - 1) + ')\n';
 
-		db.query(sql, dbFields, function (err, rows) {
+		this.db.query(sql, dbFields, (err, rows) => {
 			if (err) return cb(err);
 
-			for (let i = 0; rows[i] !== undefined; i ++) {
+			for (let i = 0; rows[i] !== undefined; i++) {
 				const row = rows[i];
 
-				row.orderUuid = lUtils.formatUuid(row.orderUuid);
+				row.orderUuid = this.lUtils.formatUuid(row.orderUuid);
 
 				if (orders[row.orderUuid].fields === undefined) {
 					orders[row.orderUuid].fields = {};
@@ -234,21 +221,21 @@ Orders.prototype.get = function (cb) {
 	});
 
 	// Get rows
-	tasks.push(function (cb) {
+	tasks.push(cb => {
 		const dbFields = [];
 
 		let sql;
 
-		if (that.returnRowFields === undefined || Object.keys(orders).length === 0) return cb();
+		if (this.returnRowFields === undefined || Object.keys(orders).length === 0) return cb();
 
-		sql  = 'SELECT r.orderUuid, r.rowUuid, f.name AS fieldName, rf.rowIntValue, rf.rowStrValue\n';
+		sql = 'SELECT r.orderUuid, r.rowUuid, f.name AS fieldName, rf.rowIntValue, rf.rowStrValue\n';
 		sql += 'FROM orders_rows r\n';
-		sql += '	LEFT JOIN orders_rows_fields	rf	ON rf.rowUuid	= r.rowUuid\n';
-		sql += '	LEFT JOIN orders_rowFields	f	ON f.uuid	= rf.rowFieldUuid\n';
+		sql += '	LEFT JOIN orders_rows_fields	rf	ON rf.rowUuid = r.rowUuid\n';
+		sql += '	LEFT JOIN orders_rowFields	f	ON f.uuid = rf.rowFieldUuid\n';
 		sql += 'WHERE r.orderUuid IN (';
 
 		for (let orderUuid in orders) {
-			const buffer = lUtils.uuidToBuffer(orderUuid);
+			const buffer = this.lUtils.uuidToBuffer(orderUuid);
 
 			if (buffer === false) {
 				return cb(new Error('Invalid order uuid supplied'));
@@ -261,28 +248,28 @@ Orders.prototype.get = function (cb) {
 		sql = sql.substring(0, sql.length - 1) + ')';
 		sql += '	AND f.name IN (';
 
-		for (let i = 0; that.returnRowFields[i] !== undefined; i ++) {
+		for (let i = 0; this.returnRowFields[i] !== undefined; i++) {
 			sql += '?,';
-			dbFields.push(that.returnRowFields[i]);
+			dbFields.push(this.returnRowFields[i]);
 		}
 
 		sql = sql.substring(0, sql.length - 1) + ')';
 
-		db.query(sql, dbFields, function (err, rows) {
+		this.db.query(sql, dbFields, (err, rows) => {
 			if (err) return cb(err);
 
-			for (let i = 0; rows[i] !== undefined; i ++) {
+			for (let i = 0; rows[i] !== undefined; i++) {
 				const row = rows[i];
 
-				row.orderUuid	= lUtils.formatUuid(row.orderUuid);
-				row.rowUuid	= lUtils.formatUuid(row.rowUuid);
+				row.orderUuid = this.lUtils.formatUuid(row.orderUuid);
+				row.rowUuid = this.lUtils.formatUuid(row.rowUuid);
 
 				if (orders[row.orderUuid].rows === undefined) {
 					orders[row.orderUuid].rows = {};
 				}
 
 				if (orders[row.orderUuid].rows[row.rowUuid] === undefined) {
-					orders[row.orderUuid].rows[row.rowUuid] = {'uuid': row.rowUuid};
+					orders[row.orderUuid].rows[row.rowUuid] = {uuid: row.rowUuid};
 				}
 
 				if (orders[row.orderUuid].rows[row.rowUuid][row.fieldName] === undefined) {
@@ -305,7 +292,6 @@ Orders.prototype.get = function (cb) {
 
 		cb(null, orders, hits);
 	});
-
 };
 
 exports = module.exports = Orders;

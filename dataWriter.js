@@ -1,586 +1,575 @@
 'use strict';
 
-const	EventEmitter	= require('events').EventEmitter,
-	eventEmitter	= new EventEmitter(),
-	topLogPrefix	= 'larvitorder: dataWriter.js: ',
-	DbMigration	= require('larvitdbmigration'),
-	Intercom	= require('larvitamintercom'),
-	checkKey	= require('check-object-key'),
-	helpers	= require(__dirname + '/helpers.js'),
-	uuidLib	= require('uuid'),
-	lUtils	= require('larvitutils'),
-	amsync	= require('larvitamsync'),
-	async	= require('async'),
-	that	= this,
-	log	= require('winston'),
-	db	= require('larvitdb');
+const EventEmitter = require('events').EventEmitter;
+const topLogPrefix = 'larvitorder: dataWriter.js: ';
+const DbMigration = require('larvitdbmigration');
+const Intercom = require('larvitamintercom');
+const Helpers = require('./helpers.js');
+const uuidLib = require('uuid');
+const LUtils = require('larvitutils');
+const amsync = require('larvitamsync');
+const async = require('async');
 
-let	readyInProgress	= false,
-	isReady	= false;
+class DataWriter {
+	constructor(options, cb) {
+		if (!options.db) return cb(new Error('Missing required option "db"'));
+		if (!options.mode) return cb(new Error('Missing required option "mode"'));
 
-function listenToQueue(retries, cb) {
-	const	logPrefix	= topLogPrefix + 'listenToQueue() - ',
-		options	= {'exchange': exports.exchangeName},
-		tasks	= [];
+		if (!options.log) {
+			const tmpLUtils = new LUtils();
 
-	let	listenMethod;
-
-	if (typeof retries === 'function') {
-		cb	= retries;
-		retries	= 0;
-	}
-
-	if (typeof cb !== 'function') {
-		cb = function (){};
-	}
-
-	if (retries === undefined) {
-		retries = 0;
-	}
-
-	tasks.push(function (cb) {
-		checkKey({
-			'obj':	exports,
-			'objectKey':	'mode',
-			'validValues':	['master', 'slave', 'noSync'],
-			'default':	'noSync'
-		}, function (err, warning) {
-			if (warning) log.warn(logPrefix + warning);
-			cb(err);
-		});
-	});
-
-	tasks.push(function (cb) {
-		checkKey({
-			'obj':	exports,
-			'objectKey':	'intercom',
-			'default':	new Intercom('loopback interface'),
-			'defaultLabel':	'loopback interface'
-		}, function (err, warning) {
-			if (warning) log.warn(logPrefix + warning);
-			cb(err);
-		});
-	});
-
-	tasks.push(function (cb) {
-		if (exports.mode === 'master') {
-			listenMethod	= 'consume';
-			options.exclusive	= true;	// It is important no other client tries to sneak
-			//		// out messages from us, and we want "consume"
-			//		// since we want the queue to persist even if this
-			//		// minion goes offline.
-		} else if (exports.mode === 'slave' || exports.mode === 'noSync') {
-			listenMethod = 'subscribe';
+			options.log = new tmpLUtils.Log();
 		}
 
-		log.info(logPrefix + 'listenMethod: ' + listenMethod);
+		if (!options.intercom) {
+			options.intercom = new Intercom('loopback interface');
+		}
 
-		cb();
-	});
+		if (!options.exchangeName) {
+			options.exchangeName = 'larvitorder';
+		}
 
-	async.series(tasks, function (err) {
-		if (err) throw err;
+		this.options = options;
+		this.isReady = false;
+		this.readyInProgress = false;
+		this.emitter = new EventEmitter();
 
-		exports.intercom.ready(function (err) {
-			if (err) {
-				log.error(logPrefix + 'intercom.ready() err: ' + err.message);
-				return;
+		for (const key of Object.keys(options)) {
+			this[key] = options[key];
+		}
+
+		this.lUtils = new LUtils({log: this.log});
+
+		this.helpers = new Helpers({log: this.log, db: this.db, dataWriter: this});
+
+		this.listenToQueue(cb);
+	}
+
+	listenToQueue(retries, cb) {
+		const logPrefix = topLogPrefix + 'listenToQueue() - ';
+		const options = {exchange: this.exchangeName};
+		const tasks = [];
+
+		let listenMethod;
+
+		if (typeof retries === 'function') {
+			cb = retries;
+			retries = 0;
+		}
+
+		if (typeof cb !== 'function') {
+			cb = () => {};
+		}
+
+		if (retries === undefined) {
+			retries = 0;
+		}
+
+		tasks.push(cb => {
+			if (this.mode === 'master') {
+				listenMethod = 'consume';
+				options.exclusive = true; // It is important no other client tries to sneak
+				// out messages from us, and we want "consume"
+				// since we want the queue to persist even if this
+				// minion goes offline.
+			} else if (this.mode === 'slave' || this.mode === 'noSync') {
+				listenMethod = 'subscribe';
 			}
 
-			exports.intercom[listenMethod](options, function (message, ack, deliveryTag) {
-				exports.ready(function (err) {
-					ack(err); // Ack first, if something goes wrong we log it and handle it manually
+			this.log.info(logPrefix + 'listenMethod: ' + listenMethod);
 
-					if (err) {
-						log.error(logPrefix + 'intercom.' + listenMethod + '() - exports.ready() returned err: ' + err.message);
-						return;
-					}
-
-					if (typeof message !== 'object') {
-						log.error(logPrefix + 'intercom.' + listenMethod + '() - Invalid message received, is not an object! deliveryTag: "' + deliveryTag + '"');
-						return;
-					}
-
-					if (typeof exports[message.action] === 'function') {
-						exports[message.action](message.params, deliveryTag, message.uuid);
-					} else {
-						log.warn(logPrefix + 'intercom.' + listenMethod + '() - Unknown message.action received: "' + message.action + '"');
-					}
-				});
-			}, ready);
-		});
-	});
-}
-setImmediate(listenToQueue);
-
-// This is ran before each incoming message on the queue is handeled
-function ready(retries, cb) {
-	const	logPrefix	= topLogPrefix + 'ready() - ',
-		tasks	= [];
-
-	if (typeof retries === 'function') {
-		cb	= retries;
-		retries	= 0;
-	}
-
-	if (typeof cb !== 'function') {
-		cb = function (){};
-	}
-
-	if (retries === undefined) {
-		retries	= 0;
-	}
-
-	if (isReady === true) return cb();
-
-	if (readyInProgress === true) {
-		eventEmitter.on('ready', cb);
-		return;
-	}
-
-	readyInProgress = true;
-
-	tasks.push(function (cb) {
-		checkKey({
-			'obj':	exports,
-			'objectKey':	'mode',
-			'validValues':	['master', 'slave', 'noSync'],
-			'default':	'noSync'
-		}, function (err, warning) {
-			if (warning) log.warn(logPrefix + warning);
-			cb(err);
-		});
-	});
-
-	tasks.push(function (cb) {
-		checkKey({
-			'obj':	exports,
-			'objectKey':	'intercom',
-			'default':	new Intercom('loopback interface'),
-			'defaultLabel':	'loopback interface'
-		}, function (err, warning) {
-			if (warning) log.warn(logPrefix + warning);
-			cb(err);
-		});
-	});
-
-	tasks.push(function (cb) {
-		if (exports.mode === 'slave') {
-			log.verbose(logPrefix + 'exports.mode: "' + exports.mode + '", so read');
-			amsync.mariadb({
-				'exchange':	exports.exchangeName + '_dataDump',
-				'intercom':	exports.intercom
-			}, cb);
-		} else {
 			cb();
+		});
+
+		async.series(tasks, err => {
+			if (err) throw err;
+
+			this.intercom.ready(err => {
+				if (err) {
+					this.log.error(logPrefix + 'intercom.ready() err: ' + err.message);
+
+					return;
+				}
+
+				this.intercom[listenMethod](options, (message, ack, deliveryTag) => {
+					this.ready(err => {
+						ack(err); // Ack first, if something goes wrong we log it and handle it manually
+
+						if (err) {
+							this.log.error(logPrefix + 'intercom.' + listenMethod + '() - this.ready() returned err: ' + err.message);
+
+							return;
+						}
+
+						if (typeof message !== 'object') {
+							this.log.error(logPrefix + 'intercom.' + listenMethod + '() - Invalid message received, is not an object! deliveryTag: "' + deliveryTag + '"');
+
+							return;
+						}
+
+						if (typeof this[message.action] === 'function') {
+							this[message.action](message.params, deliveryTag, message.uuid);
+						} else {
+							this.log.warn(logPrefix + 'intercom.' + listenMethod + '() - Unknown message.action received: "' + message.action + '"');
+						}
+					});
+				}, cb);
+			});
+		});
+	}
+
+	ready(retries, cb) {
+		const logPrefix = topLogPrefix + 'ready() - ';
+		const tasks = [];
+
+		if (typeof retries === 'function') {
+			cb = retries;
+			retries = 0;
 		}
-	});
 
-	// Migrate database
-	tasks.push(function (cb) {
-		const	options	= {};
+		if (typeof cb !== 'function') {
+			cb = () => {};
+		}
 
-		let	dbMigration;
+		if (retries === undefined) {
+			retries = 0;
+		}
 
-		options.dbType	= 'larvitdb';
-		options.dbDriver	= db;
-		options.tableName	= 'orders_db_version';
-		options.migrationScriptsPath	= __dirname + '/dbmigration';
-		dbMigration	= new DbMigration(options);
+		if (this.isReady === true) return cb();
 
-		dbMigration.run(function (err) {
-			if (err) {
-				log.error(logPrefix + 'Database error: ' + err.message);
+		if (this.readyInProgress === true) {
+			this.emitter.on('ready', cb);
+
+			return;
+		}
+
+		this.readyInProgress = true;
+
+		tasks.push(cb => {
+			if (this.mode === 'slave') {
+				this.log.verbose(logPrefix + 'this.mode: "' + this.mode + '", so read');
+				amsync.mariadb({
+					exchange: this.exchangeName + '_dataDump',
+					intercom: this.intercom
+				}, cb);
+			} else {
+				cb();
 			}
-
-			cb(err);
 		});
-	});
 
-	async.series(tasks, function (err) {
-		if (err) return;
+		// Migrate database
+		tasks.push(cb => {
+			const options = {};
 
-		isReady	= true;
-		eventEmitter.emit('ready');
+			let dbMigration;
 
-		if (exports.mode === 'master') {
-			runDumpServer(cb);
-		} else {
-			cb();
-		}
-	});
-}
+			options.dbType = 'mariadb';
+			options.dbDriver = this.db;
+			options.log = this.log;
+			options.tableName = 'orders_db_version';
+			options.migrationScriptsPath = __dirname + '/dbmigration';
+			dbMigration = new DbMigration(options);
 
-function rmOrder(params, deliveryTag, msgUuid) {
-	const	orderUuid	= params.uuid,
-		orderUuidBuf	= lUtils.uuidToBuffer(orderUuid),
-		tasks	= [];
+			dbMigration.run(err => {
+				if (err) {
+					this.log.error(logPrefix + 'Database error: ' + err.message);
+				}
 
-	if (orderUuidBuf === false) {
-		const err = new Error('Invalid order uuid');
-		log.warn(topLogPrefix + 'rmOrder() - ' + err.message);
-		return exports.emitter.emit(msgUuid, err);
-	}
+				cb(err);
+			});
+		});
 
-	// Delete field data
-	tasks.push(function (cb) {
-		db.query('DELETE FROM orders_orders_fields WHERE orderUuid = ?', [orderUuidBuf], cb);
-	});
+		async.series(tasks, err => {
+			if (err) return;
 
-	// Delete row field data
-	tasks.push(function (cb) {
-		const	dbFields	= [orderUuidBuf],
-			sql	= 'DELETE FROM orders_rows_fields WHERE rowUuid IN (SELECT rowUuid FROM orders_rows WHERE orderUuid = ?)';
+			this.isReady = true;
+			this.emitter.emit('ready');
 
-		db.query(sql, dbFields, cb);
-	});
-
-	// Delete rows
-	tasks.push(function (cb) {
-		const	dbFields	= [orderUuidBuf],
-			sql	= 'DELETE FROM orders_rows WHERE orderUuid = ?';
-
-		db.query(sql, dbFields, cb);
-	});
-
-	// Delete order
-	tasks.push(function (cb) {
-		const	dbFields	= [orderUuidBuf],
-			sql	= 'DELETE FROM orders WHERE uuid = ?';
-
-		db.query(sql, dbFields, cb);
-	});
-
-	async.series(tasks, function (err) {
-		exports.emitter.emit(msgUuid, err);
-	});
-}
-
-function runDumpServer(cb) {
-	const	options	= {
-			'exchange':	exports.exchangeName + '_dataDump',
-			'host':	that.options.amsync	? that.options.amsync.host	: null,
-			'minPort':	that.options.amsync	? that.options.amsync.minPort	: null,
-			'maxPort':	that.options.amsync	? that.options.amsync.maxPort	: null
-		},
-		args	= [];
-
-	if (db.conf.host) {
-		args.push('-h');
-		args.push(db.conf.host);
-	}
-
-	args.push('-u');
-	args.push(db.conf.user);
-
-	if (db.conf.password) {
-		args.push('-p' + db.conf.password);
-	}
-
-	args.push('--single-transaction');
-	args.push('--hex-blob');
-	args.push(db.conf.database);
-
-	// Tables
-	args.push('orders');
-	args.push('orders_db_version');
-	args.push('orders_orderFields');
-	args.push('orders_orders_fields');
-	args.push('orders_rowFields');
-	args.push('orders_rows');
-	args.push('orders_rows_fields');
-
-	options.dataDumpCmd = {
-		'command':	'mysqldump',
-		'args':	args
+			if (this.mode === 'master') {
+				this.runDumpServer(cb);
+			} else {
+				cb();
+			}
+		});
 	};
 
-	options['Content-Type'] = 'application/sql';
-	options.intercom	= exports.intercom;
+	rmOrder(params, deliveryTag, msgUuid) {
+		const orderUuid = params.uuid;
+		const orderUuidBuf = this.lUtils.uuidToBuffer(orderUuid);
+		const tasks = [];
 
-	new amsync.SyncServer(options, cb);
-}
+		if (orderUuidBuf === false) {
+			const err = new Error('Invalid order uuid');
 
-function writeOrder(params, deliveryTag, msgUuid, cb) {
-	const	orderFields	= params.fields,
-		logPrefix	= topLogPrefix + 'writeOrder() - ',
-		orderRows	= params.rows,
-		orderUuid	= params.uuid,
-		orderUuidBuf	= lUtils.uuidToBuffer(orderUuid),
-		created	= params.created,
-		tasks	= [];
+			this.log.warn(topLogPrefix + 'rmOrder() - ' + err.message);
 
-	let	rowFieldUuidsByName,
-		fieldUuidsByName,
-		dbCon;
+			return this.emitter.emit(msgUuid, err);
+		}
 
-	if (typeof cb !== 'function') {
-		cb = function () {};
-	}
-
-	if (lUtils.formatUuid(orderUuid) === false || orderUuidBuf === false) {
-		const err = new Error('Invalid orderUuid: "' + orderUuid + '"');
-		log.error(logPrefix + err.message);
-		exports.emitter.emit(orderUuid, err);
-		return;
-	}
-
-	if (lUtils.formatUuid(orderUuid) === false || orderUuidBuf === false) {
-		const err = new Error('Invalid orderUuid: "' + orderUuid + '"');
-		log.error(logPrefix + err.message);
-		exports.emitter.emit(orderUuid, err);
-		return;
-	}
-
-	if (created && ! created instanceof Date) {
-		const err = new Error('Invalid value of "created". Value must be an instance of Date.');
-		log.warn(logPrefix + err.message);
-		exports.emitter.emit(orderUuid, err);
-		return;
-	}
-
-	// Get all field uuids
-	tasks.push(function (cb) {
-		helpers.getOrderFieldUuids(Object.keys(orderFields), function (err, result) {
-			fieldUuidsByName	= result;
-			cb(err);
+		// Delete field data
+		tasks.push(cb => {
+			this.db.query('DELETE FROM orders_orders_fields WHERE orderUuid = ?', [orderUuidBuf], cb);
 		});
-	});
 
-	// Get all row field uuids
-	tasks.push(function (cb) {
-		const	rowFieldNames	= [];
+		// Delete row field data
+		tasks.push(cb => {
+			const dbFields = [orderUuidBuf];
+			const sql = 'DELETE FROM orders_rows_fields WHERE rowUuid IN (SELECT rowUuid FROM orders_rows WHERE orderUuid = ?)';
 
-		for (let i = 0; orderRows[i] !== undefined; i ++) {
-			const	row	= orderRows[i];
+			this.db.query(sql, dbFields, cb);
+		});
 
-			for (const rowFieldName of Object.keys(row)) {
-				if (rowFieldNames.indexOf(rowFieldName) === - 1) {
-					rowFieldNames.push(rowFieldName);
+		// Delete rows
+		tasks.push(cb => {
+			const dbFields = [orderUuidBuf];
+			const sql = 'DELETE FROM orders_rows WHERE orderUuid = ?';
+
+			this.db.query(sql, dbFields, cb);
+		});
+
+		// Delete order
+		tasks.push(cb => {
+			const dbFields = [orderUuidBuf];
+			const sql = 'DELETE FROM orders WHERE uuid = ?';
+
+			this.db.query(sql, dbFields, cb);
+		});
+
+		async.series(tasks, err => {
+			this.emitter.emit(msgUuid, err);
+		});
+	};
+
+	runDumpServer(cb) {
+		const options = {
+			exchange: this.exchangeName + '_dataDump',
+			host: this.options.amsync ? this.options.amsync.host : null,
+			minPort: this.options.amsync ? this.options.amsync.minPort : null,
+			maxPort: this.options.amsync ? this.options.amsync.maxPort : null
+		};
+		const args = [];
+
+		if (this.db.conf.host) {
+			args.push('-h');
+			args.push(this.db.conf.host);
+		}
+
+		args.push('-u');
+		args.push(this.db.conf.user);
+
+		if (this.db.conf.password) {
+			args.push('-p' + this.db.conf.password);
+		}
+
+		args.push('--single-transaction');
+		args.push('--hex-blob');
+		args.push(this.db.conf.database);
+
+		// Tables
+		args.push('orders');
+		args.push('orders_db_version');
+		args.push('orders_orderFields');
+		args.push('orders_orders_fields');
+		args.push('orders_rowFields');
+		args.push('orders_rows');
+		args.push('orders_rows_fields');
+
+		options.dataDumpCmd = {
+			command: 'mysqldump',
+			args: args
+		};
+
+		options['Content-Type'] = 'application/sql';
+		options.intercom = this.intercom;
+
+		new amsync.SyncServer(options, cb);
+	};
+
+	writeOrder(params, deliveryTag, msgUuid, cb) {
+		const orderFields = params.fields;
+		const logPrefix = topLogPrefix + 'writeOrder() - ';
+		const orderRows = params.rows;
+		const orderUuid = params.uuid;
+		const orderUuidBuf = this.lUtils.uuidToBuffer(orderUuid);
+		const created = params.created;
+		const tasks = [];
+
+		let rowFieldUuidsByName;
+		let fieldUuidsByName;
+		let dbCon;
+
+		if (typeof cb !== 'function') {
+			cb = () => {};
+		}
+
+		if (this.lUtils.formatUuid(orderUuid) === false || orderUuidBuf === false) {
+			const err = new Error('Invalid orderUuid: "' + orderUuid + '"');
+
+			this.log.error(logPrefix + err.message);
+			this.emitter.emit(orderUuid, err);
+
+			return;
+		}
+
+		if (this.lUtils.formatUuid(orderUuid) === false || orderUuidBuf === false) {
+			const err = new Error('Invalid orderUuid: "' + orderUuid + '"');
+
+			this.log.error(logPrefix + err.message);
+			this.emitter.emit(orderUuid, err);
+
+			return;
+		}
+
+		if (created && !created instanceof Date) {
+			const err = new Error('Invalid value of "created". Value must be an instance of Date.');
+
+			this.log.warn(logPrefix + err.message);
+			this.emitter.emit(orderUuid, err);
+
+			return;
+		}
+
+		tasks.push(cb => { this.ready(cb); });
+
+		// Get all field uuids
+		tasks.push(cb => {
+			this.helpers.getOrderFieldUuids(Object.keys(orderFields), (err, result) => {
+				fieldUuidsByName = result;
+				cb(err);
+			});
+		});
+
+		// Get all row field uuids
+		tasks.push(cb => {
+			const rowFieldNames = [];
+
+			for (let i = 0; orderRows[i] !== undefined; i++) {
+				const row = orderRows[i];
+
+				for (const rowFieldName of Object.keys(row)) {
+					if (rowFieldNames.indexOf(rowFieldName) === -1) {
+						rowFieldNames.push(rowFieldName);
+					}
 				}
 			}
-		}
 
-		helpers.getRowFieldUuids(rowFieldNames, function (err, result) {
-			rowFieldUuidsByName = result;
-			cb(err);
+			this.helpers.getRowFieldUuids(rowFieldNames, (err, result) => {
+				rowFieldUuidsByName = result;
+				cb(err);
+			});
 		});
-	});
 
-	// Get a database connection
-	tasks.push(function (cb) {
-		db.pool.getConnection(function(err, result) {
-			dbCon	= result;
-			cb(err);
+		// Get a database connection
+		tasks.push(cb => {
+			this.db.pool.getConnection((err, result) => {
+				dbCon = result;
+				cb(err);
+			});
 		});
-	});
 
-	// Lock tables
-	tasks.push(function (cb) {
-		dbCon.query('LOCK TABLES orders WRITE, orders_orders_fields WRITE, orders_rows_fields WRITE, orders_rows WRITE', cb);
-	});
+		// Lock tables
+		tasks.push(cb => {
+			dbCon.query('LOCK TABLES orders WRITE, orders_orders_fields WRITE, orders_rows_fields WRITE, orders_rows WRITE', cb);
+		});
 
-	// Make sure the base order row exists
-	tasks.push(function (cb) {
-		const	sql	= 'INSERT IGNORE INTO orders (uuid, created) VALUES(?,?)';
+		// Make sure the base order row exists
+		tasks.push(cb => {
+			const sql = 'INSERT IGNORE INTO orders (uuid, created) VALUES(?,?)';
 
-		dbCon.query(sql, [orderUuidBuf, created], cb);
-	});
+			dbCon.query(sql, [orderUuidBuf, created], cb);
+		});
 
-	// Clean out old field data
-	tasks.push(function (cb) {
-		dbCon.query('DELETE FROM orders_orders_fields WHERE orderUuid = ?', [orderUuidBuf], cb);
-	});
+		// Clean out old field data
+		tasks.push(cb => {
+			dbCon.query('DELETE FROM orders_orders_fields WHERE orderUuid = ?', [orderUuidBuf], cb);
+		});
 
-	// Clean out old row field data
-	tasks.push(function (cb) {
-		const	dbFields	= [orderUuidBuf],
-			sql	= 'DELETE FROM orders_rows_fields WHERE rowUuid IN (SELECT rowUuid FROM orders_rows WHERE orderUuid = ?)';
+		// Clean out old row field data
+		tasks.push(cb => {
+			const dbFields = [orderUuidBuf];
+			const sql = 'DELETE FROM orders_rows_fields WHERE rowUuid IN (SELECT rowUuid FROM orders_rows WHERE orderUuid = ?)';
 
-		dbCon.query(sql, dbFields, cb);
-	});
+			dbCon.query(sql, dbFields, cb);
+		});
 
-	// Clean out old rows
-	tasks.push(function (cb) {
-		const	dbFields	= [orderUuidBuf],
-			sql	= 'DELETE FROM orders_rows WHERE orderUuid = ?';
+		// Clean out old rows
+		tasks.push(cb => {
+			const dbFields = [orderUuidBuf];
+			const sql = 'DELETE FROM orders_rows WHERE orderUuid = ?';
 
-		dbCon.query(sql, dbFields, cb);
-	});
+			dbCon.query(sql, dbFields, cb);
+		});
 
-	// By now we have a clean database, lets insert stuff!
+		// By now we have a clean database, lets insert stuff!
 
-	// Insert fields
-	tasks.push(function (cb) {
-		const	dbFields	= [];
+		// Insert fields
+		tasks.push(cb => {
+			const dbFields = [];
 
-		let	sql	= 'INSERT INTO orders_orders_fields (orderUuid, fieldUuid, fieldValue) VALUES';
+			let sql = 'INSERT INTO orders_orders_fields (orderUuid, fieldUuid, fieldValue) VALUES';
 
-		for (const fieldName of Object.keys(orderFields)) {
-			if ( ! (orderFields[fieldName] instanceof Array)) {
-				orderFields[fieldName] = [orderFields[fieldName]];
+			for (const fieldName of Object.keys(orderFields)) {
+				if (!(orderFields[fieldName] instanceof Array)) {
+					orderFields[fieldName] = [orderFields[fieldName]];
+				}
+
+				for (let i = 0; orderFields[fieldName][i] !== undefined; i++) {
+					const fieldValue = orderFields[fieldName][i];
+
+					if (fieldValue === null || fieldValue === undefined) continue;
+
+					sql += '(?,?,?),';
+					dbFields.push(orderUuidBuf);
+					dbFields.push(fieldUuidsByName[fieldName]);
+					dbFields.push(fieldValue);
+				}
 			}
 
-			for (let i = 0; orderFields[fieldName][i] !== undefined; i ++) {
-				const	fieldValue	= orderFields[fieldName][i];
+			if (dbFields.length === 0) return cb();
 
-				if (fieldValue === null || fieldValue === undefined) continue;
+			sql = sql.substring(0, sql.length - 1) + ';';
+			dbCon.query(sql, dbFields, cb);
+		});
 
-				sql += '(?,?,?),';
-				dbFields.push(orderUuidBuf);
-				dbFields.push(fieldUuidsByName[fieldName]);
-				dbFields.push(fieldValue);
-			}
-		}
+		// Insert rows
+		tasks.push(cb => {
+			const dbFields = [];
 
-		if (dbFields.length === 0) return cb();
+			let sql = 'INSERT INTO orders_rows (rowUuid, orderUuid) VALUES';
 
-		sql = sql.substring(0, sql.length - 1) + ';';
-		dbCon.query(sql, dbFields, cb);
-	});
+			for (let i = 0; orderRows[i] !== undefined; i++) {
+				const row = orderRows[i];
 
-	// Insert rows
-	tasks.push(function (cb) {
-		const	dbFields	= [];
+				let buffer;
 
-		let	sql	= 'INSERT INTO orders_rows (rowUuid, orderUuid) VALUES';
+				// Make sure all rows got an uuid
+				if (row.uuid === undefined) {
+					row.uuid = uuidLib.v4();
+				}
 
-		for (let i = 0; orderRows[i] !== undefined; i ++) {
-			const row = orderRows[i];
+				buffer = this.lUtils.uuidToBuffer(row.uuid);
 
-			let buffer;
-
-			// Make sure all rows got an uuid
-			if (row.uuid === undefined) {
-				row.uuid = uuidLib.v4();
-			}
-
-			buffer = lUtils.uuidToBuffer(row.uuid);
-
-			if (buffer === false) {
-				return cb(new Error('Invalid row uuid'));
-			}
-
-			sql += '(?,?),';
-			dbFields.push(buffer);
-			dbFields.push(orderUuidBuf);
-		}
-
-		if (dbFields.length === 0) return cb();
-
-		sql = sql.substring(0, sql.length - 1);
-		dbCon.query(sql, dbFields, cb);
-	});
-
-	// Insert row fields
-	tasks.push(function (cb) {
-		const	dbFields	= [];
-
-		let	sql	= 'INSERT INTO orders_rows_fields (rowUuid, rowFieldUuid, rowIntValue, rowStrValue) VALUES';
-
-		for (let i = 0; orderRows[i] !== undefined; i ++) {
-			const	row	= orderRows[i];
-
-			for (const rowFieldName of Object.keys(row)) {
-				const	rowUuidBuff	= lUtils.uuidToBuffer(row.uuid);
-
-				if (rowUuidBuff === false) {
+				if (buffer === false) {
 					return cb(new Error('Invalid row uuid'));
 				}
 
-				if (rowFieldName === 'uuid') continue;
+				sql += '(?,?),';
+				dbFields.push(buffer);
+				dbFields.push(orderUuidBuf);
+			}
 
-				if ( ! (row[rowFieldName] instanceof Array)) {
-					row[rowFieldName] = [row[rowFieldName]];
-				}
+			if (dbFields.length === 0) return cb();
 
-				for (let i = 0; row[rowFieldName][i] !== undefined; i ++) {
-					const rowFieldValue = row[rowFieldName][i];
+			sql = sql.substring(0, sql.length - 1);
+			dbCon.query(sql, dbFields, cb);
+		});
 
-					sql += '(?,?,?,?),';
-					dbFields.push(rowUuidBuff);
-					dbFields.push(rowFieldUuidsByName[rowFieldName]);
+		// Insert row fields
+		tasks.push(cb => {
+			const dbFields = [];
 
-					if (typeof rowFieldValue === 'number' && (rowFieldValue % 1) === 0) {
-						dbFields.push(rowFieldValue);
-						dbFields.push(null);
-					} else {
-						dbFields.push(null);
-						dbFields.push(rowFieldValue);
+			let sql = 'INSERT INTO orders_rows_fields (rowUuid, rowFieldUuid, rowIntValue, rowStrValue) VALUES';
+
+			for (let i = 0; orderRows[i] !== undefined; i++) {
+				const row = orderRows[i];
+
+				for (const rowFieldName of Object.keys(row)) {
+					const rowUuidBuff = this.lUtils.uuidToBuffer(row.uuid);
+
+					if (rowUuidBuff === false) {
+						return cb(new Error('Invalid row uuid'));
+					}
+
+					if (rowFieldName === 'uuid') continue;
+
+					if (!(row[rowFieldName] instanceof Array)) {
+						row[rowFieldName] = [row[rowFieldName]];
+					}
+
+					for (let i = 0; row[rowFieldName][i] !== undefined; i++) {
+						const rowFieldValue = row[rowFieldName][i];
+
+						sql += '(?,?,?,?),';
+						dbFields.push(rowUuidBuff);
+						dbFields.push(rowFieldUuidsByName[rowFieldName]);
+
+						if (typeof rowFieldValue === 'number' && (rowFieldValue % 1) === 0) {
+							dbFields.push(rowFieldValue);
+							dbFields.push(null);
+						} else {
+							dbFields.push(null);
+							dbFields.push(rowFieldValue);
+						}
 					}
 				}
 			}
-		}
 
-		if (dbFields.length === 0) return cb();
+			if (dbFields.length === 0) return cb();
 
-		sql = sql.substring(0, sql.length - 1) + ';';
+			sql = sql.substring(0, sql.length - 1) + ';';
 
-		dbCon.query(sql, dbFields, function (err) {
-			if (err) {
-				try {
-					log.error(logPrefix + 'db err: ' + err.message);
-					log.error(logPrefix + 'Full order params: ' + JSON.stringify(params));
-				} catch (err) {
-					log.error(logPrefix + 'Could not log proder params: ' + err.message);
+			dbCon.query(sql, dbFields, err => {
+				if (err) {
+					try {
+						this.log.error(logPrefix + 'db err: ' + err.message);
+						this.log.error(logPrefix + 'Full order params: ' + JSON.stringify(params));
+					} catch (err) {
+						this.log.error(logPrefix + 'Could not log proder params: ' + err.message);
+					}
 				}
+
+				cb(err);
+			});
+		});
+
+		// Unlock tables
+		tasks.push(cb => {
+			dbCon.query('UNLOCK TABLES', cb);
+		});
+
+		async.series(tasks, err => {
+			if (dbCon) {
+				dbCon.release();
+			}
+			this.emitter.emit(msgUuid, err);
+
+			return cb(err);
+		});
+	};
+
+	writeOrderField(params, deliveryTag, msgUuid) {
+		const uuid = params.uuid;
+		const name = params.name;
+
+		this.db.query('INSERT IGNORE INTO orders_orderFields (uuid, name) VALUES(?,?)', [uuid, name], err => {
+			if (err) {
+				this.emitter.emit(msgUuid, err);
+
+				return;
 			}
 
-			cb(err);
+			this.helpers.loadOrderFieldsToCache(err => {
+				this.emitter.emit(msgUuid, err);
+			});
 		});
-	});
+	};
 
-	// Unlock tables
-	tasks.push(function (cb) {
-		dbCon.query('UNLOCK TABLES', cb);
-	});
+	writeRowField(params, deliveryTag, msgUuid) {
+		const uuid = params.uuid;
+		const name = params.name;
 
-	async.series(tasks, function (err) {
-		if (dbCon) {
-			dbCon.release();
-		}
-		exports.emitter.emit(msgUuid, err);
-		return cb(err);
-	});
+		this.db.query('INSERT IGNORE INTO orders_rowFields (uuid, name) VALUES(?,?)', [uuid, name], err => {
+			if (err) {
+				this.emitter.emit(msgUuid, err);
+
+				return;
+			}
+
+			this.helpers.loadRowFieldsToCache(err => {
+				this.emitter.emit(msgUuid, err);
+			});
+		});
+	}
 }
 
-function writeOrderField(params, deliveryTag, msgUuid) {
-	const	uuid	= params.uuid,
-		name	= params.name;
-
-	db.query('INSERT IGNORE INTO orders_orderFields (uuid, name) VALUES(?,?)', [uuid, name], function (err) {
-		if (err) {
-			exports.emitter.emit(msgUuid, err);
-			return;
-		}
-
-		helpers.loadOrderFieldsToCache(function (err) {
-			exports.emitter.emit(msgUuid, err);
-		});
-	});
-}
-
-function writeRowField(params, deliveryTag, msgUuid) {
-	const	uuid	= params.uuid,
-		name	= params.name;
-
-	db.query('INSERT IGNORE INTO orders_rowFields (uuid, name) VALUES(?,?)', [uuid, name], function (err) {
-		if (err) {
-			exports.emitter.emit(msgUuid, err);
-			return;
-		}
-
-		helpers.loadRowFieldsToCache(function (err) {
-			exports.emitter.emit(msgUuid, err);
-		});
-	});
-}
-
-exports.emitter	= new EventEmitter();
-exports.exchangeName	= 'larvitorder';
-exports.options	= undefined;
-exports.ready	= ready;
-exports.rmOrder	= rmOrder;
-exports.writeOrder	= writeOrder;
-exports.writeOrderField	= writeOrderField;
-exports.writeRowField	= writeRowField;
+module.exports = exports = DataWriter;
