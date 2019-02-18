@@ -82,7 +82,7 @@ class Helpers {
 
 			this.dataWriter.intercom.send(message, options, (err, msgUuid) => {
 				if (err) return cb(err);
-				this.dataWriter.emitter.once(msgUuid, err => {
+				this.dataWriter.constructor.emitter.once(msgUuid, err => {
 					if (err) return cb(err);
 
 					this.loadOrderFieldsToCache(cb);
@@ -157,7 +157,7 @@ class Helpers {
 
 			this.dataWriter.intercom.send(message, options, (err, msgUuid) => {
 				if (err) return cb(err);
-				this.dataWriter.emitter.once(msgUuid, err => {
+				this.dataWriter.constructor.emitter.once(msgUuid, err => {
 					if (err) return cb(err);
 
 					this.loadRowFieldsToCache(cb);

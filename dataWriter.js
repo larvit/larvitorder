@@ -10,7 +10,13 @@ const LUtils = require('larvitutils');
 const amsync = require('larvitamsync');
 const async = require('async');
 
+let emitter = new EventEmitter();
+let isReady = false;
+let readyInProgress = false;
+
 class DataWriter {
+	static get emitter() { return emitter; }
+
 	constructor(options, cb) {
 		if (!options.db) return cb(new Error('Missing required option "db"'));
 		if (!options.mode) return cb(new Error('Missing required option "mode"'));
@@ -30,9 +36,6 @@ class DataWriter {
 		}
 
 		this.options = options;
-		this.isReady = false;
-		this.readyInProgress = false;
-		this.emitter = new EventEmitter();
 
 		for (const key of Object.keys(options)) {
 			this[key] = options[key];
@@ -135,15 +138,15 @@ class DataWriter {
 			retries = 0;
 		}
 
-		if (this.isReady === true) return cb();
+		if (isReady === true) return cb();
 
-		if (this.readyInProgress === true) {
-			this.emitter.on('ready', cb);
+		if (readyInProgress === true) {
+			DataWriter.emitter.on('ready', cb);
 
 			return;
 		}
 
-		this.readyInProgress = true;
+		readyInProgress = true;
 
 		tasks.push(cb => {
 			if (this.mode === 'slave') {
@@ -182,8 +185,8 @@ class DataWriter {
 		async.series(tasks, err => {
 			if (err) return;
 
-			this.isReady = true;
-			this.emitter.emit('ready');
+			isReady = true;
+			DataWriter.emitter.emit('ready');
 
 			if (this.mode === 'master') {
 				this.runDumpServer(cb);
@@ -203,7 +206,7 @@ class DataWriter {
 
 			this.log.warn(topLogPrefix + 'rmOrder() - ' + err.message);
 
-			return this.emitter.emit(msgUuid, err);
+			return emitter.emit(msgUuid, err);
 		}
 
 		// Delete field data
@@ -236,7 +239,7 @@ class DataWriter {
 		});
 
 		async.series(tasks, err => {
-			this.emitter.emit(msgUuid, err);
+			emitter.emit(msgUuid, err);
 		});
 	};
 
@@ -306,7 +309,7 @@ class DataWriter {
 			const err = new Error('Invalid orderUuid: "' + orderUuid + '"');
 
 			this.log.error(logPrefix + err.message);
-			this.emitter.emit(orderUuid, err);
+			emitter.emit(orderUuid, err);
 
 			return;
 		}
@@ -315,7 +318,7 @@ class DataWriter {
 			const err = new Error('Invalid orderUuid: "' + orderUuid + '"');
 
 			this.log.error(logPrefix + err.message);
-			this.emitter.emit(orderUuid, err);
+			emitter.emit(orderUuid, err);
 
 			return;
 		}
@@ -324,7 +327,7 @@ class DataWriter {
 			const err = new Error('Invalid value of "created". Value must be an instance of Date.');
 
 			this.log.warn(logPrefix + err.message);
-			this.emitter.emit(orderUuid, err);
+			emitter.emit(orderUuid, err);
 
 			return;
 		}
@@ -531,7 +534,7 @@ class DataWriter {
 			if (dbCon) {
 				dbCon.release();
 			}
-			this.emitter.emit(msgUuid, err);
+			emitter.emit(msgUuid, err);
 
 			return cb(err);
 		});
@@ -543,13 +546,13 @@ class DataWriter {
 
 		this.db.query('INSERT IGNORE INTO orders_orderFields (uuid, name) VALUES(?,?)', [uuid, name], err => {
 			if (err) {
-				this.emitter.emit(msgUuid, err);
+				emitter.emit(msgUuid, err);
 
 				return;
 			}
 
 			this.helpers.loadOrderFieldsToCache(err => {
-				this.emitter.emit(msgUuid, err);
+				emitter.emit(msgUuid, err);
 			});
 		});
 	};
@@ -560,13 +563,13 @@ class DataWriter {
 
 		this.db.query('INSERT IGNORE INTO orders_rowFields (uuid, name) VALUES(?,?)', [uuid, name], err => {
 			if (err) {
-				this.emitter.emit(msgUuid, err);
+				emitter.emit(msgUuid, err);
 
 				return;
 			}
 
 			this.helpers.loadRowFieldsToCache(err => {
-				this.emitter.emit(msgUuid, err);
+				emitter.emit(msgUuid, err);
 			});
 		});
 	}

@@ -337,7 +337,7 @@ Order.prototype.rm = function (cb) {
 
 		this.dataWriter.intercom.send(message, options, (err, msgUuid) => {
 			if (err) return cb(err);
-			this.dataWriter.emitter.once(msgUuid, cb);
+			this.dataWriter.constructor.emitter.once(msgUuid, cb);
 		});
 	});
 };
@@ -367,7 +367,7 @@ Order.prototype.save = function (cb) {
 
 		this.dataWriter.intercom.send(message, options, (err, msgUuid) => {
 			if (err) return cb(err);
-			this.dataWriter.emitter.once(msgUuid, cb);
+			this.dataWriter.constructor.emitter.once(msgUuid, cb);
 		});
 	});
 
