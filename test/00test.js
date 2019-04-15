@@ -22,10 +22,12 @@ before(function (done) {
 	tasks.push(function (cb) {
 		let confFile;
 
-		if (process.env.DBCONFFILE === undefined) {
-			confFile = __dirname + '/../config/db_test.json';
-		} else {
+		if (process.env.TRAVIS) {
+			confFile = __dirname + '/../config/db_travis.json';
+		} else if (process.env.DBCONFFILE) {
 			confFile = process.env.DBCONFFILE;
+		} else {
+			confFile = __dirname + '/../config/db_test.json';
 		}
 
 		log.verbose('DB config file: "' + confFile + '"');
@@ -64,10 +66,13 @@ before(function (done) {
 
 	// Load libs
 	tasks.push(function (cb) {
-		new OrderLib.Order({
+		const orderLib = new OrderLib.Order({
 			db,
 			log
-		}).ready(cb);
+		}, err => {
+			if (err) throw err;
+			orderLib.ready(cb); // We do this to test both the ready function and the callback from the constructor
+		});
 	});
 
 	async.series(tasks, done);

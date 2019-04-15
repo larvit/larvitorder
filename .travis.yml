@@ -5,9 +5,9 @@ env:
 
 node_js:
   - 6
-  - 7
   - 8
-  - 9
+  - 10
+  - 11
 
 sudo: required
 
@@ -36,4 +36,4 @@ addons:
     packages:
     - g++-4.8
 
-script: DBCONFFILE=db_travis.json npm test
+script: npm test

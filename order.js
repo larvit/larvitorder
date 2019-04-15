@@ -9,18 +9,34 @@ const uuidLib = require('uuid');
 const LUtils = require('larvitutils');
 const async = require('async');
 
-function Order(options) {
+/**
+ * Order constructor
+ *
+ * @param {object} options - All options
+ * @param {object} options.db - Database instance
+ * @param {object} [options.log] - Logging instance
+ * @param {string} [options.exchangeName] - Exchange name for communication on larvitamintercom (RabbitMQ)
+ * @param {string} [options.mode] - What sync mode to use for larvitamsync
+ * @param {object} [options.intercom] - Instance of larvitamintercom
+ * @param {string} [options.amsync_host] - Hostname to connect to for amsync
+ * @param {string} [options.amsync.amsync_minPort] -
+ * @param {string} [options.amsync.amsync_maxPort] -
+ * @param {function} cb - Callback when all initialization is done
+ */
+function Order(options, cb) {
 	const logPrefix = topLogPrefix + 'Order() - ';
 
 	this.options = options || {};
+
+	if (typeof cb !== 'function') {
+		cb = () => '';
+	}
 
 	if (!options.log) {
 		const tmpLUtils = new LUtils();
 
 		options.log = new tmpLUtils.Log();
 	}
-
-	this.options = options;
 
 	for (const key of Object.keys(options)) {
 		this[key] = options[key];
@@ -93,6 +109,7 @@ function Order(options) {
 
 		async.series(tasks, err => {
 			if (err) this.log.error(logPrefix + err.message);
+			cb();
 		});
 	});
 }
