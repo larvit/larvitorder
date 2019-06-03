@@ -31,10 +31,10 @@ class OrderLib {
 			return cb(err);
 		}
 
-		this.migrateDb(cb);
+		cb();
 	}
 
-	migrateDb(cb) {
+	runDbMigrations(cb) {
 		const options = {};
 
 		options.dbType = 'mariadb';
