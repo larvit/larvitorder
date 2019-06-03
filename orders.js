@@ -1,7 +1,6 @@
 /* eslint-disable no-tabs */
 'use strict';
 
-const DataWriter = require('./dataWriter.js');
 const LUtils = require('larvitutils');
 const async = require('async');
 
@@ -23,8 +22,6 @@ function Orders(options) {
 	for (const key of Object.keys(options)) {
 		this[key] = options[key];
 	}
-
-	this.dataWriter = new DataWriter({log: this.log, db: this.db, mode: this.mode || 'noSync', intercom: this.intercom});
 }
 
 Orders.prototype.get = function (cb) {
@@ -32,9 +29,6 @@ Orders.prototype.get = function (cb) {
 	let orders = {};
 
 	let hits;
-
-	// Make sure database is ready
-	tasks.push(cb => { this.dataWriter.ready(cb); });
 
 	// Get basic orders
 	tasks.push(cb => {

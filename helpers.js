@@ -13,7 +13,7 @@ class Helpers {
 	static get rowFields() { return rowFields; }
 
 	constructor(options) {
-		for (const ro of ['db', 'log', 'dataWriter']) {
+		for (const ro of ['db', 'log']) {
 			if (!options[ro]) throw new Error('Missing required option "' + ro + '"');
 		}
 
@@ -25,10 +25,6 @@ class Helpers {
 	getFieldValues(fieldName, cb) {
 		const tasks = [];
 		const names = [];
-
-		tasks.push(cb => {
-			this.dataWriter.ready(cb);
-		});
 
 		tasks.push(cb => {
 			let sql = 'SELECT DISTINCT fieldValue\n';
@@ -55,39 +51,19 @@ class Helpers {
 
 	getOrderFieldUuid(fieldName, cb) {
 		const tasks = [];
+		const cachedOrderField = orderFields.find(field => field.name === fieldName);
 
-		for (let i = 0; orderFields[i] !== undefined; i++) {
-			if (orderFields[i].name === fieldName) {
-				cb(null, orderFields[i].uuid);
-
-				return;
-			}
-		}
+		if (cachedOrderField) return cb(null, cachedOrderField.uuid);
 
 		// If we get down here, the field does not exist, create it and rerun
-
 		tasks.push(cb => {
-			this.dataWriter.ready(cb);
+			const uuid = uuidLib.v1();
+
+			this.db.query('INSERT IGNORE INTO orders_orderFields (uuid, name) VALUES(?,?)', [uuid, fieldName], cb);
 		});
 
 		tasks.push(cb => {
-			const options = {exchange: this.dataWriter.exchangeName};
-			const message = {};
-
-			message.action = 'writeOrderField';
-			message.params = {};
-
-			message.params.uuid = uuidLib.v1();
-			message.params.name = fieldName;
-
-			this.dataWriter.intercom.send(message, options, (err, msgUuid) => {
-				if (err) return cb(err);
-				this.dataWriter.constructor.emitter.once(msgUuid, err => {
-					if (err) return cb(err);
-
-					this.loadOrderFieldsToCache(cb);
-				});
-			});
+			this.loadOrderFieldsToCache(cb);
 		});
 
 		async.series(tasks, err => {
@@ -105,7 +81,7 @@ class Helpers {
 			const fieldName = fieldNames[i];
 
 			tasks.push(cb => {
-				this.getOrderFieldUuid(fieldName, function (err, fieldUuid) {
+				this.getOrderFieldUuid(fieldName, (err, fieldUuid) => {
 					if (err) return cb(err);
 
 					fieldUuidsByName[fieldName] = fieldUuid;
@@ -133,36 +109,19 @@ class Helpers {
 			return cb(err);
 		}
 
-		for (let i = 0; rowFields[i] !== undefined; i++) {
-			if (rowFields[i].name === rowFieldName) {
-				return cb(null, rowFields[i].uuid);
-			}
-		}
+		const cachedField = rowFields.find(field => field.name === rowFieldName);
+
+		if (cachedField) return cb(null, cachedField.uuid);
 
 		// If we get down here, the field does not exist, create it and rerun
-
 		tasks.push(cb => {
-			this.dataWriter.ready(cb);
+			const uuid = uuidLib.v1();
+
+			this.db.query('INSERT IGNORE INTO orders_rowFields (uuid, name) VALUES(?,?)', [uuid, rowFieldName], cb);
 		});
 
 		tasks.push(cb => {
-			const options = {exchange: this.dataWriter.exchangeName};
-			const message = {};
-
-			message.action = 'writeRowField';
-			message.params = {};
-
-			message.params.uuid = uuidLib.v1();
-			message.params.name = rowFieldName;
-
-			this.dataWriter.intercom.send(message, options, (err, msgUuid) => {
-				if (err) return cb(err);
-				this.dataWriter.constructor.emitter.once(msgUuid, err => {
-					if (err) return cb(err);
-
-					this.loadRowFieldsToCache(cb);
-				});
-			});
+			this.loadRowFieldsToCache(cb);
 		});
 
 		async.series(tasks, err => {

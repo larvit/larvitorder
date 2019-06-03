@@ -1,10 +1,10 @@
 {
   "name": "larvitorder",
-  "version": "1.0.1",
+  "version": "2.0.0",
   "description": "Generic order system",
   "main": "index.js",
   "dependencies": {
-    "async": "^2.1.4",
+    "async": "^3.0.1",
     "larvitamintercom": "^0.3.4",
     "larvitamsync": "^0.7.3",
     "larvitdb": "^2.1.1",
@@ -15,7 +15,7 @@
   },
   "devDependencies": {
     "eslint": "5.16.0",
-    "mocha": "6.1.3",
+    "mocha": "6.1.4",
     "mocha-eslint": "5.0.0"
   },
   "scripts": {

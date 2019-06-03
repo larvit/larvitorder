@@ -51,6 +51,10 @@ before(function (done) {
 		});
 	});
 
+	tasks.push(cb => {
+		db.removeAllTables(cb);
+	});
+
 	// Check for empty db
 	tasks.push(function (cb) {
 		db.query('SHOW TABLES', function (err, rows) {
@@ -64,15 +68,12 @@ before(function (done) {
 		});
 	});
 
-	// Load libs
+	// Load libs and migration
 	tasks.push(function (cb) {
-		const orderLib = new OrderLib.Order({
+		new OrderLib.OrderLib({
 			db,
 			log
-		}, err => {
-			if (err) throw err;
-			orderLib.ready(cb); // We do this to test both the ready function and the callback from the constructor
-		});
+		}, cb);
 	});
 
 	async.series(tasks, done);
