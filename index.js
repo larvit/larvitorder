@@ -11,9 +11,8 @@ class OrderLib {
 	 * @param {object} options - OrderLib options
 	 * @param {object} options.db - Database instance
 	 * @param {object} [options.log] - Logging instance
-	 * @param {function} cb - Callback called when initialization is ready
 	 */
-	constructor(options, cb) {
+	constructor(options) {
 		if (!options.log) {
 			const tmpLUtils = new LUtils();
 
@@ -28,10 +27,8 @@ class OrderLib {
 
 			this.log.error(topLogPrefix + err.message);
 
-			return cb(err);
+			throw err;
 		}
-
-		cb();
 	}
 
 	runDbMigrations(cb) {
