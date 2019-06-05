@@ -2,6 +2,7 @@
 
 const DbMigration = require('larvitdbmigration');
 const LUtils = require('larvitutils');
+const Helpers = require('./helpers.js');
 
 const topLogPrefix = 'larvitorder: index.js: ';
 class OrderLib {
@@ -29,6 +30,11 @@ class OrderLib {
 
 			throw err;
 		}
+
+		this.helpers = new Helpers({
+			log: this.log,
+			db: this.db
+		});
 	}
 
 	runDbMigrations(cb) {
@@ -55,6 +61,6 @@ class OrderLib {
 }
 
 exports.OrderLib = OrderLib;
-exports.helpers = require('./helpers.js');
+exports.Helpers = Helpers;
 exports.Order = require('./order.js');
 exports.Orders = require('./orders.js');
