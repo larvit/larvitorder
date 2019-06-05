@@ -70,10 +70,12 @@ before(function (done) {
 
 	// Load libs and migration
 	tasks.push(function (cb) {
-		new OrderLib.OrderLib({
+		const orderLib = new OrderLib.OrderLib({
 			db,
 			log
-		}, cb);
+		});
+
+		orderLib.runDbMigrations(cb);
 	});
 
 	async.series(tasks, done);
