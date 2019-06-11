@@ -580,25 +580,29 @@ Order.prototype.save = function (cb) {
 		});
 	});
 
-	// Unlock tables
-	tasks.push(cb => {
-		dbCon.query('UNLOCK TABLES', cb);
-	});
-
 	async.series(tasks, err => {
-		if (dbCon) {
-			dbCon.release();
-		}
+		// Always unlock tables
+		dbCon.query('UNLOCK TABLES', unlockErr => {
+			if (unlockErr) {
+				this.log.err(`${topLogPrefix} save() - Unable to UNLOCK TABLES when saving order UUID: "${orderUuid}", err: ${unlockErr.message}`);
 
-		if (err) {
-			this.log.warn(`${topLogPrefix} save() - Error saving order with UUID: "${orderUuid}", err: ${err.message}`);
+				return cb(unlockErr);
+			}
+
+			if (dbCon) {
+				dbCon.release();
+			}
+
+			if (err) {
+				this.log.warn(`${topLogPrefix} save() - Error saving order with UUID: "${orderUuid}", err: ${err.message}`);
+
+				return cb(err);
+			}
+
+			this.log.info(`${topLogPrefix} save() - Saved order with UUID: "${orderUuid}"`);
 
 			return cb(err);
-		}
-
-		this.log.info(`${topLogPrefix} save() - Saved order with UUID: "${orderUuid}"`);
-
-		return cb(err);
+		});
 	});
 };
 
