@@ -11,6 +11,7 @@ const log = new lUtils.Log('warn');
 const db = require('larvitdb');
 const fs = require('fs');
 
+let orderLib;
 let noFieldsOrderUuid;
 
 before(function (done) {
@@ -70,7 +71,7 @@ before(function (done) {
 
 	// Load libs and migration
 	tasks.push(function (cb) {
-		const orderLib = new OrderLib.OrderLib({
+		orderLib = new OrderLib.OrderLib({
 			db,
 			log
 		});
@@ -143,6 +144,25 @@ describe('Order', function () {
 
 			done();
 		});
+	});
+
+	it('should instantiate a new plain order object, with custom uuid via object option, using factory function', function (done) {
+		const orderUuid = '50035cee-3403-11e7-a919-92ebcb67fe37';
+		const order = orderLib.createOrder({
+			uuid: orderUuid,
+			fields: {firstname: 'Nisse', lastname: ['Struts'], active: 'true'},
+			rows: [{price: 1337, name: 'nisse'}]
+		});
+
+		assert.strictEqual(toString.call(order), '[object Object]');
+		assert.strictEqual(uuidValidate(order.uuid, 1), true);
+		assert.strictEqual(order.uuid, orderUuid);
+		assert.strictEqual(toString.call(order.created), '[object Date]');
+		assert.strictEqual(order.rows instanceof Array, true);
+		assert.strictEqual(order.rows.length, 1);
+		assert.strictEqual(Object.keys(order.fields).length, 3);
+
+		done();
 	});
 
 	it('should save an order', function (done) {

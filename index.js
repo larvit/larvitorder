@@ -1,8 +1,10 @@
 'use strict';
 
 const DbMigration = require('larvitdbmigration');
-const LUtils = require('larvitutils');
 const Helpers = require('./helpers.js');
+const LUtils = require('larvitutils');
+const Order = require('./order.js');
+const Orders = require('./orders.js');
 
 const topLogPrefix = 'larvitorder: index.js: ';
 class OrderLib {
@@ -58,9 +60,26 @@ class OrderLib {
 			cb();
 		});
 	}
+
+	/**
+	 * Create order
+	 *
+	 * @param {object} options - All options
+	 * @param {object} [options.uuid] - UUID of order
+	 * @param {object} [options.db] - Database instance, will use default from library if not provided
+	 * @param {object} [options.log] - Logging instance, will use default from library if not provided
+	 * @param {function} cb - Callback when all initialization is done
+	 * @returns {object} - The created order
+	 */
+	createOrder(options, cb) {
+		options.db = options.db || this.db;
+		options.log = options.log || this.log;
+
+		return new Order(options, cb);
+	}
 }
 
 exports.OrderLib = OrderLib;
 exports.Helpers = Helpers;
-exports.Order = require('./order.js');
-exports.Orders = require('./orders.js');
+exports.Order = Order;
+exports.Orders = Orders;
