@@ -72,6 +72,7 @@ class OrderLib {
 	 * @returns {object} - The created order
 	 */
 	createOrder(options, cb) {
+		options = options || {};
 		options.db = options.db || this.db;
 		options.log = options.log || this.log;
 

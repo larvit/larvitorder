@@ -146,6 +146,18 @@ describe('Order', function () {
 		});
 	});
 
+	it('should instantiate a new plain order object using createOrder factory function', function (done) {
+		const order = orderLib.createOrder();
+
+		assert.strictEqual(toString.call(order), '[object Object]');
+		assert.strictEqual(uuidValidate(order.uuid, 1), true);
+		assert.strictEqual(toString.call(order.created), '[object Date]');
+		assert.strictEqual(order.rows instanceof Array, true);
+		assert.strictEqual(order.rows.length, 0);
+
+		done();
+	});
+
 	it('should instantiate a new plain order object, with custom uuid via object option, using factory function', function (done) {
 		const orderUuid = '50035cee-3403-11e7-a919-92ebcb67fe37';
 		const order = orderLib.createOrder({
