@@ -158,6 +158,8 @@ class Helpers {
 	};
 
 	loadOrderFieldsToCache(cb) {
+		if (!this || !this.db) return cb();
+
 		this.db.query('SELECT * FROM orders_orderFields ORDER BY name;', (err, rows) => {
 			if (err) return;
 
@@ -174,6 +176,8 @@ class Helpers {
 	};
 
 	loadRowFieldsToCache(cb) {
+		if (!this || !this.db) return cb();
+
 		this.db.query('SELECT * FROM orders_rowFields ORDER BY name;', (err, rows) => {
 			if (err) return;
 

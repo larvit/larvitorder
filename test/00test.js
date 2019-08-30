@@ -1029,6 +1029,13 @@ describe('Orders', function () {
 			done();
 		});
 	});
+
+	it('should instantiate a new plain order object and not async crash when db is deleted', function (done) {
+		const order = new OrderLib.Order({db, log});
+
+		delete order.db;
+		setImmediate(() => done());
+	});
 });
 
 describe('Edge cases', function () {
