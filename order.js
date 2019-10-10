@@ -310,10 +310,17 @@ Order.prototype.rm = function (cb) {
 
 	// Delete row field data
 	tasks.push(cb => {
-		const dbFields = [orderUuidBuf];
-		const sql = 'DELETE FROM orders_rows_fields WHERE rowUuid IN (SELECT rowUuid FROM orders_rows WHERE orderUuid = ?)';
+		this.db.query('SELECT rowUuid FROM orders_rows WHERE orderUuid = ?', [orderUuidBuf], (err, rows) => {
+			if (err) return cb(err);
 
-		this.db.query(sql, dbFields, cb);
+			if (rows.length === 0) return cb();
+
+			let sql = 'DELETE FROM orders_rows_fields WHERE rowUuid IN (';
+			sql += rows.map(() => '?').join(',');
+			sql += ')';
+
+			this.db.query(sql, rows.map(n => n.rowUuid), cb);
+		});
 	});
 
 	// Delete rows
@@ -444,10 +451,17 @@ Order.prototype.save = function (cb) {
 
 	// Clean out old row field data
 	tasks.push(cb => {
-		const dbFields = [orderUuidBuf];
-		const sql = 'DELETE FROM orders_rows_fields WHERE rowUuid IN (SELECT rowUuid FROM orders_rows WHERE orderUuid = ?)';
+		dbCon.query('SELECT rowUuid FROM orders_rows WHERE orderUuid = ?', [orderUuidBuf], function (err, rows) {
+			if (err) return cb(err);
 
-		dbCon.query(sql, dbFields, cb);
+			if (rows.length === 0) return cb();
+
+			let sql = 'DELETE FROM orders_rows_fields WHERE rowUuid IN (';
+			sql += rows.map(() => '?').join(',');
+			sql += ')';
+
+			dbCon.query(sql, rows.map(n => n.rowUuid), cb);
+		});
 	});
 
 	// Clean out old rows
@@ -463,7 +477,6 @@ Order.prototype.save = function (cb) {
 	// Insert fields
 	tasks.push(cb => {
 		const dbFields = [];
-
 		let sql = 'INSERT INTO orders_orders_fields (orderUuid, fieldUuid, fieldValue) VALUES';
 
 		for (const fieldName of Object.keys(orderFields)) {
