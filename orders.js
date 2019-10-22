@@ -105,8 +105,8 @@ Orders.prototype.get = function (cb) {
 			}
 		}
 
-		if (this.fieldGreaterThan !== undefined) {
-			for (let fieldName in this.fieldGreaterThan) {
+		if (this.fieldGreaterThanOrEqualTo !== undefined) {
+			for (let fieldName in this.fieldGreaterThanOrEqualTo) {
 				sql += '	AND orders.uuid IN (\n';
 				sql += '		SELECT DISTINCT orderUuid\n';
 				sql += '		FROM orders_orders_fields\n';
@@ -114,7 +114,7 @@ Orders.prototype.get = function (cb) {
 				sql += ')';
 
 				dbFields.push(fieldName);
-				dbFields.push(this.fieldGreaterThan[fieldName]);
+				dbFields.push(this.fieldGreaterThanOrEqualTo[fieldName]);
 			}
 		}
 
