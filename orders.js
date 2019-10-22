@@ -92,6 +92,32 @@ Orders.prototype.get = function (cb) {
 			}
 		}
 
+		if (this.fieldNotEqualTo !== undefined) {
+			for (let fieldName in this.fieldNotEqualTo) {
+				sql += '	AND orders.uuid NOT IN (\n';
+				sql += '		SELECT DISTINCT orderUuid\n';
+				sql += '		FROM orders_orders_fields\n';
+				sql += '		WHERE fieldUuid = (SELECT uuid FROM orders_orderFields WHERE name = ?) AND fieldValue = ?\n';
+				sql += ')';
+
+				dbFields.push(fieldName);
+				dbFields.push(this.fieldNotEqualTo[fieldName]);
+			}
+		}
+
+		if (this.fieldGreaterThan !== undefined) {
+			for (let fieldName in this.fieldGreaterThan) {
+				sql += '	AND orders.uuid IN (\n';
+				sql += '		SELECT DISTINCT orderUuid\n';
+				sql += '		FROM orders_orders_fields\n';
+				sql += '		WHERE fieldUuid = (SELECT uuid FROM orders_orderFields WHERE name = ?) AND fieldValue >= ?\n';
+				sql += ')';
+
+				dbFields.push(fieldName);
+				dbFields.push(this.fieldGreaterThan[fieldName]);
+			}
+		}
+
 		if (this.matchAllRowFields !== undefined) {
 			for (let rowFieldName in this.matchAllRowFields) {
 				sql += '	AND orders.uuid IN (\n';
