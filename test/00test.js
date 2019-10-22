@@ -1030,6 +1030,36 @@ describe('Orders', function () {
 		});
 	});
 
+	it('should get orders filtered by field content and value', function (done) {
+		const orders = new OrderLib.Orders({ log, db});
+
+		orders.fieldNotEqualTo = {firstname: 'Anna'};
+
+		orders.get(function (err, orderList) {
+			if (err) throw err;
+			assert.strictEqual(typeof orderList, 'object');
+
+			assert.strictEqual(Object.keys(orderList).length, 2);
+
+			done();
+		});
+	});
+
+	it('should get orders filtered by row content with price greater than or equal to 1337', function (done) {
+		const orders = new OrderLib.Orders({ log, db});
+
+		orders.fieldGreaterThanOrEqualTo = {firstname: 'Anna'};
+
+		orders.get(function (err, orderList) {
+			if (err) throw err;
+			assert.strictEqual(typeof orderList, 'object');
+
+			assert.strictEqual(Object.keys(orderList).length, 3);
+
+			done();
+		});
+	});
+
 	it('should instantiate a new plain order object and not async crash when db is deleted', function (done) {
 		const order = new OrderLib.Order({db, log});
 
