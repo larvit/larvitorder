@@ -14,7 +14,7 @@
     "uuid-validate": "^0.0.3"
   },
   "devDependencies": {
-    "eslint": "5.16.0",
+    "eslint": "6.8.0",
     "mocha": "6.2.2",
     "mocha-eslint": "5.0.0"
   },
