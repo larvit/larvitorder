@@ -81,14 +81,26 @@ Orders.prototype.get = function (cb) {
 
 		if (this.matchAllFields !== undefined) {
 			for (let fieldName in this.matchAllFields) {
+				dbFields.push(fieldName);
+
 				sql += '	AND orders.uuid IN (\n';
 				sql += '		SELECT DISTINCT orderUuid\n';
 				sql += '		FROM orders_orders_fields\n';
-				sql += '		WHERE fieldUuid = (SELECT uuid FROM orders_orderFields WHERE name = ?) AND fieldValue = ?\n';
-				sql += ')';
 
-				dbFields.push(fieldName);
-				dbFields.push(this.matchAllFields[fieldName]);
+				if (Array.isArray(this.matchAllFields[fieldName])) {
+					sql += '		WHERE fieldUuid = (SELECT uuid FROM orders_orderFields WHERE name = ?) AND fieldValue IN (';
+					for (let i = 0; i < this.matchAllFields[fieldName].length; i++) {
+						dbFields.push(this.matchAllFields[fieldName][i]);
+						sql += '?,';
+					}
+					sql = sql.substring(0, sql.length - 1);
+					sql += ')\n';
+				} else {
+					dbFields.push(this.matchAllFields[fieldName]);
+					sql += '		WHERE fieldUuid = (SELECT uuid FROM orders_orderFields WHERE name = ?) AND fieldValue = ?\n';
+				}
+
+				sql += ')';
 			}
 		}
 

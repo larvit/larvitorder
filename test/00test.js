@@ -984,6 +984,22 @@ describe('Orders', function () {
 		});
 	});
 
+	it('should get orders filtered by multiple values in one field', function (done) {
+		const orders = new OrderLib.Orders({ log, db});
+
+		orders.matchAllFields = {firstname: ['Anna', 'Migal'], active: 'true'};
+
+		orders.get(function (err, orderList) {
+			if (err) throw err;
+			assert.strictEqual(typeof orderList, 'object');
+
+			// Only one of the two orders with firstname field set to Anna has the active attribute set to true. + one order with the firstname field set to Migal and the active attribute set to true
+			assert.strictEqual(Object.keys(orderList).length, 2);
+
+			done();
+		});
+	});
+
 	it('should get orders filtered by row content', function (done) {
 		const orders = new OrderLib.Orders({ log, db});
 
