@@ -22,18 +22,44 @@ class Helpers {
 		}
 	}
 
-	getFieldValues(fieldName, cb) {
+	getFieldValues(options, cb) {
 		const tasks = [];
 		const names = [];
 
 		tasks.push(cb => {
+			const dbFields = [];
+
 			let sql = 'SELECT DISTINCT fieldValue\n';
 
 			sql += 'FROM orders_orders_fields\n';
 			sql += 'WHERE fieldUuid = (SELECT uuid FROM orders_orderFields WHERE name = ?)\n';
+			dbFields.push(options.fieldName);
+
+			if (options.matchAllFields !== undefined) {
+				for (let fieldName in options.matchAllFields) {
+					dbFields.push(fieldName);
+					sql += 'AND orderUuid IN (\n';
+					sql += 'SELECT orderUuid\n';
+					sql += 'FROM orders_orders_fields\n';
+					if (Array.isArray(options.matchAllFields[fieldName])) {
+						sql += 'WHERE fieldUuid = (SELECT uuid FROM orders_orderFields WHERE name = ?) AND fieldValue IN (';
+						for (let i = 0; i < options.matchAllFields[fieldName].length; i++) {
+							dbFields.push(options.matchAllFields[fieldName][i]);
+							sql += '?,';
+						}
+						sql = sql.substring(0, sql.length - 1);
+						sql += ')\n';
+					} else {
+						dbFields.push(options.matchAllFields[fieldName]);
+						sql += 'WHERE fieldUuid = (SELECT uuid FROM orders_orderFields WHERE name = ?) AND fieldValue = ?\n';
+					}
+
+					sql += ')';
+				}
+			}
 			sql += 'ORDER BY fieldValue;';
 
-			this.db.query(sql, [fieldName], (err, rows) => {
+			this.db.query(sql, dbFields, (err, rows) => {
 				if (err) return cb(err);
 
 				for (let i = 0; rows[i] !== undefined; i++) {

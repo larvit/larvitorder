@@ -2,6 +2,7 @@
 
 const uuidValidate = require('uuid-validate');
 const OrderLib = require(__dirname + '/../index.js');
+const Helpers = require(__dirname + '/../helpers.js');
 const uuidLib = require('uuid');
 const assert = require('assert');
 const LUtils = require('larvitutils');
@@ -1062,15 +1063,79 @@ describe('Orders', function () {
 	});
 
 	it('should get orders filtered by row content with price greater than or equal to 1337', function (done) {
-		const orders = new OrderLib.Orders({ log, db});
+		const orderUuid1 = uuidLib.v1();
+		const orderUuid2 = uuidLib.v1();
+		const orderUuid3 = uuidLib.v1();
+		const orderUuid4 = uuidLib.v1();
+		const tasks = [];
 
-		orders.fieldGreaterThanOrEqualTo = {firstname: 'Anna'};
+		// Create orders
+		tasks.push(function (cb) {
+			const order = new OrderLib.Order({uuid: orderUuid1, log, db});
+			order.fields = {firstname: 'Tenny', price: 1336};
+			order.save(cb);
+		});
+		tasks.push(function (cb) {
+			const order = new OrderLib.Order({uuid: orderUuid2, log, db});
+			order.fields = {firstname: 'Lenny', price: 1337};
+			order.save(cb);
+		});
+		tasks.push(function (cb) {
+			const order = new OrderLib.Order({uuid: orderUuid3, log, db});
+			order.fields = {firstname: 'Denny', price: 1338};
+			order.save(cb);
+		});
+		tasks.push(function (cb) {
+			const order = new OrderLib.Order({uuid: orderUuid4, log, db});
+			order.fields = {firstname: 'Kenny', price: 1339};
+			order.save(cb);
+		});
 
-		orders.get(function (err, orderList) {
+		tasks.push(function (cb) {
+			const orders = new OrderLib.Orders({ log, db});
+
+			orders.fieldGreaterThanOrEqualTo = {};
+			orders.fieldGreaterThanOrEqualTo['price'] = 1337;
+
+			orders.get(function (err, orderList) {
+				if (err) throw err;
+				assert.strictEqual(typeof orderList, 'object');
+
+				assert.strictEqual(Object.keys(orderList).length, 3);
+
+				cb();
+			});
+		});
+
+		// Remove orders
+		tasks.push(function (cb) {
+			(new OrderLib.Order({uuid: orderUuid1, log, db})).rm(cb);
+		});
+		tasks.push(function (cb) {
+			(new OrderLib.Order({uuid: orderUuid2, log, db})).rm(cb);
+		});
+		tasks.push(function (cb) {
+			(new OrderLib.Order({uuid: orderUuid3, log, db})).rm(cb);
+		});
+		tasks.push(function (cb) {
+			(new OrderLib.Order({uuid: orderUuid4, log, db})).rm(cb);
+		});
+
+		async.series(tasks, function (err) {
 			if (err) throw err;
-			assert.strictEqual(typeof orderList, 'object');
+			done();
+		});
+	});
 
-			assert.strictEqual(Object.keys(orderList).length, 3);
+	it('should use the helper function getFieldValues to get field firstname from orders where firstname is Migal', function (done) {
+		const helpers = new Helpers({ log, db });
+
+		const options = {fieldName: 'firstname', matchAllFields: { firstname: ['Migal']}};
+
+		helpers.getFieldValues(options, function (err, result) {
+			if (err) throw err;
+			assert.strictEqual(result.length, 1);
+			assert.strictEqual(result[0], 'Migal');
 
 			done();
 		});
