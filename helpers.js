@@ -26,6 +26,10 @@ class Helpers {
 		const tasks = [];
 		const names = [];
 
+		if (typeof options === 'string' || options instanceof String) {
+			options = { fieldName: options };
+		}
+
 		tasks.push(cb => {
 			const dbFields = [];
 

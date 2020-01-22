@@ -1127,10 +1127,54 @@ describe('Orders', function () {
 		});
 	});
 
+	it('should use the helper function getFieldValues to get field firstname from orders', function (done) {
+		const helpers = new Helpers({ log, db });
+
+		const options = 'firstname';
+
+		helpers.getFieldValues(options, function (err, result) {
+			if (err) throw err;
+			assert.strictEqual(result.length, 2);
+			assert.strictEqual(result[0], 'Anna');
+			assert.strictEqual(result[1], 'Migal');
+
+			done();
+		});
+	});
+
 	it('should use the helper function getFieldValues to get field firstname from orders where firstname is Migal', function (done) {
 		const helpers = new Helpers({ log, db });
 
 		const options = {fieldName: 'firstname', matchAllFields: { firstname: ['Migal']}};
+
+		helpers.getFieldValues(options, function (err, result) {
+			if (err) throw err;
+			assert.strictEqual(result.length, 1);
+			assert.strictEqual(result[0], 'Migal');
+
+			done();
+		});
+	});
+
+	it('should use the helper function getFieldValues to get field firstname from orders where firstname is Migal or Anna (two items in the property array)', function (done) {
+		const helpers = new Helpers({ log, db });
+
+		const options = {fieldName: 'firstname', matchAllFields: { firstname: ['Migal', 'Anna']}};
+
+		helpers.getFieldValues(options, function (err, result) {
+			if (err) throw err;
+			assert.strictEqual(result.length, 2);
+			assert.strictEqual(result[0], 'Anna');
+			assert.strictEqual(result[1], 'Migal');
+
+			done();
+		});
+	});
+
+	it('should use the helper function getFieldValues to get field firstname from orders where firstname is Migal. (property as a string)', function (done) {
+		const helpers = new Helpers({ log, db });
+
+		const options = {fieldName: 'firstname', matchAllFields: { firstname: 'Migal'}};
 
 		helpers.getFieldValues(options, function (err, result) {
 			if (err) throw err;
