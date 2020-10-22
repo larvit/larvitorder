@@ -222,6 +222,150 @@ class Helpers {
 			cb();
 		});
 	}
+
+	isBufferEqual(b1, b2) {
+		if (b1.length !== b2.length) return false;
+
+		for (let i = 0; i < b1.length; i++) {
+			if (b1[i] !== b2[i]) return false;
+		}
+
+		return true;
+	}
+
+	getChangedRows(dbCon, orderUuidBuf, order, rowFieldUuidsByName, cb) {
+		const tasks = [];
+		const changedRows = [];
+		const removeRows = [];
+
+		let dbOrderRowUuidBuffs = [];
+		let dbOrderRowData = [];
+
+		// Get order rows
+		tasks.push(cb => {
+			const query = 'SELECT rowUuid FROM orders_rows WHERE orderUuid = ?';
+
+			dbCon.query(query, [orderUuidBuf], function (err, rows) {
+				if (err) return cb(err);
+
+				dbOrderRowUuidBuffs = rows;
+
+				cb();
+			});
+		});
+
+		// Get order row data
+		tasks.push(cb => {
+			const query = 'SELECT \n' +
+			'rowUuid, \n' +
+			'rowFieldUuid, \n' +
+			'rowIntValue, \n' +
+			'rowStrValue\n' +
+			'FROM orders_rows_fields \n' +
+			'WHERE rowUuid IN ( \n' +
+				'SELECT rowUuid FROM orders_rows WHERE orderUuid = ? \n' +
+			')';
+
+			dbCon.query(query, [orderUuidBuf], function (err, rows) {
+				if (err) return cb(err);
+
+				dbOrderRowData = rows;
+
+				cb();
+			});
+		});
+
+		// Compare data and remove untouched rows
+		tasks.push(cb => {
+			let rowAdded = false;
+
+			for (const dbRowUuidBuff of dbOrderRowUuidBuffs.map(x => x.rowUuid)) {
+
+				const dbRowUuid = order.lUtils.formatUuid(dbRowUuidBuff);
+
+				if (order.rows.map(x => x.uuid).indexOf(dbRowUuid) === -1) {
+					removeRows.push({rowUuid: dbRowUuid, rowUuidBuff: dbRowUuidBuff});
+
+					continue;
+				}
+			}
+
+			for (let i = 0; order.rows[i] !== undefined; i++) {
+				const row = order.rows[i];
+				const rowUuidBuff = order.lUtils.uuidToBuffer(row.uuid);
+
+				let foundDbRows = dbOrderRowData.filter(x => order.helpers.isBufferEqual(x.rowUuid, rowUuidBuff));
+
+				if (!foundDbRows.length) {
+					// New row.
+					changedRows.push({rowUuid: row.uuid, rowUuidBuff: rowUuidBuff, row: row});
+					rowAdded = true;
+
+					continue;
+				}
+
+				rowAdded = false;
+
+				for (const rowFieldName of Object.keys(row)) {
+					if (rowAdded) break;
+
+					let foundRowsByField;
+
+					if (rowUuidBuff === false) {
+						return cb(new Error('Invalid row uuid'));
+					}
+
+					if (rowFieldName === 'uuid') continue;
+
+					if (!(row[rowFieldName] instanceof Array)) {
+						row[rowFieldName] = [row[rowFieldName]];
+					}
+
+					foundRowsByField = foundDbRows.filter(x => order.helpers.isBufferEqual(x.rowFieldUuid, rowFieldUuidsByName[rowFieldName]));
+
+					if (!foundRowsByField.length) {
+						// New row.
+						changedRows.push({rowUuid: row.uuid, rowUuidBuff: rowUuidBuff, row: row});
+						rowAdded = true;
+
+						break;
+					} else {
+						for (let k = 0; row[rowFieldName][k] !== undefined; k++) {
+							const rowFieldValue = row[rowFieldName][k];
+
+							if (rowAdded) continue;
+
+							let intValue = undefined;
+							let strValue = undefined;
+
+							if (typeof rowFieldValue === 'number' && (rowFieldValue % 1) === 0) {
+								intValue = rowFieldValue;
+							} else {
+								strValue = rowFieldValue;
+							}
+
+							if (!foundRowsByField.find(x => x.rowIntValue === (intValue !== undefined ? intValue : null)
+								&& x.rowStrValue === (strValue !== undefined ? strValue : null))) {
+								// Changed row.
+								changedRows.push({rowUuid: row.uuid, rowUuidBuff: rowUuidBuff, row: row});
+								rowAdded = true;
+
+								break;
+							}
+						}
+					}
+				}
+			}
+
+			cb();
+		});
+
+		async.series(tasks, err => {
+			if (err) return cb(err);
+
+			cb(null, changedRows, removeRows);
+		});
+	}
 }
 
 module.exports = exports = Helpers;

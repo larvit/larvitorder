@@ -351,7 +351,7 @@ Order.prototype.rm = function (cb) {
 	});
 };
 
-// Saving the order object to the database.
+// Saving the order object to the database using a diff.
 Order.prototype.save = function (cb) {
 	const logPrefix = topLogPrefix + 'writeOrder() - ';
 	const orderFields = this.fields;
@@ -360,10 +360,13 @@ Order.prototype.save = function (cb) {
 	const created = this.created;
 	const orderUuidBuf = this.lUtils.uuidToBuffer(orderUuid);
 	const tasks = [];
+	const uniqueUpdateRowUuids = [];
 
 	let rowFieldUuidsByName;
 	let fieldUuidsByName;
 	let dbCon;
+	let updateRows;
+	let removeRows;
 
 	if (typeof cb !== 'function') {
 		cb = () => {};
@@ -401,12 +404,16 @@ Order.prototype.save = function (cb) {
 		});
 	});
 
-	// Get all row field uuids
+	// Get all row field uuids and make sure all rows got an uuid
 	tasks.push(cb => {
 		const rowFieldNames = [];
 
 		for (let i = 0; orderRows[i] !== undefined; i++) {
 			const row = orderRows[i];
+
+			if (row.uuid === undefined) {
+				row.uuid = uuidLib.v4();
+			}
 
 			// Set sortOrder on rows to maintain order independent of storage engine
 			row.sortOrder = i;
@@ -449,31 +456,6 @@ Order.prototype.save = function (cb) {
 		dbCon.query('DELETE FROM orders_orders_fields WHERE orderUuid = ?', [orderUuidBuf], cb);
 	});
 
-	// Clean out old row field data
-	tasks.push(cb => {
-		dbCon.query('SELECT rowUuid FROM orders_rows WHERE orderUuid = ?', [orderUuidBuf], function (err, rows) {
-			if (err) return cb(err);
-
-			if (rows.length === 0) return cb();
-
-			let sql = 'DELETE FROM orders_rows_fields WHERE rowUuid IN (';
-			sql += rows.map(() => '?').join(',');
-			sql += ')';
-
-			dbCon.query(sql, rows.map(n => n.rowUuid), cb);
-		});
-	});
-
-	// Clean out old rows
-	tasks.push(cb => {
-		const dbFields = [orderUuidBuf];
-		const sql = 'DELETE FROM orders_rows WHERE orderUuid = ?';
-
-		dbCon.query(sql, dbFields, cb);
-	});
-
-	// By now we have a clean database, lets insert stuff!
-
 	// Insert fields
 	tasks.push(cb => {
 		const dbFields = [];
@@ -502,66 +484,140 @@ Order.prototype.save = function (cb) {
 		dbCon.query(sql, dbFields, cb);
 	});
 
+	// Get rows to update
+	tasks.push(cb => {
+		this.helpers.getChangedRows(dbCon, orderUuidBuf, this, rowFieldUuidsByName, (err, update, remove) => {
+			updateRows = update;
+			removeRows = remove;
+
+			cb(err);
+		});
+	});
+
+	// Get unique rowUuids from updateRows
+	tasks.push(cb => {
+		const seen = {};
+		let j = 0;
+		for (let i = 0; i < updateRows.length; i++) {
+			const row = updateRows[i];
+			if (seen[row.rowUuid] !== 1) {
+				seen[row.rowUuid] = 1;
+				uniqueUpdateRowUuids[j++] = {rowUuid: row.rowUuid, rowUuidBuff: row.rowUuidBuff};
+			}
+		}
+
+		cb();
+	});
+
+	// Clean out changed orders_rows_fields
+	tasks.push(cb => {
+		if (!uniqueUpdateRowUuids.length && !removeRows.length) return cb();
+
+		let sql = 'DELETE FROM orders_rows_fields WHERE rowUuid IN (';
+
+		if (uniqueUpdateRowUuids.length) {
+			sql += uniqueUpdateRowUuids.map(() => '?').join(',');
+		}
+
+		if (removeRows.length) {
+			if (uniqueUpdateRowUuids.length) {
+				sql += ',';
+			}
+
+			sql += removeRows.map(() => '?').join(',');
+		}
+
+		sql += ')';
+
+		dbCon.query(sql, [...uniqueUpdateRowUuids.map(x => x.rowUuidBuff), ...removeRows.map(x => x.rowUuidBuff)], cb, err => {
+			if (err) {
+				this.log.error(logPrefix + 'db err: ' + err.message);
+			}
+
+			cb(err);
+		});
+
+	});
+
+	// Clean out changed orders_rows
+	tasks.push(cb => {
+		if (!uniqueUpdateRowUuids.length && !removeRows.length) return cb();
+
+		let sql = 'DELETE FROM orders_rows WHERE orderUuid = ? AND rowUuid IN (';
+
+		if (uniqueUpdateRowUuids.length) {
+			sql += uniqueUpdateRowUuids.map(() => '?').join(',');
+		}
+
+		if (removeRows.length) {
+			if (uniqueUpdateRowUuids.length) {
+				sql += ',';
+			}
+
+			sql += removeRows.map(() => '?').join(',');
+		}
+
+		sql += ')';
+
+		dbCon.query(sql, [orderUuidBuf, ...uniqueUpdateRowUuids.map(x => x.rowUuidBuff), ...removeRows.map(x => x.rowUuidBuff)], err => {
+			if (err) {
+				this.log.error(logPrefix + 'db err: ' + err.message);
+			}
+
+			cb(err);
+		});
+	});
+
 	// Insert rows
 	tasks.push(cb => {
+		if (!uniqueUpdateRowUuids.length) return cb();
+
 		const dbFields = [];
 
 		let sql = 'INSERT INTO orders_rows (rowUuid, orderUuid) VALUES';
 
-		for (let i = 0; orderRows[i] !== undefined; i++) {
-			const row = orderRows[i];
-
-			let buffer;
-
-			// Make sure all rows got an uuid
-			if (row.uuid === undefined) {
-				row.uuid = uuidLib.v4();
-			}
-
-			buffer = this.lUtils.uuidToBuffer(row.uuid);
-
-			if (buffer === false) {
-				return cb(new Error('Invalid row uuid'));
-			}
-
+		for (const rowUuid of uniqueUpdateRowUuids.map(x => x.rowUuidBuff)) {
 			sql += '(?,?),';
-			dbFields.push(buffer);
+			dbFields.push(rowUuid);
 			dbFields.push(orderUuidBuf);
 		}
 
 		if (dbFields.length === 0) return cb();
 
 		sql = sql.substring(0, sql.length - 1);
-		dbCon.query(sql, dbFields, cb);
+		dbCon.query(sql, dbFields, err => {
+			if (err) {
+				this.log.error(logPrefix + 'db err: ' + err.message);
+			}
+
+			cb(err);
+		});
 	});
 
 	// Insert row fields
 	tasks.push(cb => {
+		if (!updateRows.length) return cb();
+
 		const dbFields = [];
 
 		let sql = 'INSERT INTO orders_rows_fields (rowUuid, rowFieldUuid, rowIntValue, rowStrValue) VALUES';
 
-		for (let i = 0; orderRows[i] !== undefined; i++) {
-			const row = orderRows[i];
+		for (let i = 0; updateRows[i] !== undefined; i++) {
+			const updateRow = updateRows[i];
 
-			for (const rowFieldName of Object.keys(row)) {
-				const rowUuidBuff = this.lUtils.uuidToBuffer(row.uuid);
-
-				if (rowUuidBuff === false) {
-					return cb(new Error('Invalid row uuid'));
-				}
+			for (const rowFieldName of Object.keys(updateRow.row)) {
 
 				if (rowFieldName === 'uuid') continue;
 
-				if (!(row[rowFieldName] instanceof Array)) {
-					row[rowFieldName] = [row[rowFieldName]];
+				if (!(updateRow.row[rowFieldName] instanceof Array)) {
+					updateRow.row[rowFieldName] = [updateRow.row[rowFieldName]];
 				}
 
-				for (let i = 0; row[rowFieldName][i] !== undefined; i++) {
-					const rowFieldValue = row[rowFieldName][i];
+				for (let j = 0; updateRow.row[rowFieldName][j] !== undefined; j++) {
+					const rowFieldValue = updateRow.row[rowFieldName][j];
 
 					sql += '(?,?,?,?),';
-					dbFields.push(rowUuidBuff);
+					dbFields.push(updateRow.rowUuidBuff);
 					dbFields.push(rowFieldUuidsByName[rowFieldName]);
 
 					if (typeof rowFieldValue === 'number' && (rowFieldValue % 1) === 0) {
@@ -581,12 +637,7 @@ Order.prototype.save = function (cb) {
 
 		dbCon.query(sql, dbFields, err => {
 			if (err) {
-				try {
-					this.log.error(logPrefix + 'db err: ' + err.message);
-					this.log.error(logPrefix + 'Full order params: ' + JSON.stringify(params));
-				} catch (err) {
-					this.log.error(logPrefix + 'Could not log proder params: ' + err.message);
-				}
+				this.log.error(logPrefix + 'db err: ' + err.message);
 			}
 
 			cb(err);
