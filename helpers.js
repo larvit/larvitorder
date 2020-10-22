@@ -280,7 +280,6 @@ class Helpers {
 			let rowAdded = false;
 
 			for (const dbRowUuidBuff of dbOrderRowUuidBuffs.map(x => x.rowUuid)) {
-
 				const dbRowUuid = order.lUtils.formatUuid(dbRowUuidBuff);
 
 				if (order.rows.map(x => x.uuid).indexOf(dbRowUuid) === -1) {
@@ -290,11 +289,10 @@ class Helpers {
 				}
 			}
 
-			for (let i = 0; order.rows[i] !== undefined; i++) {
-				const row = order.rows[i];
+			for (const row of order.rows) {
 				const rowUuidBuff = order.lUtils.uuidToBuffer(row.uuid);
 
-				let foundDbRows = dbOrderRowData.filter(x => order.helpers.isBufferEqual(x.rowUuid, rowUuidBuff));
+				let foundDbRows = dbOrderRowData.filter(x => this.isBufferEqual(x.rowUuid, rowUuidBuff));
 
 				if (!foundDbRows.length) {
 					// New row.
@@ -321,7 +319,7 @@ class Helpers {
 						row[rowFieldName] = [row[rowFieldName]];
 					}
 
-					foundRowsByField = foundDbRows.filter(x => order.helpers.isBufferEqual(x.rowFieldUuid, rowFieldUuidsByName[rowFieldName]));
+					foundRowsByField = foundDbRows.filter(x => this.isBufferEqual(x.rowFieldUuid, rowFieldUuidsByName[rowFieldName]));
 
 					if (!foundRowsByField.length) {
 						// New row.
@@ -329,29 +327,27 @@ class Helpers {
 						rowAdded = true;
 
 						break;
-					} else {
-						for (let k = 0; row[rowFieldName][k] !== undefined; k++) {
-							const rowFieldValue = row[rowFieldName][k];
+					}
 
-							if (rowAdded) continue;
+					for (const rowFieldValue of row[rowFieldName]) {
+						if (rowAdded) continue;
 
-							let intValue = undefined;
-							let strValue = undefined;
+						let intValue = undefined;
+						let strValue = undefined;
 
-							if (typeof rowFieldValue === 'number' && (rowFieldValue % 1) === 0) {
-								intValue = rowFieldValue;
-							} else {
-								strValue = rowFieldValue;
-							}
+						if (typeof rowFieldValue === 'number' && (rowFieldValue % 1) === 0) {
+							intValue = rowFieldValue;
+						} else {
+							strValue = rowFieldValue;
+						}
 
-							if (!foundRowsByField.find(x => x.rowIntValue === (intValue !== undefined ? intValue : null)
-								&& x.rowStrValue === (strValue !== undefined ? strValue : null))) {
-								// Changed row.
-								changedRows.push({rowUuid: row.uuid, rowUuidBuff: rowUuidBuff, row: row});
-								rowAdded = true;
+						if (!foundRowsByField.find(x => x.rowIntValue === (intValue !== undefined ? intValue : null)
+							&& x.rowStrValue === (strValue !== undefined ? strValue : null))) {
+							// Changed row.
+							changedRows.push({rowUuid: row.uuid, rowUuidBuff: rowUuidBuff, row: row});
+							rowAdded = true;
 
-								break;
-							}
+							break;
 						}
 					}
 				}

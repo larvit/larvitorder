@@ -380,14 +380,6 @@ Order.prototype.save = function (cb) {
 		return cb(err);
 	}
 
-	if (this.lUtils.formatUuid(orderUuid) === false || orderUuidBuf === false) {
-		const err = new Error('Invalid orderUuid: "' + orderUuid + '"');
-
-		this.log.error(logPrefix + err.message);
-
-		return cb(err);
-	}
-
 	if (created && !created instanceof Date) {
 		const err = new Error('Invalid value of "created". Value must be an instance of Date.');
 
@@ -411,9 +403,7 @@ Order.prototype.save = function (cb) {
 		for (let i = 0; orderRows[i] !== undefined; i++) {
 			const row = orderRows[i];
 
-			if (row.uuid === undefined) {
-				row.uuid = uuidLib.v4();
-			}
+			row.uuid = row.uuid || uuidLib.v4();
 
 			// Set sortOrder on rows to maintain order independent of storage engine
 			row.sortOrder = i;
@@ -498,8 +488,7 @@ Order.prototype.save = function (cb) {
 	tasks.push(cb => {
 		const seen = {};
 		let j = 0;
-		for (let i = 0; i < updateRows.length; i++) {
-			const row = updateRows[i];
+		for (const row of updateRows) {
 			if (seen[row.rowUuid] !== 1) {
 				seen[row.rowUuid] = 1;
 				uniqueUpdateRowUuids[j++] = {rowUuid: row.rowUuid, rowUuidBuff: row.rowUuidBuff};
@@ -602,20 +591,15 @@ Order.prototype.save = function (cb) {
 
 		let sql = 'INSERT INTO orders_rows_fields (rowUuid, rowFieldUuid, rowIntValue, rowStrValue) VALUES';
 
-		for (let i = 0; updateRows[i] !== undefined; i++) {
-			const updateRow = updateRows[i];
-
+		for (const updateRow of updateRows) {
 			for (const rowFieldName of Object.keys(updateRow.row)) {
-
 				if (rowFieldName === 'uuid') continue;
 
 				if (!(updateRow.row[rowFieldName] instanceof Array)) {
 					updateRow.row[rowFieldName] = [updateRow.row[rowFieldName]];
 				}
 
-				for (let j = 0; updateRow.row[rowFieldName][j] !== undefined; j++) {
-					const rowFieldValue = updateRow.row[rowFieldName][j];
-
+				for (const rowFieldValue of updateRow.row[rowFieldName]) {
 					sql += '(?,?,?,?),';
 					dbFields.push(updateRow.rowUuidBuff);
 					dbFields.push(rowFieldUuidsByName[rowFieldName]);
