@@ -1127,6 +1127,72 @@ describe('Orders', function () {
 		});
 	});
 
+
+	it('should get orders filtered by row content with price greater than or equal to 1337', function (done) {
+		const orderUuid1 = uuidLib.v1();
+		const orderUuid2 = uuidLib.v1();
+		const orderUuid3 = uuidLib.v1();
+		const orderUuid4 = uuidLib.v1();
+		const tasks = [];
+
+		// Create orders
+		tasks.push(function (cb) {
+			const order = new OrderLib.Order({uuid: orderUuid1, log, db});
+			order.fields = {firstname: 'Tenny', price: 1335};
+			order.save(cb);
+		});
+		tasks.push(function (cb) {
+			const order = new OrderLib.Order({uuid: orderUuid2, log, db});
+			order.fields = {firstname: 'Lenny', price: 1336};
+			order.save(cb);
+		});
+		tasks.push(function (cb) {
+			const order = new OrderLib.Order({uuid: orderUuid3, log, db});
+			order.fields = {firstname: 'Denny', price: 1337};
+			order.save(cb);
+		});
+		tasks.push(function (cb) {
+			const order = new OrderLib.Order({uuid: orderUuid4, log, db});
+			order.fields = {firstname: 'Kenny', price: 1338};
+			order.save(cb);
+		});
+
+		tasks.push(function (cb) {
+			const orders = new OrderLib.Orders({ log, db});
+
+			orders.fieldLessThanOrEqualTo = {};
+			orders.fieldLessThanOrEqualTo['price'] = 1337;
+
+			orders.get(function (err, orderList) {
+				if (err) throw err;
+				assert.strictEqual(typeof orderList, 'object');
+
+				assert.strictEqual(Object.keys(orderList).length, 3);
+
+				cb();
+			});
+		});
+
+		// Remove orders
+		tasks.push(function (cb) {
+			(new OrderLib.Order({uuid: orderUuid1, log, db})).rm(cb);
+		});
+		tasks.push(function (cb) {
+			(new OrderLib.Order({uuid: orderUuid2, log, db})).rm(cb);
+		});
+		tasks.push(function (cb) {
+			(new OrderLib.Order({uuid: orderUuid3, log, db})).rm(cb);
+		});
+		tasks.push(function (cb) {
+			(new OrderLib.Order({uuid: orderUuid4, log, db})).rm(cb);
+		});
+
+		async.series(tasks, function (err) {
+			if (err) throw err;
+			done();
+		});
+	});
+
 	it('should use the helper function getFieldValues to get field firstname from orders', function (done) {
 		const helpers = new Helpers({ log, db });
 
