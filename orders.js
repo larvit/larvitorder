@@ -65,18 +65,19 @@ Orders.prototype.get = function (cb) {
 		if (this.q !== undefined) {
 			sql += ' AND (\n';
 			sql += '		(\n';
-			sql += '   			uuid IN (SELECT DISTINCT orderUuid FROM orders_orders_fields WHERE fieldValue LIKE ?)\n';
+			sql += '			uuid IN (SELECT DISTINCT orderUuid FROM orders_orders_fields WHERE MATCH (fieldValue) AGAINST (?))\n';
 			sql += '		)\n';
-			dbFields.push('%' + this.q + '%');
+			dbFields.push('"' + this.q + '"');
 
 			sql += ' 	OR uuid IN (\n';
 			sql += '		SELECT DISTINCT orderUuid\n';
 			sql += '		FROM orders_rows WHERE rowUuid IN (\n';
-			sql += '			SELECT rowUuid FROM orders_rows_fields WHERE rowStrValue LIKE ?\n';
+			sql += '			SELECT rowUuid FROM orders_rows_fields WHERE MATCH (rowStrValue) AGAINST (?)\n';
 			sql += '		)\n';
 			sql += '	)\n';
+			dbFields.push('"' + this.q + '"');
+
 			sql += ' )\n';
-			dbFields.push('%' + this.q + '%');
 		}
 
 		if (this.matchAllFields !== undefined) {
