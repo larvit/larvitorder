@@ -1,25 +1,38 @@
 {
   "name": "larvitorder",
-  "version": "2.2.0",
+  "version": "3.0.0",
   "description": "Generic order system",
-  "main": "index.js",
+  "main": "./dist/index.js",
+  "files": [
+    "/dist",
+    "/dbmigration"
+  ],
   "dependencies": {
-    "async": "^3.0.1",
-    "larvitamintercom": "^0.3.4",
-    "larvitamsync": "^0.7.3",
-    "larvitdb": "^2.1.1",
-    "larvitdbmigration": "^4.0.2",
-    "larvitutils": "^2.1.0",
-    "uuid": "^3.0.1",
-    "uuid-validate": "^0.0.3"
+    "async": "^3.2.3",
+    "larvitdb": "^3.2.0",
+    "larvitdbmigration": "^6.1.0",
+    "larvitutils": "^5.0.0",
+    "uuid": "^8.3.2"
   },
   "devDependencies": {
-    "eslint": "5.16.0",
-    "mocha": "6.2.2",
-    "mocha-eslint": "5.0.0"
+    "@istanbuljs/nyc-config-typescript": "^1.0.2",
+    "@types/mocha": "^9.1.0",
+    "@types/node": "^17.0.18",
+    "@types/uuid": "^8.3.4",
+    "@typescript-eslint/eslint-plugin": "^5.12.0",
+    "@typescript-eslint/parser": "^5.12.0",
+    "eslint": "^8.9.0",
+    "mocha": "^9.2.0",
+    "nyc": "^15.1.0",
+    "ts-node": "^10.5.0",
+    "typescript": "^4.5.5"
   },
   "scripts": {
-    "test": "mocha"
+    "build": "rm -rf dist/* && tsc",
+    "lint": "eslint src/*.ts test/*.ts",
+    "test:unit": "mocha --exit --bail -r ts-node/register 'test/**/*.ts'",
+    "test:cov": "nyc mocha --exit --bail -r ts-node/register 'test/**/*.ts'",
+    "test": "npm run lint && npm run test:cov"
   },
   "repository": "https://github.com/larvit/larvitorder.git",
   "keywords": [

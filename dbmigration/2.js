@@ -1,58 +1,26 @@
 'use strict';
 
 const uuidLib = require('uuid');
-const async = require('async');
 
-exports = module.exports = function (cb) {
-	const tasks = [];
+exports = module.exports = async function (options) {
+	const {db} = options;
 	const sqls = [];
-	const that = this;
 
 	// Add uuid column on orders_rowFields and orders_orderFields
-	tasks.push(function (cb) {
-		that.options.dbDriver.query('ALTER TABLE `orders_rowFields` ADD `uuid` binary(16) NOT NULL FIRST;', cb);
-	});
-	tasks.push(function (cb) {
-		that.options.dbDriver.query('ALTER TABLE `orders_orderFields` ADD `uuid` binary(16) NOT NULL AFTER `id`;', cb);
-	});
+	await db.query('ALTER TABLE `orders_rowFields` ADD `uuid` binary(16) NOT NULL FIRST;');
+	await db.query('ALTER TABLE `orders_orderFields` ADD `uuid` binary(16) NOT NULL AFTER `id`;');
 
 	// Assign uuid values to orders_rowFields
-	tasks.push(function (cb) {
-		that.options.dbDriver.query('SELECT * FROM orders_rowFields', function (err, rows) {
-			const tasks = [];
-
-			if (err) return cb(err);
-
-			for (let i = 0; rows[i] !== undefined; i++) {
-				const row = rows[i];
-
-				tasks.push(function (cb) {
-					that.options.dbDriver.query('UPDATE orders_rowFields SET uuid = ? WHERE id = ?', [uuidLib.v1(), row.id], cb);
-				});
-			}
-
-			async.parallel(tasks, cb);
-		});
-	});
+	const {rows: rowFields} = await db.query('SELECT * FROM orders_rowFields');
+	for (const rowField of rowFields) {
+		await db.query('UPDATE orders_rowFields SET uuid = ? WHERE id = ?', [uuidLib.v1(), rowField.id]);
+	}
 
 	// Assign uuid values to orders_orderFields
-	tasks.push(function (cb) {
-		that.options.dbDriver.query('SELECT * FROM orders_orderFields', function (err, rows) {
-			const tasks = [];
-
-			if (err) return cb(err);
-
-			for (let i = 0; rows[i] !== undefined; i++) {
-				const row = rows[i];
-
-				tasks.push(function (cb) {
-					that.options.dbDriver.query('UPDATE orders_orderFields SET uuid = ? WHERE id = ?', [uuidLib.v1(), row.id], cb);
-				});
-			}
-
-			async.parallel(tasks, cb);
-		});
-	});
+	const {rows: orderFields} = await db.query('SELECT * FROM orders_orderFields');
+	for (const orderField of orderFields) {
+		await db.query('UPDATE orders_orderFields SET uuid = ? WHERE id = ?', [uuidLib.v1(), orderField.id]);
+	}
 
 	// Stuff
 	sqls.push('ALTER TABLE `orders_rows_fields` ADD `rowFieldUuid` binary(16) NOT NULL AFTER `rowFieldId`;');
@@ -72,13 +40,7 @@ exports = module.exports = function (cb) {
 	sqls.push('ALTER TABLE `orders_orders_fields` DROP `fieldId`;');
 	sqls.push('ALTER TABLE `orders_orders_fields` ADD FOREIGN KEY (`fieldUuid`) REFERENCES `orders_orderFields` (`uuid`) ON DELETE NO ACTION ON UPDATE NO ACTION;');
 
-	for (let i = 0; sqls[i] !== undefined; i++) {
-		const sql = sqls[i];
-
-		tasks.push(function (cb) {
-			that.options.dbDriver.query(sql, cb);
-		});
+	for (const sql of sqls) {
+		await db.query(sql);
 	}
-
-	async.series(tasks, cb);
 };
