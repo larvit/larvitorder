@@ -37,13 +37,10 @@ npm i --save larvitorder
 
 ### Initialize
 
-All below instructions require the loading of libraries like something below:
+All below instructions require the loading of libraries like something below (db is an instance of larvitdb):
 
 ```javascript
 const orderLib = require('larvitorder');
-const db = require('larvitdb');
-
-db.setup({options}); // See documentation at https://github.com/larvit/larvitdb
 ```
 
 ### Add a new order
@@ -54,9 +51,7 @@ const order = new orderLib.Order({db});
 order.fields	= {'firstname': 'Günter', 'lastname': ['Edelweiss', 'Schloffs']};
 order.rows	= [{'price': 399, 'name': 'Screw'}, {'price': 34, 'name': 'teh_foo', 'tags': ['foo', 'bar']}];
 
-order.save(err => {
-	if (err) throw err;
-});
+await order.save();
 ```
 
 ### Load existing order from database
@@ -64,11 +59,8 @@ order.save(err => {
 ```javascript
 const order = new orderLib.Order({uuid: 'uuid-on-existing-order-in-db', db});
 
-order.loadFromDb(err => {
-	if (err) throw err;
-
-	// Now order.fields and order.rows is loaded from database
-});
+await order.loadFromDb();
+// Now order.fields and order.rows is loaded from database
 ```
 
 ### Remove order from database
@@ -76,29 +68,22 @@ order.loadFromDb(err => {
 ```javascript
 const order = new orderLib.Order({uuid: 'uuid-on-existing-order-in-db', db});
 
-order.rm(err => {
-	if (err) throw err;
-
-	// order is now removed from DB
-});
+await order.rm();
+// order is now removed from DB
 ```
 
 ### Get orders
 
 ```javascript
-const orders = new orderLib.Orders({db});
+const ordersCtx = new orderLib.Orders({db});
 
-orders.get(function (err, orderList) {
-	if (err) throw err;
-
-	// orderList is now an array of objects
-});
+const {orders, hits} = await ordersCtx.get();
 ```
 
 #### Filter and limit order list
 
 ```javascript
-const orders = new orderLib.Orders({db});
+const ordersCtx = new orderLib.Orders({db});
 
 // Filter and limit order hits
 orders.limit = 10;	// Only return 10 orders
@@ -113,9 +98,5 @@ orders.returnFields	= ['firstname', 'lastname', 'status'];	// Only return the or
 // Return order row fields
 orders.returnRowFields	= ['productName', 'price'];	// Only return the order row fields listed. IMPORTANT! Will return no order row fields if not supplied! Because performance.
 
-orders.get((err, orderList) => {
-	if (err) throw err;
-
-	// orderList is now an array of objects
-});
+const {orders, hits} = await ordersCtx.get();
 ```
