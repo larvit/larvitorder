@@ -109,6 +109,9 @@ export class Order {
 				.toISO();
 		} else {
 			// We do this extra conversion since mariadb returns non-ISO format
+			// NOTE: THIS ASSUMES THAT MARIADB IS CONFIGURED FOR UTC TIMEZONE
+			//       for a proper solution we have to look at the timezone in DB conf and
+			//       handle it accordingly.
 			this.created = `${created.replace(' ', 'T')}.000Z`;
 		}
 
