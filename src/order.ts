@@ -1,7 +1,8 @@
+import { DateTime } from 'luxon';
 import { Helpers } from './helpers';
-import * as uuidLib from 'uuid';
 import { Log, LogInstance, Utils } from 'larvitutils';
 import { Row, RowOptions } from './row';
+import * as uuidLib from 'uuid';
 
 const topLogPrefix = 'larvitorder: order.ts:';
 
@@ -9,7 +10,10 @@ type Fields = Record<string, string | string[]>;
 
 export type OrderData = {
 	uuid: string,
-	created: Date,
+
+	/** Datetime in ISO-8601 */
+	created: string,
+
 	fields: Fields,
 	rows: Row[],
 }
@@ -28,7 +32,7 @@ export class Order {
 	private helpers: Helpers;
 
 	public uuid!: string;
-	public created!: Date;
+	public created!: string;
 	public fields!: Fields;
 	public rows!: Row[];
 
@@ -59,11 +63,8 @@ export class Order {
 		}
 
 		this.uuid = uuid;
-		this.created = options.created ?? new Date();
-
-		if (!(this.created instanceof Date)) {
-			throw new Error('created is not an instance of Date');
-		}
+		// NOTE: DB table is setup to not store ms, set to 000
+		this.created = options.created ?? DateTime.utc().startOf('second').toISO();
 
 		this.fields = options.fields ?? {};
 		this.rows ??= [];
@@ -99,7 +100,17 @@ export class Order {
 		}
 
 		this.uuid = this.helpers.formatUuid(dbOrders[0].uuid);
-		this.created = dbOrders[0].created;
+		const created = dbOrders[0].created;
+		// Handle DB conf dateStrings being both true and false
+		if (created instanceof Date) {
+			this.created = DateTime
+				.fromJSDate(created)
+				.toUTC()
+				.toISO();
+		} else {
+			// We do this extra conversion since mariadb returns non-ISO format
+			this.created = `${created.replace(' ', 'T')}.000Z`;
+		}
 
 		// Get fields
 		this.fields = await this.getOrderFields();
@@ -224,19 +235,15 @@ export class Order {
 		const orderFields = this.fields;
 		const orderRows = this.rows;
 		const orderUuid = this.uuid;
-		const created = this.created;
+		const created = DateTime.fromISO(this.created);
+		if (!created.isValid) throw new Error('created is not an valid ISO-8601 date');
+		const createdUtc = created.toUTC().toISO(); // Always store in UTC
 		const orderUuidBuf = this.lUtils.uuidToBuffer(orderUuid);
 		const uniqueUpdateRowUuids = [];
 
 		if (this.lUtils.formatUuid(orderUuid) === false || typeof orderUuidBuf === 'boolean') {
 			const err = new Error('Invalid orderUuid: "' + orderUuid + '"');
 			this.log.error(`${logPrefix} ${err.message}`);
-			throw err;
-		}
-
-		if (created && !(created instanceof Date)) {
-			const err = new Error('Invalid value of "created". Value must be an instance of Date.');
-			this.log.warn(`${logPrefix} ${err.message}`);
 			throw err;
 		}
 
@@ -267,7 +274,7 @@ export class Order {
 
 		try {
 			// Make sure the base order row exists
-			await dbCon.query('INSERT IGNORE INTO orders (uuid, created) VALUES(?,?)', [orderUuidBuf, created]);
+			await dbCon.query('INSERT IGNORE INTO orders (uuid, created) VALUES(?,?)', [orderUuidBuf, createdUtc]);
 
 			// Begin transaction
 			await dbCon.beginTransaction();

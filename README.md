@@ -48,6 +48,7 @@ const orderLib = require('larvitorder');
 ```javascript
 const order = new orderLib.Order({db});
 
+order.created = '2022-12-01T13:37:00Z'; // Must be ISO-8601
 order.fields	= {'firstname': 'Günter', 'lastname': ['Edelweiss', 'Schloffs']};
 order.rows	= [{'price': 399, 'name': 'Screw'}, {'price': 34, 'name': 'teh_foo', 'tags': ['foo', 'bar']}];
 
