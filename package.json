@@ -1,6 +1,6 @@
 {
   "name": "larvitorder",
-  "version": "4.0.4",
+  "version": "4.0.5",
   "description": "Generic order system",
   "main": "./dist/index.js",
   "files": [
@@ -9,9 +9,9 @@
   ],
   "dependencies": {
     "async": "3.2.4",
-    "larvitdb": "3.2.29",
-    "larvitdbmigration": "7.0.35",
-    "larvitutils": "5.1.20",
+    "larvitdb": "3.2.31",
+    "larvitdbmigration": "7.0.36",
+    "larvitutils": "5.1.21",
     "luxon": "^3.1.1",
     "uuid": "9.0.0"
   },
@@ -19,11 +19,11 @@
     "@istanbuljs/nyc-config-typescript": "1.0.2",
     "@types/luxon": "^3.1.0",
     "@types/mocha": "10.0.1",
-    "@types/node": "18.11.17",
+    "@types/node": "18.11.18",
     "@types/uuid": "9.0.0",
-    "@typescript-eslint/eslint-plugin": "5.47.0",
-    "@typescript-eslint/parser": "5.47.0",
-    "eslint": "8.30.0",
+    "@typescript-eslint/eslint-plugin": "5.48.0",
+    "@typescript-eslint/parser": "5.48.0",
+    "eslint": "8.31.0",
     "mocha": "10.2.0",
     "nyc": "15.1.0",
     "ts-node": "10.9.1",
