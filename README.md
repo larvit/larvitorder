@@ -37,10 +37,12 @@ npm i --save larvitorder
 
 ### Initialize
 
-All below instructions require the loading of libraries like something below (db is an instance of larvitdb):
+All below instructions require the loading of libraries like something below (db is an instance of larvitdb and log an instance of winston or larvitutils.Log):
 
 ```javascript
-const orderLib = require('larvitorder');
+const OrderLib = require('larvitorder');
+const orderLib = new OrderLib({ db, log })
+await orderLib.runDbMigrations();
 ```
 
 ### Add a new order
