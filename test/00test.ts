@@ -197,6 +197,22 @@ describe('dbConf - dateStrings: false', () => {
 				const order = await orderLib.loadOrder(uuidLib.v1());
 				assert.strictEqual(order, undefined);
 			});
+
+			it('should return empty fields and rows if an order is created with them set but load fails to find order', async () => {
+				const uuid = uuidLib.v4();
+				const order = await orderLib.createOrder({
+					uuid,
+					fields: { f1: 'v1' },
+					rows: [{ r1: 'v1' }],
+				});
+
+				assert.strictEqual(Object.keys(order.fields).length, 1);
+				assert.strictEqual(order.rows.length, 1);
+
+				await order.loadFromDb();
+				assert.strictEqual(Object.keys(order.fields).length, 0);
+				assert.strictEqual(order.rows.length, 0);
+			});
 		});
 
 		describe('Save', () => {

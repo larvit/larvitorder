@@ -96,6 +96,9 @@ export class Order {
 		if (!dbOrders.length) {
 			this.log.verbose(`${logPrefix} Could not find order with uuid: "${this.uuid}"`);
 
+			this.fields = {};
+			this.rows = [];
+
 			return false;
 		}
 
