@@ -64,7 +64,7 @@ export class Order {
 
 		this.uuid = uuid;
 		// NOTE: DB table is setup to not store ms, set to 000
-		this.created = options.created ?? DateTime.utc().startOf('second').toISO();
+		this.created = options.created ?? DateTime.utc().startOf('second').toISO() as string;
 
 		this.fields = options.fields ?? {};
 		this.rows ??= [];
@@ -109,7 +109,7 @@ export class Order {
 			this.created = DateTime
 				.fromJSDate(created)
 				.toUTC()
-				.toISO();
+				.toISO() as string;
 		} else {
 			// We do this extra conversion since mariadb returns non-ISO format
 			// NOTE: THIS ASSUMES THAT MARIADB IS CONFIGURED FOR UTC TIMEZONE
