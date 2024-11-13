@@ -113,6 +113,8 @@ describe('dbConf - dateStrings: true', () => {
 
 			assert.ok(loadedOrder);
 			assert.strictEqual(loadedOrder.created, '2022-12-01T12:37:00.000Z');
+			assert.ok(loadedOrder.updated);
+			assert.notStrictEqual(loadedOrder.updated, '2022-12-01T12:37:00.000Z');
 
 			// Make sure that we can save order again without getting error
 			await loadedOrder.save();
@@ -806,6 +808,53 @@ describe('dbConf - dateStrings: false', () => {
 			assert.strictEqual(prices.includes('50'), true);
 			assert.strictEqual(prices.includes('51'), true);
 			assert.strictEqual(prices.includes('100'), true);
+		});
+
+		it('should get order based on created date', async () => {
+			await orderLib.createOrder({ created: '2022-12-01T12:37:00.000Z' }).save();
+			const order2 = await orderLib.createOrder({ created: '2022-12-01T12:39:00.000Z' }).save();
+
+			const search1 = await orderLib.getOrders({
+				createdAfter: '2022-12-01 12:38:00',
+			});
+
+			const search2 = await orderLib.getOrders({
+				createdAfter: 'hello',
+			});
+
+			assert.strictEqual(Object.keys(search1.orders).length, 1);
+			assert.strictEqual(search1.hits, 1);
+			assert.ok(search1.orders[order2.uuid]);
+
+			assert.strictEqual(search2.hits, 0);
+		});
+
+		it('should get order based on updated date', async () => {
+			const order1 = await orderLib.createOrder().save();
+
+			// wait 1 second to make sure that the updated date is different
+			await new Promise(resolve => setTimeout(resolve, 1000));
+
+			const order2 = await orderLib.createOrder().save();
+
+			const search1 = await orderLib.getOrders({
+				updatedAfter: order1.updated,
+			});
+
+			const search2 = await orderLib.getOrders({
+				updatedAfter: order2.updated,
+			});
+
+			const search3 = await orderLib.getOrders({
+				updatedAfter: 'hello',
+			});
+
+			assert.strictEqual(search1.hits, 2);
+
+			assert.strictEqual(search2.hits, 1);
+			assert.strictEqual(search2.orders[order2.uuid].uuid, order2.uuid);
+
+			assert.strictEqual(search3.hits, 0);
 		});
 	});
 

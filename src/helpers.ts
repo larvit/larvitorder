@@ -182,6 +182,12 @@ export class Helpers {
 		return typeof value === 'number' && (value % 1) === 0;
 	}
 
+	isDateIsh(value: string): boolean {
+		// value is a string representation of a date and time (e.g. "2021-01-01 00:00:00")
+		// This function checks if the string is a valid date and time
+		return !isNaN(Date.parse(value));
+	}
+
 	async getChangedRows(
 		dbCon: any,
 		orderUuidBuf: Buffer,

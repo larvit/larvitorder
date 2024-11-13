@@ -1,6 +1,6 @@
 {
   "name": "larvitorder",
-  "version": "4.0.25",
+  "version": "4.1.1",
   "description": "Generic order system",
   "main": "./dist/index.js",
   "files": [

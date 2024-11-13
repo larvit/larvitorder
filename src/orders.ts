@@ -9,6 +9,8 @@ export type OrdersOptions = {
 	helpers?: Helpers,
 
 	uuids?: string | string[],
+	createdAfter?: string,
+	updatedAfter?: string,
 	q?: string,
 	matchAllFields?: Record<string, string | string[]>,
 	fieldNotEqualTo?: Record<string, string>,
@@ -28,6 +30,8 @@ export class Orders {
 	private helpers: Helpers;
 
 	public uuids?: string[];
+	public createdAfter?: string;
+	public updatedAfter?: string;
 	public q?: string;
 	public matchAllFields?: Record<string, string | string[]>;
 	public fieldNotEqualTo?: Record<string, string>;
@@ -52,6 +56,8 @@ export class Orders {
 		});
 
 		this.uuids = this.helpers.arrayify(options.uuids);
+		this.createdAfter = options.createdAfter;
+		this.updatedAfter = options.updatedAfter;
 		this.q = options.q;
 		this.matchAllFields = options.matchAllFields;
 		this.fieldNotEqualTo = options.fieldNotEqualTo;
@@ -84,6 +90,8 @@ export class Orders {
 		let sql = ' FROM orders WHERE 1';
 		let dbFields: (string | number | Buffer)[] = [];
 
+		({ sql, dbFields } = this.concatSqlCreatedAfterFilter(sql, dbFields));
+		({ sql, dbFields } = this.concatSqlUpdatedAfterFilter(sql, dbFields));
 		({ sql, dbFields } = this.concatSqlUuidsFilter(sql, dbFields));
 		({ sql, dbFields } = this.concatSqlQFilter(sql, dbFields));
 		({ sql, dbFields } = this.concatSqlMatchAllFilter(sql, dbFields));
@@ -109,6 +117,7 @@ export class Orders {
 				orders[uuid] = {
 					uuid,
 					created: row.created,
+					updated: row.updated,
 					fields: {},
 					rows: [],
 				};
@@ -123,6 +132,48 @@ export class Orders {
 		await Promise.all([queryOrders(), queryOrderCount()]);
 
 		return { orders, hits };
+	}
+
+	private concatSqlCreatedAfterFilter(
+		sql: string,
+		dbFields: (string | number | Buffer)[],
+	): {
+		sql: string,
+		dbFields: (string | number | Buffer)[]
+	} {
+		if (!this.createdAfter) return { sql, dbFields };
+
+		if (!this.helpers.isDateIsh(this.createdAfter)) {
+			sql += ' AND created IS NULL';
+
+			return { sql, dbFields };
+		}
+
+		sql += ' AND created >= ?';
+		dbFields.push(this.createdAfter);
+
+		return { sql, dbFields };
+	}
+
+	private concatSqlUpdatedAfterFilter(
+		sql: string,
+		dbFields: (string | number | Buffer)[],
+	): {
+		sql: string,
+		dbFields: (string | number | Buffer)[]
+	} {
+		if (!this.updatedAfter) return { sql, dbFields };
+
+		if (!this.helpers.isDateIsh(this.updatedAfter)) {
+			sql += ' AND created IS NULL';
+
+			return { sql, dbFields };
+		}
+
+		sql += ' AND updated >= ?';
+		dbFields.push(this.updatedAfter);
+
+		return { sql, dbFields };
 	}
 
 	private concatSqlUuidsFilter(

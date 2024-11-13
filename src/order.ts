@@ -13,6 +13,7 @@ export type OrderData = {
 
 	/** Datetime in ISO-8601 */
 	created: string,
+	updated: string,
 
 	fields: Fields,
 	rows: Row[],
@@ -33,6 +34,7 @@ export class Order {
 
 	public uuid!: string;
 	public created!: string;
+	public updated!: string;
 	public fields!: Fields;
 	public rows!: Row[];
 
@@ -65,6 +67,7 @@ export class Order {
 		this.uuid = uuid;
 		// NOTE: DB table is setup to not store ms, set to 000
 		this.created = options.created ?? DateTime.utc().startOf('second').toISO();
+		this.updated = options.updated ?? DateTime.utc().startOf('second').toISO();
 
 		this.fields = options.fields ?? {};
 		this.rows ??= [];
@@ -116,6 +119,20 @@ export class Order {
 			//       for a proper solution we have to look at the timezone in DB conf and
 			//       handle it accordingly.
 			this.created = `${created.replace(' ', 'T')}.000Z`;
+		}
+
+		const updated = dbOrders[0].updated;
+		if (updated instanceof Date) {
+			this.updated = DateTime
+				.fromJSDate(updated)
+				.toUTC()
+				.toISO();
+		} else {
+			// We do this extra conversion since mariadb returns non-ISO format
+			// NOTE: THIS ASSUMES THAT MARIADB IS CONFIGURED FOR UTC TIMEZONE
+			//       for a proper solution we have to look at the timezone in DB conf and
+			//       handle it accordingly.
+			this.updated = `${updated.replace(' ', 'T')}.000Z`;
 		}
 
 		// Get fields
@@ -244,6 +261,7 @@ export class Order {
 		const created = DateTime.fromISO(this.created);
 		if (!created.isValid) throw new Error('created is not an valid ISO-8601 date');
 		const createdUtc = created.toUTC().toISO(); // Always store in UTC
+		const updatedUtc = DateTime.utc().toFormat('yyyy-MM-dd HH:mm:ss');
 		const orderUuidBuf = this.lUtils.uuidToBuffer(orderUuid);
 		const uniqueUpdateRowUuids = [];
 
@@ -281,6 +299,9 @@ export class Order {
 		try {
 			// Make sure the base order row exists
 			await dbCon.query('INSERT IGNORE INTO orders (uuid, created) VALUES(?,?)', [orderUuidBuf, createdUtc]);
+
+			// Update base order's updated timestamp
+			await dbCon.query('UPDATE orders SET updated = ? WHERE uuid = ?', [updatedUtc, orderUuidBuf]);
 
 			// Begin transaction
 			await dbCon.beginTransaction();
