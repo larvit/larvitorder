@@ -132,7 +132,7 @@ export class Order {
 			// NOTE: THIS ASSUMES THAT MARIADB IS CONFIGURED FOR UTC TIMEZONE
 			//       for a proper solution we have to look at the timezone in DB conf and
 			//       handle it accordingly.
-			this.updated = `${updated.replace(' ', 'T')}.000Z`;
+			this.updated = updated ? `${updated.replace(' ', 'T')}.000Z` : this.created;
 		}
 
 		// Get fields
