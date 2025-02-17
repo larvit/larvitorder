@@ -856,6 +856,103 @@ describe('dbConf - dateStrings: false', () => {
 
 			assert.strictEqual(search3.hits, 0);
 		});
+
+		it('should get order based on dates', async () => {
+			const order = await orderLib.createOrder().save();
+
+			const tmpDate = new Date(order.created);
+			tmpDate.setDate(tmpDate.getDate() + 1);
+
+			const search1 = await orderLib.getOrders({
+				matchDates: [{
+					field: 'created',
+					value: new Date(tmpDate).toISOString(),
+					operation: 'gt',
+				}],
+			});
+
+			const search2 = await orderLib.getOrders({
+				matchDates: [{
+					field: 'created',
+					value: new Date(tmpDate).toISOString(),
+					operation: 'lt',
+				}],
+			});
+
+			const search3 = await orderLib.getOrders({
+				matchDates: [{
+					field: 'created',
+					value: order.created,
+					operation: 'eq',
+				}],
+			});
+
+			assert.strictEqual(search1.hits, 0);
+			assert.strictEqual(search2.hits, 1);
+			assert.strictEqual(search3.hits, 1);
+		});
+
+		it('should get order based on field dates', async () => {
+			const testDate = '2025-02-11 12:15:01';
+			const order = await orderLib.createOrder({ fields: { testDate } }).save();
+
+			const tmpDate = new Date(order.fields.testDate[0]);
+			tmpDate.setDate(tmpDate.getDate() + 1);
+
+			const search1 = await orderLib.getOrders({
+				matchFieldDates: [{
+					field: 'testDate',
+					value: new Date(tmpDate).toISOString(),
+					operation: 'gt',
+				}],
+			});
+
+			const search2 = await orderLib.getOrders({
+				returnFields: ['testDate'],
+				matchFieldDates: [{
+					field: 'testDate',
+					value: new Date(tmpDate).toISOString(),
+					operation: 'lt',
+				}],
+			});
+
+			const search3 = await orderLib.getOrders({
+				returnFields: ['testDate'],
+				matchFieldDates: [{
+					field: 'testDate',
+					value: order.fields.testDate[0],
+					operation: 'eq',
+				}],
+			});
+
+			assert.strictEqual(search1.hits, 0);
+			assert.strictEqual(search2.hits, 1);
+			assert.strictEqual(search3.hits, 1);
+		});
+
+		it('should get order based on matchFieldHasValue and matchFieldHasNoValue', async () => {
+			const field = 'testField';
+			const order1 = await orderLib.createOrder({ fields: { [field]: 'hejsan' } }).save();
+			const order2 = await orderLib.createOrder({ fields: { [field]: '' } }).save();
+			const order3 = await orderLib.createOrder().save();
+
+			const search1 = await orderLib.getOrders({
+				returnFields: [field],
+				matchFieldHasValue: [field],
+			});
+
+			const search2 = await orderLib.getOrders({
+				returnFields: [field],
+				matchFieldHasNoValue: [field],
+			});
+
+			assert.strictEqual(search1.hits, 1);
+			assert.strictEqual(search2.hits, 2);
+
+			assert.strictEqual(search1.orders[order1.uuid].fields[field][0], 'hejsan');
+			assert.strictEqual(search2.orders[order2.uuid].fields[field][0], '');
+			assert.strictEqual(search2.orders[order3.uuid].fields[field], undefined);
+		});
 	});
 
 });

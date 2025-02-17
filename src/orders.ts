@@ -2,6 +2,12 @@ import { Log, LogInstance, Utils } from 'larvitutils';
 import { Helpers } from './helpers';
 import { OrderData } from './order';
 
+export type matchDate = {
+	field: string,
+	value: string,
+	operation?: 'gt' | 'lt' | 'eq',
+};
+
 export type OrdersOptions = {
 	db: any,
 	log: LogInstance,
@@ -9,8 +15,12 @@ export type OrdersOptions = {
 	helpers?: Helpers,
 
 	uuids?: string | string[],
+	matchDates?: matchDate[],
+	matchFieldDates?: matchDate[],
 	createdAfter?: string,
 	updatedAfter?: string,
+	matchFieldHasValue?: string[],
+	matchFieldHasNoValue?: string[],
 	q?: string,
 	matchAllFields?: Record<string, string | string[]>,
 	fieldNotEqualTo?: Record<string, string>,
@@ -25,13 +35,18 @@ export type OrdersOptions = {
 
 export class Orders {
 	private db: any;
+	private dbCon: any;
 	private log: LogInstance;
 	private lUtils: Utils;
 	private helpers: Helpers;
 
 	public uuids?: string[];
+	public matchDates?: matchDate[];
+	public matchFieldDates?: matchDate[];
 	public createdAfter?: string;
 	public updatedAfter?: string;
+	public matchFieldHasValue?: string[];
+	public matchFieldHasNoValue?: string[];
 	public q?: string;
 	public matchAllFields?: Record<string, string | string[]>;
 	public fieldNotEqualTo?: Record<string, string>;
@@ -56,8 +71,12 @@ export class Orders {
 		});
 
 		this.uuids = this.helpers.arrayify(options.uuids);
+		this.matchDates = options.matchDates;
+		this.matchFieldDates = options.matchFieldDates;
 		this.createdAfter = options.createdAfter;
 		this.updatedAfter = options.updatedAfter;
+		this.matchFieldHasValue = options.matchFieldHasValue;
+		this.matchFieldHasNoValue = options.matchFieldHasNoValue;
 		this.q = options.q;
 		this.matchAllFields = options.matchAllFields;
 		this.fieldNotEqualTo = options.fieldNotEqualTo;
@@ -90,14 +109,18 @@ export class Orders {
 		let sql = ' FROM orders WHERE 1';
 		let dbFields: (string | number | Buffer)[] = [];
 
+		({ sql, dbFields } = this.concatSqlUuidsFilter(sql, dbFields));
 		({ sql, dbFields } = this.concatSqlCreatedAfterFilter(sql, dbFields));
 		({ sql, dbFields } = this.concatSqlUpdatedAfterFilter(sql, dbFields));
-		({ sql, dbFields } = this.concatSqlUuidsFilter(sql, dbFields));
+		({ sql, dbFields } = await this.concatSqlDateFilter(sql, dbFields));
+		({ sql, dbFields } = await this.concatSqlFieldDateFilter(sql, dbFields));
 		({ sql, dbFields } = this.concatSqlQFilter(sql, dbFields));
 		({ sql, dbFields } = this.concatSqlMatchAllFilter(sql, dbFields));
 		({ sql, dbFields } = this.concatSqlFieldNotEqualToFilter(sql, dbFields));
 		({ sql, dbFields } = this.concatSqlFieldGreaterThanOrEqualToFilter(sql, dbFields));
 		({ sql, dbFields } = this.concatSqlFieldLessThanOrEqualToFilter(sql, dbFields));
+		({ sql, dbFields } = this.concatSqlFieldHasValue(sql, dbFields));
+		({ sql, dbFields } = this.concatSqlFieldHasNoValue(sql, dbFields));
 		({ sql, dbFields } = this.concatSqlMatchAllRowsFieldsFilter(sql, dbFields));
 		sql += ' ORDER BY created DESC';
 
@@ -134,47 +157,6 @@ export class Orders {
 		return { orders, hits };
 	}
 
-	private concatSqlCreatedAfterFilter(
-		sql: string,
-		dbFields: (string | number | Buffer)[],
-	): {
-		sql: string,
-		dbFields: (string | number | Buffer)[]
-	} {
-		if (!this.createdAfter) return { sql, dbFields };
-
-		if (!this.helpers.isDateIsh(this.createdAfter)) {
-			sql += ' AND created IS NULL';
-
-			return { sql, dbFields };
-		}
-
-		sql += ' AND created >= ?';
-		dbFields.push(this.createdAfter);
-
-		return { sql, dbFields };
-	}
-
-	private concatSqlUpdatedAfterFilter(
-		sql: string,
-		dbFields: (string | number | Buffer)[],
-	): {
-		sql: string,
-		dbFields: (string | number | Buffer)[]
-	} {
-		if (!this.updatedAfter) return { sql, dbFields };
-
-		if (!this.helpers.isDateIsh(this.updatedAfter)) {
-			sql += ' AND created IS NULL';
-
-			return { sql, dbFields };
-		}
-
-		sql += ' AND updated >= ?';
-		dbFields.push(this.updatedAfter);
-
-		return { sql, dbFields };
-	}
 
 	private concatSqlUuidsFilter(
 		sql: string,
@@ -202,6 +184,94 @@ export class Orders {
 		}
 
 		sql = sql.substring(0, sql.length - 1) + ')';
+
+		return { sql, dbFields };
+	}
+
+	private concatSqlCreatedAfterFilter(sql: string, dbFields: (string | number | Buffer)[]): ReturnType<typeof this.concatSqlUuidsFilter> {
+		if (!this.createdAfter) return { sql, dbFields };
+
+		if (!this.helpers.isDateIsh(this.createdAfter)) {
+			sql += ' AND created IS NULL';
+
+			return { sql, dbFields };
+		}
+
+		sql += ' AND created >= ?';
+		dbFields.push(this.createdAfter);
+
+		return { sql, dbFields };
+	}
+
+	private concatSqlUpdatedAfterFilter(sql: string, dbFields: (string | number | Buffer)[]): ReturnType<typeof this.concatSqlUuidsFilter> {
+		if (!this.updatedAfter) return { sql, dbFields };
+
+		if (!this.helpers.isDateIsh(this.updatedAfter)) {
+			sql += ' AND created IS NULL';
+
+			return { sql, dbFields };
+		}
+
+		sql += ' AND updated >= ?';
+		dbFields.push(this.updatedAfter);
+
+		return { sql, dbFields };
+	}
+
+	private async concatSqlDateFilter(sql: string, dbFields: (string | number | Buffer)[]): Promise<ReturnType<typeof this.concatSqlUuidsFilter>> {
+		if (!this.matchDates || !this.matchDates.length) return { sql, dbFields };
+
+		if (!this.dbCon) this.dbCon = await this.db.getConnection();
+
+		// Check headerDates
+		for (const matchExistingDate of this.matchDates) {
+			const operation = matchExistingDate.operation || 'eq';
+			const value = matchExistingDate.value;
+			const field = matchExistingDate.field;
+			if (!value) continue;
+			if (!field) continue;
+			if (['eq', 'gt', 'lt'].indexOf(operation) === -1) continue;
+
+			sql += ' AND ' + this.dbCon.escapeId(field);
+
+			if (operation === 'eq') sql += ' = CAST(? AS DATETIME)\n';
+			else if (operation === 'gt') sql += ' > CAST(? AS DATETIME)\n';
+			else if (operation === 'lt') sql += ' < CAST(? AS DATETIME)\n';
+
+			dbFields.push(value);
+		}
+
+		return { sql, dbFields };
+	}
+
+	private async concatSqlFieldDateFilter(sql: string, dbFields: (string | number | Buffer)[]): Promise<ReturnType<typeof this.concatSqlUuidsFilter>> {
+		if (!this.matchFieldDates || !this.matchFieldDates.length) return { sql, dbFields };
+
+		if (!this.dbCon) this.dbCon = await this.db.getConnection();
+
+		// Check field dates
+		for (const matchExistingDate of this.matchFieldDates) {
+			const operation = matchExistingDate.operation || 'eq';
+			const value = matchExistingDate.value;
+			const field = matchExistingDate.field;
+			if (!value) continue;
+			if (!field) continue;
+			if (['eq', 'gt', 'lt'].indexOf(operation) === -1) continue;
+
+			dbFields.push(field);
+			dbFields.push(value);
+
+			sql += ' AND orders.uuid IN (\n';
+			sql += '  SELECT DISTINCT orderUuid\n';
+			sql += '  FROM orders_orders_fields\n';
+			sql += '  WHERE fieldUuid = (SELECT uuid FROM orders_orderFields WHERE name = ?)\n';
+
+			if (operation === 'eq') sql += '  AND CAST(fieldValue AS DATETIME) = CAST(? AS DATETIME)\n';
+			else if (operation === 'gt') sql += '  AND CAST(fieldValue AS DATETIME) > CAST(? AS DATETIME)\n';
+			else if (operation === 'lt') sql += '  AND CAST(fieldValue AS DATETIME) < CAST(? AS DATETIME)\n';
+
+			sql += ')';
+		}
 
 		return { sql, dbFields };
 	}
@@ -314,6 +384,56 @@ export class Orders {
 			dbFields.push(fieldName);
 			dbFields.push(this.fieldLessThanOrEqualTo[fieldName]);
 		}
+
+		return { sql, dbFields };
+	}
+
+	private concatSqlFieldHasValue(sql: string, dbFields: (string | number | Buffer)[]): ReturnType<typeof this.concatSqlUuidsFilter> {
+		if (!this.matchFieldHasValue || !this.matchFieldHasValue.length) return { sql, dbFields };
+
+		for (const matchFieldHasValue of this.matchFieldHasValue) {
+			sql += ' AND orders.uuid IN (\n';
+			sql += '  SELECT orderUuid FROM orders_orders_fields WHERE fieldUuid IN (\n';
+			sql += '   SELECT uuid FROM orders_orderFields WHERE\n';
+			sql += '   name = ?\n';
+			sql += '  )\n';
+			sql += '  AND fieldValue IS NOT NULL AND fieldValue != ""\n';
+			sql += ' )\n';
+
+			dbFields.push(matchFieldHasValue);
+		}
+
+		return { sql, dbFields };
+	}
+
+	private concatSqlFieldHasNoValue(sql: string, dbFields: (string | number | Buffer)[]): ReturnType<typeof this.concatSqlUuidsFilter> {
+		if (!this.matchFieldHasNoValue || !this.matchFieldHasNoValue.length) return { sql, dbFields };
+
+		sql += ' AND (\n';
+		sql += ' orders.uuid IN (\n';
+		sql += '  SELECT orderUuid FROM orders_orders_fields WHERE fieldUuid IN (\n';
+		sql += '   SELECT uuid FROM orders_orderFields WHERE\n';
+		for (const matchFieldHasNoValue of this.matchFieldHasNoValue) {
+			sql += 'name = ? OR ';
+			dbFields.push(matchFieldHasNoValue);
+		}
+		sql = sql.substring(0, sql.length - 4);
+		sql += '  )\n';
+		sql += '  AND (fieldValue IS NULL OR fieldValue = "")\n';
+		sql += ' )\n';
+		sql += ' OR (\n';
+		sql += '  orders.uuid NOT IN (\n';
+		sql += '   SELECT orderUuid FROM orders_orders_fields WHERE fieldUuid IN (\n';
+		sql += '    SELECT uuid FROM orders_orderFields WHERE\n';
+		for (const matchFieldHasNoValue of this.matchFieldHasNoValue) {
+			sql += 'name = ? OR ';
+			dbFields.push(matchFieldHasNoValue);
+		}
+		sql = sql.substring(0, sql.length - 4);
+		sql += '   )\n';
+		sql += '  )\n';
+		sql += ' )\n';
+		sql += ')\n';
 
 		return { sql, dbFields };
 	}
