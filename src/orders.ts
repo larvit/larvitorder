@@ -35,7 +35,6 @@ export type OrdersOptions = {
 
 export class Orders {
 	private db: any;
-	private dbCon: any;
 	private log: LogInstance;
 	private lUtils: Utils;
 	private helpers: Helpers;
