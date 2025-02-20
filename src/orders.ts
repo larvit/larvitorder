@@ -221,24 +221,28 @@ export class Orders {
 	private async concatSqlDateFilter(sql: string, dbFields: (string | number | Buffer)[]): Promise<ReturnType<typeof this.concatSqlUuidsFilter>> {
 		if (!this.matchDates || !this.matchDates.length) return { sql, dbFields };
 
-		if (!this.dbCon) this.dbCon = await this.db.getConnection();
+		const dbCon = await this.db.getConnection();
 
-		// Check headerDates
-		for (const matchExistingDate of this.matchDates) {
-			const operation = matchExistingDate.operation || 'eq';
-			const value = matchExistingDate.value;
-			const field = matchExistingDate.field;
-			if (!value) continue;
-			if (!field) continue;
-			if (['eq', 'gt', 'lt'].indexOf(operation) === -1) continue;
+		try {
+			// Check headerDates
+			for (const matchExistingDate of this.matchDates) {
+				const operation = matchExistingDate.operation || 'eq';
+				const value = matchExistingDate.value;
+				const field = matchExistingDate.field;
+				if (!value) continue;
+				if (!field) continue;
+				if (['eq', 'gt', 'lt'].indexOf(operation) === -1) continue;
 
-			sql += ' AND ' + this.dbCon.escapeId(field);
+				sql += ' AND ' + dbCon.escapeId(field);
 
-			if (operation === 'eq') sql += ' = CAST(? AS DATETIME)\n';
-			else if (operation === 'gt') sql += ' > CAST(? AS DATETIME)\n';
-			else if (operation === 'lt') sql += ' < CAST(? AS DATETIME)\n';
+				if (operation === 'eq') sql += ' = CAST(? AS DATETIME)\n';
+				else if (operation === 'gt') sql += ' > CAST(? AS DATETIME)\n';
+				else if (operation === 'lt') sql += ' < CAST(? AS DATETIME)\n';
 
-			dbFields.push(value);
+				dbFields.push(value);
+			}
+		} finally {
+			dbCon.release();
 		}
 
 		return { sql, dbFields };
@@ -246,8 +250,6 @@ export class Orders {
 
 	private async concatSqlFieldDateFilter(sql: string, dbFields: (string | number | Buffer)[]): Promise<ReturnType<typeof this.concatSqlUuidsFilter>> {
 		if (!this.matchFieldDates || !this.matchFieldDates.length) return { sql, dbFields };
-
-		if (!this.dbCon) this.dbCon = await this.db.getConnection();
 
 		// Check field dates
 		for (const matchExistingDate of this.matchFieldDates) {
