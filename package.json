@@ -1,6 +1,6 @@
 {
   "name": "larvitorder",
-  "version": "4.1.6",
+  "version": "4.1.7",
   "description": "Generic order system",
   "main": "./dist/index.js",
   "files": [
@@ -20,7 +20,7 @@
     "@types/luxon": "^3.1.0",
     "@types/mocha": "10.0.1",
     "@types/node": "22.8.7",
-    "@types/uuid": "10.0.0",
+    "@types/uuid": "11.0.0",
     "@typescript-eslint/eslint-plugin": "6.7.0",
     "@typescript-eslint/parser": "6.7.0",
     "eslint": "8.37.0",
