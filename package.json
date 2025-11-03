@@ -1,6 +1,6 @@
 {
   "name": "larvitorder",
-  "version": "4.1.8",
+  "version": "4.1.9",
   "description": "Generic order system",
   "main": "./dist/index.js",
   "files": [
@@ -13,7 +13,7 @@
     "larvitdbmigration": "7.0.47",
     "larvitutils": "5.1.29",
     "luxon": "^3.1.1",
-    "uuid": "11.0.1"
+    "uuid": "13.0.0"
   },
   "devDependencies": {
     "@istanbuljs/nyc-config-typescript": "1.0.2",
