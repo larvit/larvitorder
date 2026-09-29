@@ -5,8 +5,9 @@
 		"declaration": true,
 		"declarationMap": true,
 		"esModuleInterop": true,
-		"module": "node16",
-		"moduleResolution": "node16",
+		// uuid 12+ is ESM-only. nodenext allows CJS to require() it, which Node 22 does. node16 raises TS1479.
+		"module": "nodenext",
+		"moduleResolution": "nodenext",
 		"noFallthroughCasesInSwitch": true,
 		"noImplicitReturns": true,
 		"noUnusedLocals": true,
