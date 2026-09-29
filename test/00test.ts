@@ -15,7 +15,7 @@ let orderLib: OrderLib;
 
 before(() => {
 	// Run DB Setup
-	let confFile = '';
+	let confFile: string;
 
 	if (process.env.TRAVIS) {
 		confFile = __dirname + '/../config/db_travis.json';

@@ -225,7 +225,6 @@ export class Helpers {
 			}
 		}
 
-		let rowAdded = false;
 		for (const row of orderRows) {
 			if (!row.uuid) {
 				throw new Error('Row is missing uuid, make sure it has been set before calling getChangedRows()');
@@ -238,12 +237,11 @@ export class Helpers {
 			if (!foundDbRows.length) {
 				// New row.
 				changedRows.push({ rowUuid: row.uuid, rowUuidBuff: rowUuidBuff, row: row });
-				rowAdded = true;
 
 				continue;
 			}
 
-			rowAdded = false;
+			let rowAdded = false;
 
 			for (const rowFieldName of Object.keys(row)) {
 				if (rowAdded) break;
@@ -255,7 +253,6 @@ export class Helpers {
 				if (!foundRowsByField.length) {
 					// New row.
 					changedRows.push({ rowUuid: row.uuid, rowUuidBuff: rowUuidBuff, row: row });
-					rowAdded = true;
 
 					break;
 				}
