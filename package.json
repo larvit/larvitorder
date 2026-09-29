@@ -1,6 +1,6 @@
 {
   "name": "larvitorder",
-  "version": "4.1.13",
+  "version": "4.1.14",
   "description": "Generic order system",
   "main": "./dist/index.js",
   "files": [
@@ -25,18 +25,19 @@
     "@types/uuid": "11.0.0",
     "@typescript-eslint/eslint-plugin": "8.71.0",
     "@typescript-eslint/parser": "8.71.0",
+    "@typescript/native": "npm:typescript@7.0.2",
     "eslint": "10.11.0",
     "globals": "17.12.0",
     "mocha": "11.8.0",
     "nyc": "18.0.0",
     "ts-node": "10.9.2",
-    "typescript": "5.9.3"
+    "typescript": "npm:@typescript/typescript6@6.0.2"
   },
   "scripts": {
     "build": "rm -rf dist/* && tsc",
     "lint": "eslint src/*.ts test/*.ts",
-    "test:unit": "mocha --exit --bail -r ts-node/register 'test/**/*.ts'",
-    "test:cov": "nyc mocha --exit --bail -r ts-node/register 'test/**/*.ts'",
+    "test:unit": "TS_NODE_PROJECT=./test/tsconfig.json mocha --exit --bail -r ts-node/register 'test/**/*.ts'",
+    "test:cov": "TS_NODE_PROJECT=./test/tsconfig.json nyc mocha --exit --bail -r ts-node/register 'test/**/*.ts'",
     "test": "npm run lint && npm run test:cov"
   },
   "repository": "https://github.com/larvit/larvitorder.git",
