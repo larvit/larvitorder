@@ -1,6 +1,6 @@
 {
   "name": "larvitorder",
-  "version": "4.1.10",
+  "version": "4.1.11",
   "description": "Generic order system",
   "main": "./dist/index.js",
   "files": [
@@ -8,26 +8,26 @@
     "/dbmigration"
   ],
   "dependencies": {
-    "async": "3.2.4",
-    "larvitdb": "3.2.39",
-    "larvitdbmigration": "7.0.47",
-    "larvitutils": "5.1.29",
+    "async": "3.2.6",
+    "larvitdb": "3.2.157",
+    "larvitdbmigration": "7.0.220",
+    "larvitutils": "5.1.211",
     "luxon": "^3.1.1",
     "uuid": "11.1.1"
   },
   "devDependencies": {
     "@istanbuljs/nyc-config-typescript": "1.0.2",
     "@types/luxon": "^3.1.0",
-    "@types/mocha": "10.0.1",
-    "@types/node": "24.10.0",
+    "@types/mocha": "10.0.10",
+    "@types/node": "24.19.0",
     "@types/uuid": "11.0.0",
-    "@typescript-eslint/eslint-plugin": "6.7.0",
-    "@typescript-eslint/parser": "6.7.0",
-    "eslint": "8.37.0",
-    "mocha": "11.0.1",
+    "@typescript-eslint/eslint-plugin": "6.21.0",
+    "@typescript-eslint/parser": "6.21.0",
+    "eslint": "8.57.1",
+    "mocha": "11.8.0",
     "nyc": "18.0.0",
-    "ts-node": "10.9.1",
-    "typescript": "5.0.3"
+    "ts-node": "10.9.2",
+    "typescript": "5.9.3"
   },
   "scripts": {
     "build": "rm -rf dist/* && tsc",

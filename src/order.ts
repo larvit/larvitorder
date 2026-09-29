@@ -112,7 +112,7 @@ export class Order {
 			this.created = DateTime
 				.fromJSDate(created)
 				.toUTC()
-				.toISO();
+				.toISO() as string;
 		} else {
 			// We do this extra conversion since mariadb returns non-ISO format
 			// NOTE: THIS ASSUMES THAT MARIADB IS CONFIGURED FOR UTC TIMEZONE
@@ -126,7 +126,7 @@ export class Order {
 			this.updated = DateTime
 				.fromJSDate(updated)
 				.toUTC()
-				.toISO();
+				.toISO() as string;
 		} else {
 			// We do this extra conversion since mariadb returns non-ISO format
 			// NOTE: THIS ASSUMES THAT MARIADB IS CONFIGURED FOR UTC TIMEZONE
