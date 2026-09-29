@@ -27,7 +27,7 @@ before(() => {
 
 	log.verbose('DB config file: "' + confFile + '"');
 
-	// eslint-disable-next-line @typescript-eslint/no-var-requires
+	// eslint-disable-next-line @typescript-eslint/no-require-imports
 	dbConf = require(confFile);
 	log.verbose('DB config: ' + JSON.stringify(dbConf));
 });
