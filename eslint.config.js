@@ -24,7 +24,7 @@ module.exports = [
 			'@stylistic/comma-dangle': ['error', 'always-multiline'],
 			'@stylistic/comma-spacing': ['error', { before: false, after: true }],
 			'@typescript-eslint/explicit-function-return-type': ['error'],
-			'@stylistic/func-call-spacing': ['error', 'never'],
+			'@stylistic/function-call-spacing': ['error', 'never'],
 			'@stylistic/keyword-spacing': ['error', { before: true, after: true }],
 			'@stylistic/lines-between-class-members': ['error', 'always', { exceptAfterSingleLine: true }],
 			'@typescript-eslint/no-explicit-any': ['off'],
