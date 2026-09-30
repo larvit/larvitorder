@@ -5,7 +5,7 @@
 		"declaration": true,
 		"declarationMap": true,
 		"esModuleInterop": true,
-		// uuid 12+ is ESM-only. nodenext allows CJS to require() it, which Node 22 does. node16 raises TS1479.
+		// Package stays CommonJS. uuid is pinned to 11.x so tsc emits require("uuid"); uuid 12+ is ESM-only.
 		"module": "nodenext",
 		"moduleResolution": "nodenext",
 		"noFallthroughCasesInSwitch": true,
